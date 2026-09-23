@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 PORT="${PORT:-8765}"
 mkdir -p data
-uv run python -m connector serve --port "$PORT" "$@" 2> data/server.log &
+uv run python -m connector serve --port "$PORT" "$@" > data/server.log 2>&1 &
 SERVER=$!
 cloudflared tunnel --no-autoupdate --url "http://127.0.0.1:$PORT" 2> data/tunnel.log &
 TUNNEL=$!

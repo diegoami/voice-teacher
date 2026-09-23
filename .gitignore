@@ -1,0 +1,12 @@
+.env
+*.key
+__pycache__/
+.venv/
+node_modules/
+pocs/**/fixtures/audio/
+pocs/**/fixtures/transcripts/
+*.wav
+*.mp3
+*.ogg
+*.sqlite
+*.db

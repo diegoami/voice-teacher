@@ -115,7 +115,8 @@ pasted by the learner, and the learner's answers.
 | Opening followed the server's instructions | Yes. All 11 lines, in order, one per turn; line 1 re-said once after the garbled `Точно има.`; no merged or skipped lines; no stress marks in teacher turns. |
 | `turn` called after every learner turn | **No.** 15 calls: all 13 of the opening plus 2 of the guided sequence. At least one exchange is missing between calls 14 and 15, and after 21:48:43 there is no call for five minutes until `end_session` at 21:53:50. |
 | Learner text in the log identical to the share page, or tidied | Identical on all eight overlapping learner turns, garbled ones included (`Точно има.`, `Ho cotrigo, Dini.`). |
-| Share page complete | **No.** After «Біля станції метро.» it shows no learner turn and jumps to the final correction. The cause is unknown (a branch or a lossy copy). The log holds turns the page lacks, and the page holds the last exchange the log lacks. |
+| Share page complete | **No, as copied.** Each copy of the page captured only part of the conversation (two copies, two different parts). |
+| Teacher's write-up on request | **Complete and faithful.** Asked after the close to write the lesson down, the teacher produced every turn; it matches the log and both page copies word for word where they overlap. It also said, unprompted, that it had stopped sending turns to the connector partway through the guided part. |
 | Delay added by the tool calls | None noticed by the learner. Median 11 s between calls, which includes speaking and answering. |
 | `end_session` called, clean close | Yes, with «Заняття закінчено.». |
 | Teacher mentioned tools, recording or the session id aloud | No. |
@@ -127,16 +128,23 @@ delivered by the tool and the lesson started on the learner's command. While
 the tool result told the teacher what to say next, the teacher called it on
 every turn and followed it exactly, so the opening was the cleanest yet (C3,
 C4). Once the result became a bare «Recorded.», the teacher skipped a call,
-then stopped calling altogether. The log is therefore not yet a complete
-transcript. The share page did not fill the gap either: about five minutes
-are in neither source. Recorded in learnukrainian as Session 3A with both
-sources side by side.
+then stopped calling altogether. The log is therefore not a complete
+transcript, and copying the share page gives only fragments. The complete
+record came from asking the teacher, after the close, to write the lesson
+down; it matched every raw source where they overlap. Session 3A is
+recorded in learnukrainian from all four sources side by side.
 
-Hypothesis for run 2: the teacher calls a tool when its result is useful for
-the next turn. If `turn` keeps returning something needed after the opening
-(the next Guided sequence step, then the next Delayed recall prompt), calls
-continue to the end. That is also the first step of POC 5: the server hands
-out the brief one step at a time. Change only this for run 2.
+Changes for run 2, one per purpose:
+
+1. **Transcript:** `end_session` takes a `transcript` argument, and the
+   delivery note asks for the whole lesson in the same format as the
+   write-up above. The connector then holds the complete record without a
+   copy step, and the per-turn log remains a raw cross-check.
+2. **Opening and pacing (hypothesis):** the teacher calls a tool when its
+   result helps with the next turn. If `turn` keeps returning the next
+   Guided sequence step, then the next Delayed recall prompt, calls should
+   continue to the end. That is also the first step of POC 5, where the
+   server hands out the brief one step at a time.
 
 ## Known limits
 

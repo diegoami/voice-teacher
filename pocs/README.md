@@ -13,6 +13,8 @@ has a written answer in its own `README.md`, with evidence.
 | 4 | `04-adherence-eval/` | Can the C1–C15 checklist be scored automatically from a transcript with the failing turn cited, matching the hand-scored rows in `VOICE_ITERATIONS.md`? | Agreement per check on the 2B and 2C transcripts; disagreements explained. |
 | 5 | `05-session-engine/` | Does a state machine plus a small teacher prompt, with the learner's target withheld until an attempt, produce more independent production than controller v4? | A text-only run of one lesson part against the engine, then a voice run; evidence counts compared with 2C. |
 
+Status: POC 0 built, awaiting its first voice session (2026-09-23).
+
 POCs 1 and 2 are the go/no-go items; run them early even though they are
 small. POCs 3 and 4 make the existing skills cheaper without touching the
 learner experience. POC 5 is the product.

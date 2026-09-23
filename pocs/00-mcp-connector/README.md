@@ -104,20 +104,21 @@ One-time: `uv` and `cloudflared` (installed in `~/.local/bin`). The
 ## What to observe
 
 Run 1: 2026-09-23, Session 3A, prompt v4, connector session
-`2026-09-15-session-3A-39598d`. Filled from the connector log; rows marked
-*pending* need the share page.
+`2026-09-15-session-3A-39598d`. Filled from the connector log, the share page text
+pasted by the learner, and the learner's answers.
 
 | Observation | Result |
 | --- | --- |
 | claude.ai accepted the URL without OAuth | Yes. The connector also synced to Claude Code sessions on the same account. |
 | Other connectors | The lesson started only after **all other connectors were switched off** in the chat. |
-| Variant that started the lesson | Start command `Почнимо урок`; *pending*: typed or spoken. |
+| Variant that started the lesson | B: `Почнимо урок` typed, then voice. Variant A (spoken start) not tried yet. |
 | Opening followed the server's instructions | Yes. All 11 lines, in order, one per turn; line 1 re-said once after the garbled `Точно има.`; no merged or skipped lines; no stress marks in teacher turns. |
 | `turn` called after every learner turn | **No.** 15 calls: all 13 of the opening plus 2 of the guided sequence. At least one exchange is missing between calls 14 and 15, and after 21:48:43 there is no call for five minutes until `end_session` at 21:53:50. |
-| Learner text in the log identical to the share page, or tidied | Looks untidied (`Сара са 8.`, `Ho cotrigo, Dini.`, `Я записнуюся.` kept as recognised); *pending* comparison. |
-| Delay added by the tool calls | Median 11 s between calls, which includes the teacher speaking and the learner answering; *pending*: perceived delay. |
+| Learner text in the log identical to the share page, or tidied | Identical on all eight overlapping learner turns, garbled ones included (`Точно има.`, `Ho cotrigo, Dini.`). |
+| Share page complete | **No.** After «Біля станції метро.» it shows no learner turn and jumps to the final correction. The cause is unknown (a branch or a lossy copy). The log holds turns the page lacks, and the page holds the last exchange the log lacks. |
+| Delay added by the tool calls | None noticed by the learner. Median 11 s between calls, which includes speaking and answering. |
 | `end_session` called, clean close | Yes, with «Заняття закінчено.». |
-| Teacher mentioned tools, recording or the session id aloud | *Pending.* |
+| Teacher mentioned tools, recording or the session id aloud | No. |
 
 ## Answer (after run 1)
 
@@ -127,7 +128,9 @@ the tool result told the teacher what to say next, the teacher called it on
 every turn and followed it exactly, so the opening was the cleanest yet (C3,
 C4). Once the result became a bare «Recorded.», the teacher skipped a call,
 then stopped calling altogether. The log is therefore not yet a complete
-transcript and the share page is still needed.
+transcript. The share page did not fill the gap either: about five minutes
+are in neither source. Recorded in learnukrainian as Session 3A with both
+sources side by side.
 
 Hypothesis for run 2: the teacher calls a tool when its result is useful for
 the next turn. If `turn` keeps returning something needed after the opening

@@ -9,7 +9,7 @@ import uvicorn
 from mcp import Client
 
 from connector.export import report, write_transcript
-from connector.lesson import plain
+from connector.lesson import next_package, plain, spoken_line
 from connector.server import Lessons, app
 from connector.store import Store
 
@@ -27,6 +27,7 @@ def text(result) -> str:
 def test_full_lesson_over_http(sessions_dir, tmp_path):
     store = Store(tmp_path / "data")
     lessons = Lessons(sessions_dir, store)
+    package = next_package(sessions_dir)
     port = free_port()
     server = uvicorn.Server(uvicorn.Config(app(lessons, "secret"), host="127.0.0.1", port=port, log_level="warning"))
     thread = threading.Thread(target=server.run, daemon=True)
@@ -34,26 +35,37 @@ def test_full_lesson_over_http(sessions_dir, tmp_path):
     while not server.started:
         time.sleep(0.05)
 
-    lines = [plain(line) for line in lessons_lines(sessions_dir)]
+    lines = [plain(line) for line in package.opening_lines]
+    later = [plain(spoken_line(s)) for s in package.guided_steps] + [plain(r) for r in package.recall_prompts]
+    replies = []
 
     async def lesson() -> str:
         async with Client(f"http://127.0.0.1:{port}/secret/mcp") as client:
             names = {tool.name for tool in (await client.list_tools()).tools}
             assert names == {"start_lesson", "turn", "end_session"}
-            package = text(await client.call_tool("start_lesson", {"start_command": "Počnimo."}))
-            assert package.startswith("DELIVERY NOTE") and "VOICE_SESSION_PACKAGE" in package
-            session_id = package.split("Session id: ")[1].split("\n")[0]
+            delivered = text(await client.call_tool("start_lesson", {"start_command": "Počnimo."}))
+            assert delivered.startswith("DELIVERY NOTE") and "VOICE_SESSION_PACKAGE" in delivered
+            session_id = delivered.split("Session id: ")[1].split("\n")[0]
+
+            async def turn(said: str, heard: str) -> str:
+                reply = text(await client.call_tool("turn", {
+                    "session_id": session_id, "teacher_said": said, "learner_said": heard}))
+                replies.append(reply)
+                return reply
+
             said = f"Сьогодні ми повторимо час. Спочатку послухайте, а потім повторіть. {lines[0]}"
             for i in range(len(lines)):
-                reply = text(await client.call_tool("turn", {
-                    "session_id": session_id, "teacher_said": said, "learner_said": f"повтор {i + 1}"}))
+                reply = await turn(said, f"повтор {i + 1}")
                 said = reply.split("«")[1].split("»")[0] if i + 1 < len(lines) else \
-                    "Добре. А тепер почнімо розмову. Добрий день! Ви вільні сьогодні ввечері?"
-            assert "Opening complete" in reply
-            reply = text(await client.call_tool("turn", {
-                "session_id": session_id, "teacher_said": said, "learner_said": "На жаль, сьогодні я не можу."}))
-            assert reply == "Recorded."
-            await client.call_tool("end_session", {"session_id": session_id, "closing": "Заняття закінчено."})
+                    f"Добре. А тепер почнімо розмову. {later[0]}"
+            assert "Opening complete" in reply and "Guided step 1 of 10" in reply
+            for i, line in enumerate(later):
+                said = line if i else said
+                reply = await turn(said, f"відповідь {i + 1}")
+            assert "call end_session" in reply
+            writeup = "Teacher: Сьогодні…\nLearner: Počnimo.\nTeacher: Заняття закінчено."
+            await client.call_tool("end_session", {
+                "session_id": session_id, "closing": "Заняття закінчено.", "transcript": writeup})
             return session_id
 
     try:
@@ -62,21 +74,17 @@ def test_full_lesson_over_http(sessions_dir, tmp_path):
         server.should_exit = True
         thread.join(timeout=5)
 
+    assert "Guided step 2 of 10" in replies[11]
+    assert any("Delayed recall prompt 1 of 6" in r and "no model" in r for r in replies)
     events = store.read(session_id)
-    assert [e["event"] for e in events].count("turn") == 12
+    assert [e["event"] for e in events].count("turn") == 11 + 16
     summary = report(session_id, events)
-    assert "finished at turn call 12" in summary and "end_session     called" in summary
-    path = write_transcript(session_id, events, sessions_dir)
-    written = path.read_text(encoding="utf-8")
-    assert "**Learner:** Počnimo." in written
-    assert "**Learner:** На жаль, сьогодні я не можу." in written
-    assert written.rstrip().endswith("**Teacher:** Заняття закінчено.")
+    assert "end_session     called" in summary and "recall, item 16" in summary
+    assert "2 teacher / 1 learner lines" in summary
+    written = write_transcript(session_id, events, sessions_dir).read_text(encoding="utf-8")
+    assert "## Teacher's write-up (end_session)" in written and "Learner: Počnimo." in written
+    assert "## Per-turn log (turn)" in written and "**Learner:** відповідь 16" in written
     assert "- Mode: voice (lesson connector)" in written
-
-
-def lessons_lines(sessions_dir):
-    from connector.lesson import next_package
-    return next_package(sessions_dir).opening_lines
 
 
 def test_wrong_path_is_not_served(sessions_dir, tmp_path):

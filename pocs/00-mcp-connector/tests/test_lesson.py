@@ -42,3 +42,31 @@ def test_opening_flags_merged_and_skipped_lines(sessions_dir):
     assert tracker.next_index == 3 and "merged" in tracker.events[0]
     tracker.observe("Чудово!")
     assert tracker.next_index == 3 and "did not contain expected line 4" in tracker.events[1]
+
+
+def test_package_steps_and_recall(sessions_dir):
+    package = next_package(sessions_dir)
+    assert len(package.guided_steps) == 10 and len(package.recall_prompts) == 6
+    from connector.lesson import spoken_line
+    assert spoken_line(package.guided_steps[0]) == "До́брий день! Ви ві́льні сього́дні вве́чері?"
+    assert spoken_line(package.guided_steps[7]) == "О дру́гій я за́йнятий."
+
+
+def test_replay_of_the_real_3a_lesson(sessions_dir):
+    """Feed the teacher turns of the recorded 3A lesson; the tracker must follow it to the last recall prompt."""
+    from conftest import SOURCE
+    from connector.lesson import LessonTracker
+    text = (SOURCE / "transcript.md").read_text(encoding="utf-8")
+    if "## Source 3" not in text:
+        import pytest
+        pytest.skip("3A transcript without the teacher's write-up")
+    block = text.split("## Source 3")[1].split("```text\n")[1].split("```")[0]
+    teacher = [line[len("Teacher: "):] for line in block.splitlines() if line.startswith("Teacher: ")]
+    tracker = LessonTracker.for_package(next_package(sessions_dir))
+    for said in teacher[:-1]:  # the last turn is the close
+        tracker.observe(said)
+    assert tracker.opening.finished
+    assert tracker.phase == "recall" and tracker.steps.current == 15
+    assert "call end_session" in tracker.instruction()
+    # Step 8 was said with a different hour («О шостій я зайнятий.») and still matched; nothing was skipped.
+    assert tracker.events == ["line 1 re-said"]

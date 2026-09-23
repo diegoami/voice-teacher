@@ -16,8 +16,8 @@ export.
 | Tool | When the teacher calls it | What it does |
 | --- | --- | --- |
 | `start_lesson(start_command)` | The learner says «Почнімо» or asks for a lesson. | Picks the newest `voice-sessions/` folder whose transcript is still the template (today: 3A, prompt v4), opens a session, returns the package with a short delivery note on top. |
-| `turn(session_id, teacher_said, learner_said)` | After every learner turn, before speaking. | Appends the exchange to the log. During the opening it answers with the exact next line to say. |
-| `end_session(session_id, closing)` | Just before «Заняття закінчено.» | Marks the end and stores what happened during the opening. |
+| `turn(session_id, teacher_said, learner_said)` | After every learner turn, before speaking. | Appends the exchange to the log. During the opening it answers with the exact next line to say; afterwards (since run 2) with the current and the next Guided sequence step or Delayed recall prompt. |
+| `end_session(session_id, closing, transcript)` | Just before «Заняття закінчено.» | Marks the end and stores the teacher's write-up of the whole lesson (`transcript`, since run 2) and what the tracker noticed. |
 
 Design decisions worth knowing:
 
@@ -40,7 +40,23 @@ Design decisions worth knowing:
   copied into the tool call, not the app's own recognition output. The first
   run must compare it with the share page.
 
-## Verified so far (2026-09-23)
+## Changes for run 2 (2026-09-24)
+
+- `end_session` requires `transcript`: the whole lesson, one turn per line
+  with `Teacher:` / `Learner:`, learner turns exactly as transcribed. The
+  export writes it above the per-turn log.
+- `turn` keeps returning something useful after the opening: where the
+  lesson is and the next step, then the next recall prompt, then the
+  instruction to call `end_session`. Progress is derived from what the
+  teacher reports having said: a step advances when the teacher's turn
+  contains three quarters of the words of that step's «…» line (exact match
+  for one- or two-word lines), so small rewording does not stall it.
+- Replayed against the teacher turns of the real 3A lesson, the tracker
+  followed all ten guided steps and all six recall prompts in order and
+  flagged nothing except the one real re-say (`tests/test_lesson.py`).
+- `uv run pytest`: 8 passed.
+
+## Verified before run 1 (2026-09-23)
 
 - Unit tests of package parsing and the opening tracker against the real 3A
   package, and an end-to-end test that runs a full simulated lesson over

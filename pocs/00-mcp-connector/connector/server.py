@@ -8,7 +8,7 @@ from pathlib import Path
 from mcp.server import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 
-from .lesson import OpeningTracker, Package, next_package, parse_package
+from .lesson import LessonTracker, Package, next_package, parse_package
 from .store import Store
 
 INSTRUCTIONS = """\
@@ -26,9 +26,16 @@ Session id: {session_id}
 After every learner turn, before you speak, call `turn` with this session id,
 teacher_said = your previous spoken turn exactly as you said it, and
 learner_said = the learner's turn exactly as it was transcribed, without any
-correction. While the opening lasts, the result tells you what your next turn
-must be; follow it. To close, call `end_session` with the closing sentence,
-then say it. Never mention the tools or the recording to the learner.
+correction. Keep calling it until the end. The result tells you where you are
+in the brief and what comes next: during the opening, your exact next turn;
+afterwards, the current and the next Guided sequence step or Delayed recall
+prompt. Follow it.
+To close (after the last Delayed recall answer, or when the learner asks to
+stop), call `end_session` with the closing sentence and transcript = the whole
+lesson from your introduction to the learner's last turn, one turn per line,
+each line starting "Teacher:" or "Learner:", your turns exactly as you said
+them and the learner's exactly as transcribed, garbled ones included. Then say
+the closing sentence. Never mention the tools or the recording to the learner.
 END DELIVERY NOTE
 
 """
@@ -37,7 +44,7 @@ END DELIVERY NOTE
 @dataclass
 class Live:
     package: Package
-    opening: OpeningTracker
+    tracker: LessonTracker
     ended: bool = False
 
 
@@ -53,10 +60,10 @@ class Lessons:
         if session_id not in self.live:
             events = self.store.read(session_id)
             package = parse_package(self.sessions_dir / events[0]["folder"])
-            live = Live(package, OpeningTracker(package.opening_lines))
+            live = Live(package, LessonTracker.for_package(package))
             for event in events:
                 if event["event"] == "turn":
-                    live.opening.observe(event["teacher_said"])
+                    live.tracker.observe(event["teacher_said"])
                 live.ended |= event["event"] == "end"
             self.live[session_id] = live
         return self.live[session_id]
@@ -69,7 +76,7 @@ class Lessons:
         session_id = self.store.new_session(package.name)
         self.store.append(session_id, "start", folder=package.name, prompt_version=package.prompt_version,
                           lesson_part=package.session_label, start_command=start_command)
-        self.live[session_id] = Live(package, OpeningTracker(package.opening_lines))
+        self.live[session_id] = Live(package, LessonTracker.for_package(package))
         return DELIVERY_NOTE.format(session_id=session_id) + package.text
 
     def turn(self, session_id: str, teacher_said: str, learner_said: str) -> str:
@@ -77,18 +84,21 @@ class Lessons:
             live = self.get(session_id)
         except (KeyError, ValueError):
             return "Unknown session id. Continue the lesson; do not mention this."
-        live.opening.observe(teacher_said)
+        tracker = live.tracker
+        tracker.observe(teacher_said)
         self.store.append(session_id, "turn", teacher_said=teacher_said, learner_said=learner_said,
-                          opening_next=live.opening.next_index, opening_finished=live.opening.finished)
-        return live.opening.instruction()
+                          opening_next=tracker.opening.next_index, opening_finished=tracker.opening.finished,
+                          phase=tracker.phase, step=tracker.steps.current + 1)
+        return tracker.instruction()
 
-    def end(self, session_id: str, closing: str) -> str:
+    def end(self, session_id: str, closing: str, transcript: str) -> str:
         try:
             live = self.get(session_id)
         except (KeyError, ValueError):
             return "Unknown session id. Say the closing sentence."
         live.ended = True
-        self.store.append(session_id, "end", closing=closing, opening_events=live.opening.events)
+        self.store.append(session_id, "end", closing=closing, transcript=transcript,
+                          opening_events=live.tracker.opening.events, step_events=live.tracker.steps.events)
         return "Recorded. Now say the closing sentence and nothing else."
 
 
@@ -113,17 +123,21 @@ def build(lessons: Lessons) -> MCPServer:
 
         teacher_said: your previous spoken turn, exactly as you said it.
         learner_said: the learner's latest turn exactly as transcribed, uncorrected.
-        Returns what your next turn must be while the opening lasts, otherwise "Recorded."
+        Returns where you are in the brief and what comes next: the exact next
+        turn during the opening, then the current and next step or recall prompt.
         """
         return lessons.turn(session_id, teacher_said, learner_said)
 
     @mcp.tool()
-    def end_session(session_id: str, closing: str) -> str:
+    def end_session(session_id: str, closing: str, transcript: str) -> str:
         """Record the end of the lesson; call just before saying the closing sentence.
 
         closing: the closing sentence you are about to say.
+        transcript: the whole lesson from your introduction to the learner's last
+        turn, one turn per line starting "Teacher:" or "Learner:", your turns as
+        you said them and the learner's exactly as transcribed.
         """
-        return lessons.end(session_id, closing)
+        return lessons.end(session_id, closing, transcript)
 
     return mcp
 

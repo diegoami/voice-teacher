@@ -70,3 +70,16 @@ def test_replay_of_the_real_3a_lesson(sessions_dir):
     assert "call end_session" in tracker.instruction()
     # Step 8 was said with a different hour («О шостій я зайнятий.») and still matched; nothing was skipped.
     assert tracker.events == ["line 1 re-said"]
+
+
+def test_repeated_step_lines_advance_one_at_a_time():
+    """4A repeats «Добрий день!» (steps 1 and 6) and «Так. Ще щось?» (4 and 9)."""
+    from connector.lesson import StepTracker
+    steps = ["Say «До́брий день!» Wait.", "Say «Іді́ть пря́мо.» Wait.", "Say «Так. Ще щось?» Wait.",
+             "Say «До́брий день!» Wait.", "Say «Так. Ще щось?» Wait."]
+    tracker = StepTracker(steps, ["Подя́куйте мені́."])
+    for said, expected in [("Добрий день!", 0), ("Ідіть прямо.", 1), ("Так. Ще щось?", 2),
+                           ("Добрий день!", 3), ("Так. Ще щось?", 4), ("Подякуйте мені.", 5)]:
+        tracker.observe(said)
+        assert tracker.current == expected, (said, tracker.current)
+    assert tracker.events == []

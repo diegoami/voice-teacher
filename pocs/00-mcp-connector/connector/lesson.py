@@ -194,7 +194,7 @@ class StepTracker:
 
     def observe(self, teacher_said: str) -> None:
         items = self.items
-        for j in range(len(items) - 1, self.current, -1):  # latest match wins
+        for j in range(self.current + 1, len(items)):  # earliest match ahead wins: briefs repeat lines
             if says(teacher_said, spoken_line(items[j][1])):
                 if j > self.current + 1:
                     skipped = ", ".join(self.label(i) for i in range(self.current + 1, j))

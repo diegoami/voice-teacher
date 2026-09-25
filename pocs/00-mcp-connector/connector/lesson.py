@@ -95,9 +95,11 @@ def next_package(sessions_dir: Path, pinned: str | None = None) -> Package:
     if pinned:
         return parse_package(sessions_dir / pinned)
     candidates = sorted(p for p in sessions_dir.iterdir() if p.is_dir() and is_unused(p))
-    if not candidates:
-        raise LookupError("No prepared lesson is waiting. Run /voice-prepare in learnukrainian first.")
-    return parse_package(candidates[-1])
+    for folder in reversed(candidates):
+        package = parse_package(folder)
+        if not package.prompt_version.startswith("g"):  # g1, g2, … are ChatGPT packages
+            return package
+    raise LookupError("No prepared lesson is waiting. Run /voice-prepare in learnukrainian first.")
 
 
 @dataclass

@@ -83,3 +83,14 @@ def test_repeated_step_lines_advance_one_at_a_time():
         tracker.observe(said)
         assert tracker.current == expected, (said, tracker.current)
     assert tracker.events == []
+
+
+def test_chatgpt_packages_are_skipped(sessions_dir):
+    """A newer folder prepared for ChatGPT (prompt g1) must not be served to Claude."""
+    import shutil
+    [claude] = list(sessions_dir.iterdir())
+    chatgpt = sessions_dir / (claude.name + "-chatgpt")
+    shutil.copytree(claude, chatgpt)
+    text = (chatgpt / "package.md").read_text(encoding="utf-8").replace("Prompt version: v4", "Prompt version: g1")
+    (chatgpt / "package.md").write_text(text, encoding="utf-8")
+    assert next_package(sessions_dir).folder == claude

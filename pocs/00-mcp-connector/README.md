@@ -176,7 +176,7 @@ other connectors off. Recorded in learnukrainian with all three records.
 | `end_session` transcript | Sent, all turns present, but **tidied**: no English asides, no stop speech, one re-say dropped, the cut-off turn replaced by a placeholder. |
 | Write-up on request after the close | Complete and candid: it kept the asides and listed the teacher's own failures. |
 | Pause before the close | Acceptable to the learner. |
-| Recognition | Learner turns arrived almost entirely in Russian spelling; the teacher stopped the lesson over it. Voice-language setting not recorded. |
+| Recognition | Learner turns arrived almost entirely in Russian spelling, with the app's voice language set to Ukrainian; the teacher stopped the lesson over it. |
 
 ## Answer (after run 2)
 
@@ -222,7 +222,8 @@ Paste the answer to Claude Code in learnukrainian to record the lesson.
 
 What run 3 should show: whether the leaks (C16) disappear without tool
 results, and how prompt v4 does on 4A on its own. Check the app's voice
-language (Settings → General → Voice → Language: Ukrainian) before starting.
+language is still Ukrainian (it was in run 2, and recognition still drifted
+to Russian).
 
 ## Known limits
 

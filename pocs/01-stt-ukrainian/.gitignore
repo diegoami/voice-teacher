@@ -1,0 +1,5 @@
+.venv/
+.env
+# Learner audio and everything recognised from it stay local.
+fixtures/audio/
+fixtures/transcripts/

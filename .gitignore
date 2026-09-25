@@ -10,3 +10,10 @@ pocs/**/fixtures/transcripts/
 *.ogg
 *.sqlite
 *.db
+*.m4a
+*.flac
+*.opus
+*.aac
+*.amr
+*.webm
+*.3gp

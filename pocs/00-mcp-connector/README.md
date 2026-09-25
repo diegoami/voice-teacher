@@ -162,6 +162,49 @@ Changes for run 2, one per purpose:
    continue to the end. That is also the first step of POC 5, where the
    server hands out the brief one step at a time.
 
+## Run 2 (2026-09-25, Session 4A)
+
+Connector session `2026-09-24-session-4A-d7bd84`, prompt v4, start typed,
+other connectors off. Recorded in learnukrainian with all three records.
+
+| Observation | Result |
+| --- | --- |
+| Lesson started from the tool | Yes, second time out of two. |
+| `turn` called to the end | **No.** 14 calls: the opening and two conversation turns. Four were filed in a burst after the teacher said aloud «I owe the connector a turn call… Let me log them now». The step tracker never got past guided step 1. |
+| Step-by-step tool results kept the calls going | **No.** Calls stopped earlier than in run 1. |
+| Teacher spoke about tools or its process | **Yes, in six turns, in English** («…the tool instruction says to repeat only if unintelligible or meaning-changing…», «Note: I owe the connector a turn call…»). The first leak was deliberation over the conditional opening instruction. |
+| `end_session` transcript | Sent, all turns present, but **tidied**: no English asides, no stop speech, one re-say dropped, the cut-off turn replaced by a placeholder. |
+| Write-up on request after the close | Complete and candid: it kept the asides and listed the teacher's own failures. |
+| Pause before the close | Acceptable to the learner. |
+| Recognition | Learner turns arrived almost entirely in Russian spelling; the teacher stopped the lesson over it. Voice-language setting not recorded. |
+
+## Answer (after run 2)
+
+**The connector is good at one thing: delivering the lesson.** Twice out of
+two, `start_lesson` replaced the paste cleanly.
+
+**It does not work as a recorder or as a steering channel.**
+
+- The teacher stops calling a per-turn tool early, whatever the tool
+  returns.
+- In voice mode, anything the model reads can end up spoken. Longer English
+  tool results with conditions made it deliberate aloud in English. Steering
+  through tool results made the lesson worse, not better.
+- Transcripts the teacher writes for a tool are tidied: they are fine for
+  vocabulary and sentences, but not as evidence of the teacher's own
+  behaviour. A free-text write-up on request was more candid than the tool
+  copy.
+
+For the architecture this is the strongest argument yet for POC 5. Lesson
+structure cannot be enforced from outside a general-purpose voice chat; the
+opening, the step order and the recording have to live in an engine that
+owns the turn loop.
+
+Suggested run 3 (not built): rerun 4A with a delivery-only connector (only
+`start_lesson`, no per-turn or end-of-lesson instructions), so that prompt v4
+is tested without connector effects, and take the transcript by asking the
+teacher to write the lesson down after the close.
+
 ## Known limits
 
 - The server runs on your machine: the computer must be on and `run.sh`

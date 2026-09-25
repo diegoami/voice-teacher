@@ -10,7 +10,7 @@ from mcp import Client
 
 from connector.export import report, write_transcript
 from connector.lesson import next_package, plain, spoken_line
-from connector.server import Lessons, app
+from connector.server import Lessons, app, build
 from connector.store import Store
 
 
@@ -26,7 +26,7 @@ def text(result) -> str:
 
 def test_full_lesson_over_http(sessions_dir, tmp_path):
     store = Store(tmp_path / "data")
-    lessons = Lessons(sessions_dir, store)
+    lessons = Lessons(sessions_dir, store, mode="full")
     package = next_package(sessions_dir)
     port = free_port()
     server = uvicorn.Server(uvicorn.Config(app(lessons, "secret"), host="127.0.0.1", port=port, log_level="warning"))
@@ -92,3 +92,25 @@ def test_wrong_path_is_not_served(sessions_dir, tmp_path):
     client = TestClient(app(Lessons(sessions_dir, Store(tmp_path / "d")), "secret"))
     assert client.post("/mcp", json={}).status_code == 404
     assert client.post("/other/mcp", json={}).status_code == 404
+
+
+def test_delivery_only_mode(sessions_dir, tmp_path):
+    """Only start_lesson is exposed, and nothing it returns mentions tools or recording."""
+    store = Store(tmp_path / "data")
+    lessons = Lessons(sessions_dir, store)  # delivery is the default
+
+    async def run() -> str:
+        async with Client(build(lessons)) as client:
+            names = {tool.name for tool in (await client.list_tools()).tools}
+            assert names == {"start_lesson"}
+            return text(await client.call_tool("start_lesson", {"start_command": "Почнимо урок"}))
+
+    delivered = asyncio.run(run())
+    note = delivered.split("VOICE_SESSION_PACKAGE")[0]
+    assert "Skip ON\nRECEIPT" in note and "Begin the OPENING now." in note
+    for word in ("turn", "end_session", "tool", "record", "Session id"):
+        assert word not in note, word
+    [session_id] = store.sessions()
+    events = store.read(session_id)
+    assert [e["event"] for e in events] == ["start"] and events[0]["mode"] == "delivery"
+    assert "turn calls      0" in report(session_id, events)

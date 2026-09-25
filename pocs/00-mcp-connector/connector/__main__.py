@@ -30,6 +30,8 @@ def main() -> int:
     serve = sub.add_parser("serve", help="run the MCP server")
     serve.add_argument("--port", type=int, default=8765)
     serve.add_argument("--pin", help="serve this voice-sessions folder instead of the newest unused one")
+    serve.add_argument("--mode", choices=("delivery", "full"), default="delivery",
+                       help="delivery: start_lesson only (default); full: also turn and end_session (run 2)")
     sub.add_parser("sessions", help="list recorded connector sessions")
     rep = sub.add_parser("report", help="POC metrics for a session")
     rep.add_argument("session_id")
@@ -53,7 +55,8 @@ def main() -> int:
         secret = token(args.data)
         print(f"Local MCP endpoint: http://127.0.0.1:{args.port}/{secret}/mcp", file=sys.stderr)
         print(f"Connector URL:      https://<tunnel host>/{secret}/mcp", file=sys.stderr)
-        lessons = Lessons(sessions_dir, store, args.pin)
+        lessons = Lessons(sessions_dir, store, args.pin, mode=args.mode)
+        print(f"Mode: {args.mode}", file=sys.stderr)
         uvicorn.run(app(lessons, secret), host="127.0.0.1", port=args.port, log_level="info")
         return 0
     if args.command == "sessions":

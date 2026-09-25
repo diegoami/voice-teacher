@@ -38,7 +38,14 @@ def transcript(session_id: str, events: list[dict], template: str) -> str:
     log = "\n\n".join(f"**{who}:** {text}" for who, text in turns(events))
     ends = [e for e in events if e["event"] == "end"]
     writeup = ends[-1].get("transcript", "").strip() if ends else ""
-    writeup = f"```text\n{writeup}\n```" if writeup else "Not provided: `end_session` was not called."
+    delivery = events[0].get("mode") == "delivery"
+    if writeup:
+        writeup = f"```text\n{writeup}\n```"
+    elif delivery:
+        writeup = ("Delivery-only session: the connector keeps no transcript. Paste the teacher's "
+                   "write-up here, asked for after the close.")
+    else:
+        writeup = "Not provided: `end_session` was not called."
     title, _, rest = head.partition("\n\n")
     return (f"{title}\n\n{NOTE.format(session_id=session_id)}\n{rest}\n---\n\n"
             f"## Teacher's write-up (end_session)\n\n{writeup}\n\n## Per-turn log (turn)\n\n{log}\n")

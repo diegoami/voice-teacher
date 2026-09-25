@@ -41,6 +41,21 @@ END DELIVERY NOTE
 """
 
 
+DELIVERY_INSTRUCTIONS = """\
+This connector starts the learner's spoken Ukrainian lessons. When the learner
+asks to start a Ukrainian lesson, or says a start command such as «Почнімо»
+(however speech recognition transcribed it), call start_lesson and follow the
+package it returns."""
+
+DELIVERY_ONLY_NOTE = """\
+This package was delivered after the learner's start command. Skip ON
+RECEIPT: do not say the ready sentence. Begin the OPENING now.
+
+"""
+
+MODES = ("delivery", "full")
+
+
 @dataclass
 class Live:
     package: Package
@@ -53,6 +68,7 @@ class Lessons:
     sessions_dir: Path
     store: Store
     pinned: str | None = None
+    mode: str = "delivery"  # "delivery": start_lesson only; "full": run 2's turn and end_session as well
     live: dict[str, Live] = field(default_factory=dict)
 
     def get(self, session_id: str) -> Live:
@@ -75,8 +91,10 @@ class Lessons:
             return f"No lesson available: {exc} Tell the learner in one short Ukrainian sentence."
         session_id = self.store.new_session(package.name)
         self.store.append(session_id, "start", folder=package.name, prompt_version=package.prompt_version,
-                          lesson_part=package.session_label, start_command=start_command)
+                          lesson_part=package.session_label, start_command=start_command, mode=self.mode)
         self.live[session_id] = Live(package, LessonTracker.for_package(package))
+        if self.mode == "delivery":
+            return DELIVERY_ONLY_NOTE + package.text
         return DELIVERY_NOTE.format(session_id=session_id) + package.text
 
     def turn(self, session_id: str, teacher_said: str, learner_said: str) -> str:
@@ -103,7 +121,10 @@ class Lessons:
 
 
 def build(lessons: Lessons) -> MCPServer:
-    mcp = MCPServer("ukrainian-lessons", instructions=INSTRUCTIONS)
+    if lessons.mode not in MODES:
+        raise ValueError(f"unknown mode {lessons.mode!r}; use one of {MODES}")
+    full = lessons.mode == "full"
+    mcp = MCPServer("ukrainian-lessons", instructions=INSTRUCTIONS if full else DELIVERY_INSTRUCTIONS)
 
     @mcp.tool()
     def start_lesson(start_command: str) -> str:
@@ -116,6 +137,9 @@ def build(lessons: Lessons) -> MCPServer:
         start_command: the learner's message exactly as transcribed.
         """
         return lessons.start(start_command)
+
+    if not full:
+        return mcp
 
     @mcp.tool()
     def turn(session_id: str, teacher_said: str, learner_said: str) -> str:

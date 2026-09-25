@@ -200,10 +200,29 @@ structure cannot be enforced from outside a general-purpose voice chat; the
 opening, the step order and the recording have to live in an engine that
 owns the turn loop.
 
-Suggested run 3 (not built): rerun 4A with a delivery-only connector (only
-`start_lesson`, no per-turn or end-of-lesson instructions), so that prompt v4
-is tested without connector effects, and take the transcript by asking the
-teacher to write the lesson down after the close.
+## Run 3 setup: delivery only (built 2026-09-25)
+
+`serve --mode delivery` is now the default (`./run.sh --mode full` restores
+run 2). The app sees one tool, `start_lesson`. It returns the package behind a
+two-sentence note: skip the ready sentence, begin the opening. There is no
+session id, no mention of tools or recording, no per-turn call and no
+end-of-lesson call, so prompt v4 runs as it would after a paste. The server
+logs only the start.
+
+Run 3 reruns Session 4A from the folder `2026-09-25-session-4A` (same package
+as the stopped 4A). After «Заняття закінчено.», leave voice mode and type:
+
+```text
+Write down the whole lesson, every turn in order from your introduction to the
+closing sentence. Put my lines exactly as speech recognition transcribed them,
+and include anything that went wrong.
+```
+
+Paste the answer to Claude Code in learnukrainian to record the lesson.
+
+What run 3 should show: whether the leaks (C16) disappear without tool
+results, and how prompt v4 does on 4A on its own. Check the app's voice
+language (Settings → General → Voice → Language: Ukrainian) before starting.
 
 ## Known limits
 

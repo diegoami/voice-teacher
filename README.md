@@ -17,6 +17,7 @@ grows out of the manual Claude-Code ↔ Claude-voice loop in
 | Repository | Holds |
 | --- | --- |
 | `learnukrainian` | The Ukrainian curriculum (material, plan, openings), the current voice-teacher prompt and its iteration log, the recorded sessions, tracker and shared queue. Seed data and regression transcripts for this engine. |
+| `ukrainian-vocabulary` | The vocabulary list harvested from media, split out of `learnukrainian` on 2026-09-25. A future source of practice items. |
 | `language-learning-tools` | Vocabulary cards and spaced-repetition reviewer (language-neutral core, per-language profiles). Same code/data split this repo follows. |
 | `language-learning-data` | Private vocabulary and review history. A natural later home for per-learner session records. |
 

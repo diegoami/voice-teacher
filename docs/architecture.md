@@ -20,7 +20,7 @@ Sort every rule in the current controller by who should own it:
 | Ukrainian first (C10) | System prompt; a language detector on the model's output can flag drift. |
 | Voice formatting (C11) | Strip markdown before TTS; irrelevant to the model. |
 | Clean close (C12) | The engine closes; the model is not asked. |
-| Recognition repair (C13) | Language-locked STT makes garbling rare; the STT confidence score drives the repeat request, not the model. |
+| Recognition repair (C13) | Language-locked STT makes garbling rare (to be shown by POC 1); the STT confidence score drives the repeat request, not the model. |
 | Attempt before model (C14) | **Information hiding.** Each guided step carries `teacher_line` and `expected_outcome`; the learner's Ukrainian target is stored but injected into the model's context only after the first attempt has been recorded. |
 | Plain spelling (C15) | Two renderings of every phrase: `display` (plain) and `tts` (with stress in the engine's format). The model never sees the marks. |
 | Turn counts instead of minutes | A clock and per-phase time budgets. |
@@ -68,6 +68,42 @@ Model choice: the teacher turn is short and latency-bound, so Sonnet 5 at low
 effort with the brief cached is the sensible default; run the adherence
 evaluation and authoring on Opus 5, where quality matters and latency does
 not. Fable is not needed anywhere in this loop.
+
+## Speech recognition decides the runtime (Session 4A, 2026-09-25)
+
+Changed by the two 4A voice runs in learnukrainian (POC 0 run 2 and the
+ChatGPT comparison), measured with POC 1's scorer.
+
+Claude voice mode and ChatGPT Voice taught the same v4 lesson package.
+Claude voice mode's speech recognition, with its voice language set to
+Ukrainian, turned almost every learner turn into Russian spelling: none of
+its 15 opening repetitions was right, word error rate 76%, 22 of 62 words
+Russian-spelt. ChatGPT Voice, which is speech-native, wrote down all 12
+repetitions exactly and every learner voice turn as Ukrainian. The lesson on
+Claude failed because of recognition, not because of the prompt or the
+model: a teacher that reads Russian cannot correct Ukrainian.
+
+So the recogniser is the deciding component, and there are now two serious
+runtimes for the session engine:
+
+- **A. STT → Claude → TTS** (the diagram above). It keeps Claude as the
+  teacher, the rules in code and the cheapest cost per session. It depends
+  on a language-locked recogniser hearing *this learner's* Ukrainian as
+  Ukrainian. That is POC 1's question, now the first go/no-go.
+- **B. A speech-native teacher.** The model hears the audio itself, as
+  ChatGPT Voice does. Today that means ChatGPT Voice as a general voice chat,
+  which is what the learner uses since 2026-09-26; POC 0 showed that such a
+  chat can be handed a lesson but not steered or recorded turn by turn. In
+  the own engine it means a speech-to-speech API (OpenAI Realtime or a
+  successor) with the engine's state machine driving it through tools and
+  per-step instructions, at several times the cost per session of A (see
+  the cost table), and with the teacher model no longer Claude.
+
+POC 1 decides the default: if one of the language-locked recognisers is
+accurate and stays Ukrainian on the learner's recording, keep A; if all of
+them drift as Claude voice mode did, B moves first and POC 5 is built around
+a speech-to-speech session. Either way the engine, the evidence and the
+evaluation stay the same; only the turn's audio path changes.
 
 ## Data model
 
@@ -219,8 +255,11 @@ STT → LLM → TTS. Defensibility comes from the lesson engine, the evaluation
 loop, and the curated content per language, not from the plumbing.
 
 **Risks.**
-- STT accuracy on learner-accented Ukrainian is unmeasured; benchmark
-  numbers are for native speech. Measure on your own recordings first.
+- STT accuracy on learner-accented Ukrainian is the first go/no-go.
+  Benchmark numbers are for native speech, and in 4A Claude voice mode's
+  recogniser turned the learner's Ukrainian into Russian while ChatGPT Voice
+  did not. POC 1 measures the API recognisers on the learner's own
+  recording.
 - TTS stress handling for Ukrainian may be poor on every provider; the
   listening test in Phase 3 is a go/no-go.
 - Latency: three network hops per turn. Streaming STT and streaming TTS keep

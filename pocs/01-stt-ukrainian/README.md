@@ -143,9 +143,81 @@ saved), `openings <transcript.md>…` (the lesson-opening table above).
 
 Cost: about three minutes of audio per run, a few cents per provider.
 
-## Answer
+## Answer (run 1, 2026-09-26: ElevenLabs and Deepgram; OpenAI pending)
 
-Pending: waiting for the first recording.
+**Accurate, and Ukrainian.** On one phone recording of the reading list
+(2.2 minutes, AAC in `.m4a`), ElevenLabs Scribe v2 with the
+language locked to Ukrainian got every one of the fourteen lines Claude
+voice mode had turned into Russian right, with a word error rate of 4.2%
+and no Russian-spelt word. Deepgram Nova-3 was clearly worse but also never
+drifted into Russian.
+
+| Provider (model) | WER (sub/del/ins) | CER | Russian-spelt words | Other-script words | Sentences exact | 4A lines exact | Request time |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ElevenLabs (`scribe_v2`) | 4.2% (3/0/3) | 3.1% | 0 | 0 | 27/32 | 14/14 | 3.4 s |
+| Deepgram (`nova-3`) | 17.5% (23/0/2) | 5.9% | 0 | 0 | 15/32 | 7/14 | 1.8 s |
+| OpenAI (`gpt-transcribe`, `gpt-4o-transcribe`) | not run: the API account has no credits (HTTP 429) | | | | | | |
+
+For comparison, the 4A openings (see above): Claude voice mode 75.9% WER,
+22 Russian-spelt words, 0/15 turns exact.
+
+The fourteen 4A lines, per provider:
+
+| # | Sentence | ElevenLabs | Deepgram |
+| --- | --- | --- | --- |
+| 1 | Перепрошую, де знаходиться станція метро? | ✓ | ✓ |
+| 2 | Як пройти до центру? | ✓ | 1 err |
+| 3 | Ідіть прямо до перехрестя. | ✓ | 1 err |
+| 4 | Потім поверніть праворуч. | ✓ | 2 err |
+| 5 | Станція буде ліворуч. | ✓ | ✓ |
+| 6 | Це далеко? | ✓ | ✓ |
+| 7 | Ні, хвилин п'ять пішки. | ✓ | ✓ |
+| 8 | Як краще доїхати до центру? | ✓ | ✓ |
+| 9 | Можна автобусом або метро. | ✓ | 1 err |
+| 10 | Де мені виходити? | ✓ | 1 err |
+| 11 | На наступній зупинці. | ✓ | ✓ |
+| 12 | Ні, не до вокзалу. Мені потрібно до автовокзалу. | ✓ | 2 err |
+| 13 | Ідіть прямо до перехрестя, а потім поверніть праворуч. | ✓ | 2 err |
+| 14 | Після перехрестя? | ✓ | ✓ |
+
+What the errors are (from the local report, not quoted here):
+
+- **ElevenLabs, six errors in five sentences.** Two are disfluencies in
+  the reading written down faithfully: a word begun and said again, and a
+  syllable stutter. One is `й` written as `і`, which are variants of the
+  same conjunction. The other three need a listen to the recording to
+  settle: a number heard as a different number (line 15), `і` heard as `а`
+  (line 32), and an extra word after line 30. They may be misreadings.
+  Either way, what ElevenLabs gets wrong still looks like Ukrainian a
+  teacher can work with.
+- **Deepgram, 25 errors.** Near-miss Ukrainian: endings dropped or changed
+  (imperative `-іть` → infinitive-like `-ить`), one prefix lost, a few
+  sound-alike words. No Russian, but a teacher would "correct" errors the
+  learner did not make, which is exactly what the engine must avoid.
+
+What this shows:
+
+1. **The Russian drift in 4A was Claude voice mode's recogniser, not the
+   learner's pronunciation.** The same learner reading the same lines gives
+   zero Russian-spelt words on both API recognisers once the language is
+   locked.
+2. **Runtime A (STT → Claude → TTS) stays the default,** with ElevenLabs
+   Scribe as the recogniser. It meets the bar set above (WER well under 10%,
+   no Russian, all 4A lines right). A speech-native teacher remains the
+   fallback, not the plan.
+
+Limits of this run: one recording of read speech, one day, one phone. Real
+lesson turns are shorter, spontaneous and full of learner errors, and a
+recogniser that writes down what was *meant* would hide those. Batch
+requests only: per-turn latency and Scribe's streaming model are not
+measured. OpenAI was not measured; it is the closest proxy for what
+ChatGPT Voice shows, so it is worth one run once the account has credits
+(`uv run python -m stt run fixtures/audio/<file> --provider openai --provider openai-4o`).
+
+Next measurements, in order of value: (a) OpenAI once credited; (b) per-turn
+batch latency on short clips, which decides whether the engine needs
+streaming STT; (c) a learner-error check: read sentences with deliberate
+mistakes (Russian words, wrong endings) and see whether Scribe keeps them.
 
 ## Files
 

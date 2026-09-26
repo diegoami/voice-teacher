@@ -42,8 +42,12 @@ def test_every_request_forces_ukrainian_and_sends_no_hints(fake_api, audio):
 
 def test_http_error_is_reported(audio):
     transport = httpx.MockTransport(lambda r: httpx.Response(401, json={"detail": "bad key"}))
-    with httpx.Client(transport=transport) as client, pytest.raises(ProviderError, match="HTTP 401"):
+    with httpx.Client(transport=transport) as client, pytest.raises(ProviderError, match="^HTTP 401: bad key$"):
         transcribe(PROVIDERS["elevenlabs"], audio, "KEY", client)
+    body = {"error": {"message": "You have no credits\nremaining.", "type": "insufficient_quota"}}
+    transport = httpx.MockTransport(lambda r: httpx.Response(429, json=body))
+    with httpx.Client(transport=transport) as client, pytest.raises(ProviderError, match="^HTTP 429: You have no credits remaining.$"):
+        transcribe(PROVIDERS["openai"], audio, "KEY", client)
 
 
 def test_openai_refuses_formats_it_cannot_read(tmp_path):

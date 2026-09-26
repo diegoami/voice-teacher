@@ -29,4 +29,4 @@ grows out of the manual Claude-Code ↔ Claude-voice loop in
 
 ## Status
 
-2026-09-26: POC 0 (lesson connector) answered: it delivers a lesson reliably but cannot record or steer one through a general voice chat. See [pocs/00-mcp-connector](pocs/00-mcp-connector/README.md). Session 4A showed that speech recognition decides the runtime; POC 1 (speech-to-text on the learner's Ukrainian) is built and awaits a recording. See [pocs/01-stt-ukrainian](pocs/01-stt-ukrainian/README.md).
+2026-09-26: POC 0 (lesson connector) answered: it delivers a lesson reliably but cannot record or steer one through a general voice chat. See [pocs/00-mcp-connector](pocs/00-mcp-connector/README.md). Session 4A showed that speech recognition decides the runtime. POC 1 answered it on one recording: ElevenLabs Scribe v2 locked to Ukrainian got 4.2% WER and no Russian-spelt words, so STT → Claude → TTS stays the default. See [pocs/01-stt-ukrainian](pocs/01-stt-ukrainian/README.md).

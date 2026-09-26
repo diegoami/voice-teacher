@@ -20,7 +20,7 @@ Sort every rule in the current controller by who should own it:
 | Ukrainian first (C10) | System prompt; a language detector on the model's output can flag drift. |
 | Voice formatting (C11) | Strip markdown before TTS; irrelevant to the model. |
 | Clean close (C12) | The engine closes; the model is not asked. |
-| Recognition repair (C13) | Language-locked STT makes garbling rare (to be shown by POC 1); the STT confidence score drives the repeat request, not the model. |
+| Recognition repair (C13) | Language-locked STT makes garbling rare (POC 1: ElevenLabs Scribe v2, 4.2% WER and no Russian on the learner's reading); the STT confidence score drives the repeat request, not the model. |
 | Attempt before model (C14) | **Information hiding.** Each guided step carries `teacher_line` and `expected_outcome`; the learner's Ukrainian target is stored but injected into the model's context only after the first attempt has been recorded. |
 | Plain spelling (C15) | Two renderings of every phrase: `display` (plain) and `tts` (with stress in the engine's format). The model never sees the marks. |
 | Turn counts instead of minutes | A clock and per-phase time budgets. |
@@ -104,6 +104,16 @@ accurate and stays Ukrainian on the learner's recording, keep A; if all of
 them drift as Claude voice mode did, B moves first and POC 5 is built around
 a speech-to-speech session. Either way the engine, the evidence and the
 evaluation stay the same; only the turn's audio path changes.
+
+**Decided by POC 1 (2026-09-26): A stays the default, with ElevenLabs
+Scribe v2 as the recogniser.** On one phone recording of 32 lesson
+sentences, Scribe locked to Ukrainian had a 4.2% word error rate, no
+Russian-spelt word, and all fourteen lines Claude voice mode had
+misrecognised in 4A right. Deepgram Nova-3 reached 17.5%, also without
+Russian. The 4A drift was the Claude app's recogniser, not the learner's
+pronunciation. B stays the fallback. Still open: OpenAI's recognisers (not
+run, no credits), per-turn latency, and whether Scribe keeps real learner
+errors in spontaneous speech.
 
 ## Data model
 
@@ -255,11 +265,11 @@ STT → LLM → TTS. Defensibility comes from the lesson engine, the evaluation
 loop, and the curated content per language, not from the plumbing.
 
 **Risks.**
-- STT accuracy on learner-accented Ukrainian is the first go/no-go.
-  Benchmark numbers are for native speech, and in 4A Claude voice mode's
-  recogniser turned the learner's Ukrainian into Russian while ChatGPT Voice
-  did not. POC 1 measures the API recognisers on the learner's own
-  recording.
+- STT accuracy on learner-accented Ukrainian was the first go/no-go. In 4A
+  Claude voice mode's recogniser turned the learner's Ukrainian into
+  Russian; on the learner's own reading, ElevenLabs Scribe locked to
+  Ukrainian did not (POC 1: 4.2% WER, no Russian). Read speech is the easy
+  case: spontaneous turns with real learner errors are still unmeasured.
 - TTS stress handling for Ukrainian may be poor on every provider; the
   listening test in Phase 3 is a go/no-go.
 - Latency: three network hops per turn. Streaming STT and streaming TTS keep

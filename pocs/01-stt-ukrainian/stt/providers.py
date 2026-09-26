@@ -112,6 +112,20 @@ PROVIDERS = {
 }
 
 
+def _error_message(response: httpx.Response) -> str:
+    """The vendor's one-line error message, or the start of the body."""
+    try:
+        body = response.json()
+    except ValueError:
+        body = None
+    if isinstance(body, dict):
+        detail = body.get("error") or body.get("detail") or body.get("err_msg") or body
+        if isinstance(detail, dict):
+            detail = detail.get("message") or detail
+        return " ".join(str(detail).split())[:300]
+    return " ".join(response.text.split())[:300]
+
+
 def transcribe(provider: Provider, audio: Path, key: str, client: httpx.Client | None = None) -> dict:
     """Send one file; return a record with the raw response and the text."""
     own = client is None
@@ -124,7 +138,7 @@ def transcribe(provider: Provider, audio: Path, key: str, client: httpx.Client |
         if own:
             client.close()
     if response.status_code >= 400:
-        raise ProviderError(f"{provider.name}: HTTP {response.status_code}: {response.text[:500]}")
+        raise ProviderError(f"HTTP {response.status_code}: {_error_message(response)}")
     raw = response.json()
     return {
         "provider": provider.name,

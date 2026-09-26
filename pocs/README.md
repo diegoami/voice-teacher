@@ -14,10 +14,10 @@ has a written answer in its own `README.md`, with evidence.
 | 5 | `05-session-engine/` | Does a state machine plus a small teacher prompt, with the learner's target withheld until an attempt, produce more independent production than controller v4? | A text-only run of one lesson part against the engine, then a voice run; evidence counts compared with 2C. |
 
 Status (2026-09-26): POC 0 answered (the connector delivers a lesson; it cannot
-record or steer one). POC 1 answered on one recording: ElevenLabs Scribe v2 locked to Ukrainian
-hears the learner's Ukrainian as Ukrainian (4.2% WER, no Russian), so
-STT → Claude → TTS stays the default runtime (see `docs/architecture.md`);
-OpenAI's recognisers still to be run.
+record or steer one). POC 1 answered on one recording: locked to Ukrainian, OpenAI `gpt-transcribe`
+(2.8% WER) and ElevenLabs Scribe v2 (4.2%) hear the learner's Ukrainian as
+Ukrainian with no Russian, so STT → Claude → TTS stays the default runtime
+(see `docs/architecture.md`). Which of the two: a learner-error check.
 
 POCs 1 and 2 are the go/no-go items; run them early even though they are
 small. POCs 3 and 4 make the existing skills cheaper without touching the

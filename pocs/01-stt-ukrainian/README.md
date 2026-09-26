@@ -187,7 +187,8 @@ What the errors are (from the local report, not quoted here):
   syllable stutter. One is `й` written as `і`, which are variants of the
   same conjunction. The other three need a listen to the recording to
   settle: a number heard as a different number (line 15), `і` heard as `а`
-  (line 32), and an extra word after line 30. They may be misreadings.
+  (line 32), and an extra word after line 30. The learner thinks they were
+  his own misreadings (not yet checked against the audio).
   Either way, what ElevenLabs gets wrong still looks like Ukrainian a
   teacher can work with.
 - **Deepgram, 25 errors.** Near-miss Ukrainian: endings dropped or changed

@@ -17,6 +17,7 @@ class Sentence:
     number: int
     text: str  # as read, with stress marks
     tags: tuple[str, ...] = ()
+    error: tuple[str, str] | None = None  # (what is read, the correct Ukrainian) for a planted mistake
 
     @property
     def plain(self) -> str:
@@ -28,7 +29,11 @@ class Sentence:
 
 
 def reading_list(path: Path) -> list[Sentence]:
-    """The numbered lines under `## Sentences`; `<!-- 4A -->` becomes a tag."""
+    """The numbered lines under `## Sentences`.
+
+    `<!-- 4A -->` becomes a tag; `<!-- error: said → correct -->` marks a
+    deliberate mistake in the line.
+    """
     out = []
     inside = False
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -37,8 +42,12 @@ def reading_list(path: Path) -> list[Sentence]:
             continue
         match = LINE.match(line)
         if inside and match:
-            tags = tuple((match.group(3) or "").split())
-            out.append(Sentence(int(match.group(1)), match.group(2), tags))
+            note = match.group(3) or ""
+            if note.startswith("error:"):
+                said, correct = (part.strip() for part in note.removeprefix("error:").split("→"))
+                out.append(Sentence(int(match.group(1)), match.group(2), (), (said, correct)))
+            else:
+                out.append(Sentence(int(match.group(1)), match.group(2), tuple(note.split())))
     return out
 
 
@@ -61,8 +70,24 @@ class SentenceResult:
         return self.errors == 0
 
     @property
+    def planted(self) -> str | None:
+        """For a line with a deliberate mistake: kept, corrected or other."""
+        if self.sentence.error is None:
+            return None
+        said, correct = (words(x) for x in self.sentence.error)
+        if _contains(self.heard, said):
+            return "kept"
+        if _contains(self.heard, correct):
+            return "corrected"
+        return "other"
+
+    @property
     def char_errors(self) -> int:
         return distance(" ".join(self.sentence.words), " ".join(self.heard))
+
+
+def _contains(heard: list[str], phrase: list[str]) -> bool:
+    return any(heard[i:i + len(phrase)] == phrase for i in range(len(heard) - len(phrase) + 1))
 
 
 def _result(sentence: Sentence, ref: list[str], hyp: list[str], ops) -> SentenceResult:
@@ -125,6 +150,11 @@ class Summary:
     exact: int
     tagged: int
     tagged_exact: int
+    planted: int = 0
+    kept: int = 0
+    corrected: int = 0
+    controls: int = 0
+    controls_exact: int = 0
 
     @property
     def wer(self) -> float:
@@ -155,4 +185,9 @@ def summarise(results: list[SentenceResult], tag: str = "4A") -> Summary:
         exact=sum(r.exact for r in results),
         tagged=len(tagged),
         tagged_exact=sum(r.exact for r in tagged),
+        planted=sum(r.planted is not None for r in results),
+        kept=sum(r.planted == "kept" for r in results),
+        corrected=sum(r.planted == "corrected" for r in results),
+        controls=sum(r.planted is None for r in results),
+        controls_exact=sum(r.planted is None and r.exact for r in results),
     )

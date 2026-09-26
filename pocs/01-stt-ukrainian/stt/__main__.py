@@ -69,7 +69,7 @@ def cmd_report(audio: Path, names: list[str], reading: Path, root: Path, missing
             runs.append((record, score_recording(sentences, record["text"])))
         elif not any(m.startswith(name + " ") for m in missing):
             missing.append(f"{name} (no transcript yet)")
-    report = recording_report(audio.name, sentences, runs, missing)
+    report = recording_report(audio.name, reading.name, sentences, runs, missing)
     target = out_dir(audio, root)
     target.mkdir(parents=True, exist_ok=True)
     (target / "report.md").write_text(report, encoding="utf-8")

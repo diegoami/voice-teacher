@@ -24,7 +24,7 @@ def summary_row(label: str, s: Summary, extra: list[str]) -> str:
         f"{s.russian} ({_pct(s.russian_share)})",
         str(s.other_script),
         f"{s.exact}/{s.sentences}",
-        f"{s.tagged_exact}/{s.tagged}",
+        f"{s.tagged_exact}/{s.tagged}" if s.tagged else "–",
         *extra,
     ]
     return "| " + " | ".join(cells) + " |"
@@ -43,13 +43,13 @@ def _verdict(r: SentenceResult) -> str:
     return text
 
 
-def recording_report(audio_name: str, sentences: list[Sentence], runs: list[tuple[dict, list[SentenceResult]]],
+def recording_report(audio_name: str, reading_name: str, sentences: list[Sentence], runs: list[tuple[dict, list[SentenceResult]]],
                      missing: list[str]) -> str:
     total = sum(len(s.words) for s in sentences)
     lines = [
         f"# STT report — {audio_name}",
         "",
-        f"Reading list: {len(sentences)} sentences, {total} words. Language forced to Ukrainian; "
+        f"Reading list: `{reading_name}`, {len(sentences)} sentences, {total} words. Language forced to Ukrainian; "
         "no prompt or keywords. WER and CER after lower-casing, dropping punctuation and "
         "stress marks, and spelling out digits. Russian-spelt words are a lower bound "
         "(see `stt/text.py`).",
@@ -68,13 +68,31 @@ def recording_report(audio_name: str, sentences: list[Sentence], runs: list[tupl
     if not runs:
         return "\n".join(lines) + "\n"
 
-    lines += ["", "## Lines misrecognised by Claude voice mode in 4A", "",
-              "| # | Sentence | " + " | ".join(r["provider"] for r, _ in runs) + " |",
-              "| --- | --- |" + " --- |" * len(runs)]
-    for k, sentence in enumerate(sentences):
-        if "4A" in sentence.tags:
-            lines.append(f"| {sentence.number} | {sentence.plain} | "
-                         + " | ".join(_verdict(results[k]) for _, results in runs) + " |")
+    providers = " | ".join(r["provider"] for r, _ in runs)
+    if any(s.error for s in sentences):
+        lines += ["", "## Deliberate errors", "",
+                  "Kept: the recogniser wrote the mistake that was read. Corrected: it wrote the "
+                  "correct Ukrainian instead, hiding the mistake. Other: neither. Controls are the "
+                  "lines read without a mistake.", "",
+                  "| Provider | Kept | Corrected | Other | Controls exact |", "| --- | --- | --- | --- | --- |"]
+        for record, results in runs:
+            s = summarise(results)
+            lines.append(f"| {record['provider']} | {s.kept}/{s.planted} | {s.corrected}/{s.planted} | "
+                         f"{s.planted - s.kept - s.corrected}/{s.planted} | {s.controls_exact}/{s.controls} |")
+        lines += ["", "| # | Read (mistake → correct) | " + providers + " |", "| --- | --- |" + " --- |" * len(runs)]
+        for k, sentence in enumerate(sentences):
+            if sentence.error:
+                said, correct = sentence.error
+                lines.append(f"| {sentence.number} | {said} → {correct} | "
+                             + " | ".join(results[k].planted for _, results in runs) + " |")
+
+    if any("4A" in s.tags for s in sentences):
+        lines += ["", "## Lines misrecognised by Claude voice mode in 4A", "",
+                  "| # | Sentence | " + providers + " |", "| --- | --- |" + " --- |" * len(runs)]
+        for k, sentence in enumerate(sentences):
+            if "4A" in sentence.tags:
+                lines.append(f"| {sentence.number} | {sentence.plain} | "
+                             + " | ".join(_verdict(results[k]) for _, results in runs) + " |")
 
     lines += ["", "## Details", "",
               "What each provider heard, for the sentences it got wrong. This is a transcript "

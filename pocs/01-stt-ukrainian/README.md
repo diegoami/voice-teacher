@@ -218,22 +218,61 @@ What this shows:
    recogniser keeps them. Tidying that removes a stutter is harmless;
    tidying that fixes an ending would hide the thing the lesson is for.
 
+Cost of this run, at list prices on 2026-09-26 for the 132 seconds each
+provider reported (the two refused OpenAI requests were not billed):
+
+| Provider (model) | List price | This run | 10 min of learner audio (one lesson) |
+| --- | --- | --- | --- |
+| OpenAI `gpt-transcribe` | $0.0045/min | $0.010 | $0.045 |
+| ElevenLabs `scribe_v2` | $0.22/hour | $0.008 | $0.037 |
+| OpenAI `gpt-4o-transcribe` | ≈ $0.006/min (tokens) | ≈ $0.013 | ≈ $0.06 |
+| Deepgram `nova-3` | $0.0048/min (promotional; $0.0077 regular) | $0.011 | $0.05 |
+| **Total** | | **≈ $0.04** | |
+
+Recognition is not a cost question: either good recogniser costs about
+four or five cents per lesson, in line with the architecture's estimate.
+
 Limits: one recording of read speech, one day, one phone. Batch requests
 only: per-turn latency on short clips and the streaming variants are not
 measured.
 
 Next measurements, in order of value: (a) the learner-error check above,
-on `gpt-transcribe` and Scribe v2; (b) per-turn latency on short clips,
-which decides whether the engine needs streaming STT.
+on `gpt-transcribe` and Scribe v2 (run 2 below); (b) per-turn latency on
+short clips, which decides whether the engine needs streaming STT.
+
+## Run 2: does the recogniser keep the learner's mistakes? (set up)
+
+[reading_list_errors.md](reading_list_errors.md): 26 Session 4 sentences.
+Eighteen contain one planted mistake of the kinds a learner makes: seven
+Russian words (где, потом, нет, можно, спасибо, здесь, повторите), eight
+wrong case endings or verb forms (до центр, на наступна зупинка, біля
+готель, Де мені виходить?), two gender errors and one wrong word. Eight are
+correct, as controls. The mistakes are marked only in the file's source
+(`<!-- error: said → correct -->`), so the reader is not tempted to fix
+them.
+
+For each planted mistake the report says whether each recogniser **kept**
+it, **corrected** it to the right Ukrainian (hiding it from the teacher), or
+wrote something else, and how many controls it got exactly. WER is against
+what was read, mistakes included. The recogniser for the engine is the one
+that keeps the most mistakes without inventing errors in the controls.
+
+```bash
+uv run python -m stt --reading-list reading_list_errors.md run fixtures/audio/errors-1.m4a --provider openai --provider elevenlabs
+```
+
+Two recognisers, about a minute and a half of audio: about two cents.
 
 ## Files
 
 - `reading_list.md`: the sentences and the recording instructions.
+- `reading_list_errors.md`: run 2, the same with planted mistakes.
 - `stt/text.py`: normalisation, numbers, the Russian-spelling test.
 - `stt/align.py`: word alignment and edit distance.
 - `stt/score.py`: reading-list parser, per-sentence scoring, summary.
 - `stt/providers.py`: the four requests, with the language forced.
 - `stt/report.py`: the Markdown report and the lesson-opening parser.
 - `stt/__main__.py`: `providers`, `transcribe`, `report`, `run`, `openings`.
-- `tests/`: everything above without real audio or network.
+- `tests/`: everything above without real audio or network, including
+  a verbatim and a tidying recogniser for run 2.
 - `fixtures/audio/`, `fixtures/transcripts/`: local only, git-ignored.

@@ -34,7 +34,7 @@ def test_variants_send_plain_or_marked_text():
     names = {v.name: v for v in VARIANTS}
     assert len(VARIANTS) == 8
     assert names["el-v3-plain"].text(item) == "Станція буде ліворуч."
-    assert names["el-v3-marks"].text(item) == "Ста́нція бу́де лі́воруч."
+    assert names["el-v3-marks"].text(item) == "Ста́нція бу́де ліво́руч."
 
 
 def test_requests(tmp_path):

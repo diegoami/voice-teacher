@@ -104,7 +104,7 @@ function clipRow(key, label, clip, targets) {
   const row = document.createElement("div");
   row.className = "clip";
   const v = state.verdicts[key] || null;
-  row.innerHTML = `<span class="label">${label}</span><audio controls preload="none" src="${clip.file}"></audio>
+  row.innerHTML = `<span class="label">${label}</span><audio controls preload="none" src="${clip.file}?v=${clip.bytes}"></audio>
     <div class="buttons">
       <button class="right">✓ right</button><button class="wrong">✗ wrong</button><button class="unclear">? unclear</button>
     </div>

@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stress Listening Test</title>
+<style>
+:root {
+  --bg: #f7f6f3; --card: #ffffff; --text: #1d1d1f; --muted: #6b6b70; --line: #e2e0da;
+  --right: #1f7a4d; --right-bg: #e3f3ea; --wrong: #b3261e; --wrong-bg: #fbe7e5;
+  --unclear: #8a6d00; --unclear-bg: #fbf1d2; --accent: #2f5bd3;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161618; --card: #1f1f22; --text: #ececf0; --muted: #a0a0a8; --line: #33333a;
+    --right: #6fd19c; --right-bg: #173226; --wrong: #ff8a80; --wrong-bg: #3a1d1b;
+    --unclear: #f0cd5c; --unclear-bg: #352c10; --accent: #8fb0ff;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 16px; }
+header { position: sticky; top: 0; background: var(--bg); padding: 12px 0 8px;
+  border-bottom: 1px solid var(--line); z-index: 1; }
+h1 { font-size: 1.25rem; margin: 0 0 4px; }
+.progress { color: var(--muted); font-size: .9rem; }
+.saved { margin-left: 8px; }
+details.help { margin: 12px 0 20px; color: var(--muted); }
+details.help p { margin: 6px 0; }
+.item { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 14px 16px; margin: 16px 0; }
+.sentence { font-size: 1.25rem; margin: 0 0 4px; }
+.judge { color: var(--muted); margin: 0 0 10px; font-size: .95rem; }
+.judge b { color: var(--text); }
+.clip { display: grid; grid-template-columns: 28px 1fr; gap: 6px 10px; align-items: center;
+  padding: 10px 0; border-top: 1px solid var(--line); }
+.label { font-weight: 600; color: var(--muted); }
+audio { width: 100%; height: 36px; }
+.buttons { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; }
+button { font: inherit; font-size: .9rem; padding: 4px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: transparent; color: var(--text); }
+button[aria-pressed="true"].right { background: var(--right-bg); color: var(--right); border-color: var(--right); }
+button[aria-pressed="true"].wrong { background: var(--wrong-bg); color: var(--wrong); border-color: var(--wrong); }
+button[aria-pressed="true"].unclear { background: var(--unclear-bg); color: var(--unclear); border-color: var(--unclear); }
+.which { grid-column: 2; display: none; flex-wrap: wrap; gap: 6px 14px; font-size: .95rem; }
+.which.open { display: flex; }
+.which input[type=text] { flex: 1 1 200px; font: inherit; font-size: .9rem; padding: 3px 8px;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text); }
+.error { color: var(--wrong); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Ukrainian stress — listening test</h1>
+    <div class="progress"><span id="count">0</span> of <span id="total">0</span> judged<span class="saved" id="saved"></span></div>
+  </header>
+  <details class="help" open>
+    <summary>How to judge</summary>
+    <p>Each sentence is spoken by several voices, labelled A, B, C… in a random order. You are not told which provider is which.</p>
+    <p>Listen only to the <b>words listed under the sentence</b>. Press <b>✓ right</b> if every listed word is stressed as marked. Press <b>✗ wrong</b> if any is not, then tick which. Tick <i>another word</i> if a different word is clearly wrong. Press <b>? unclear</b> if you cannot tell.</p>
+    <p>Every click is saved on the computer straight away. You can stop and come back later.</p>
+  </details>
+  <div id="items"></div>
+</main>
+<script>
+const state = { verdicts: {}, timer: null };
+
+function shuffled(list, seed) {
+  // Stable per item, so the order does not change on reload.
+  const out = list.slice();
+  let s = seed * 9301 + 49297;
+  for (let i = out.length - 1; i > 0; i--) {
+    s = (s * 9301 + 49297) % 233280;
+    const j = Math.floor((s / 233280) * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+function save() {
+  clearTimeout(state.timer);
+  state.timer = setTimeout(async () => {
+    const saved = document.getElementById("saved");
+    try {
+      const r = await fetch("verdicts", { method: "POST", headers: { "Content-Type": "application/json" },
+                                          body: JSON.stringify(state.verdicts) });
+      saved.textContent = r.ok ? " · saved" : " · not saved (server said " + r.status + ")";
+      saved.className = r.ok ? "saved" : "saved error";
+    } catch (e) {
+      saved.textContent = " · not saved: is the server still running?";
+      saved.className = "saved error";
+    }
+  }, 300);
+  updateCount();
+}
+
+function updateCount() {
+  document.getElementById("count").textContent = Object.keys(state.verdicts).length;
+}
+
+function clipRow(key, label, clip, targets) {
+  const row = document.createElement("div");
+  row.className = "clip";
+  const v = state.verdicts[key] || null;
+  row.innerHTML = `<span class="label">${label}</span><audio controls preload="none" src="${clip.file}"></audio>
+    <div class="buttons">
+      <button class="right">✓ right</button><button class="wrong">✗ wrong</button><button class="unclear">? unclear</button>
+    </div>
+    <div class="which"></div>`;
+  const which = row.querySelector(".which");
+  targets.forEach(word => {
+    const l = document.createElement("label");
+    l.innerHTML = `<input type="checkbox" value="${word}"> ${word}`;
+    which.appendChild(l);
+  });
+  const otherLabel = document.createElement("label");
+  otherLabel.innerHTML = `<input type="checkbox" value="__other"> another word`;
+  which.appendChild(otherLabel);
+  const note = document.createElement("input");
+  note.type = "text"; note.placeholder = "note (optional)";
+  which.appendChild(note);
+
+  const buttons = row.querySelectorAll("button");
+  function render() {
+    const cur = state.verdicts[key];
+    buttons.forEach(b => b.setAttribute("aria-pressed", String(!!cur && b.classList.contains(cur.verdict))));
+    which.classList.toggle("open", !!cur && cur.verdict === "wrong");
+    which.querySelectorAll("input[type=checkbox]").forEach(cb => {
+      cb.checked = !!cur && (cb.value === "__other" ? !!cur.other : (cur.wrong || []).includes(cb.value));
+    });
+    note.value = (cur && cur.note) || "";
+  }
+  buttons.forEach(b => b.addEventListener("click", () => {
+    const verdict = ["right", "wrong", "unclear"].find(c => b.classList.contains(c));
+    const prev = state.verdicts[key] || {};
+    state.verdicts[key] = verdict === "wrong" ? { verdict, wrong: prev.wrong || [], other: !!prev.other, note: prev.note || "" }
+                                              : { verdict };
+    render(); save();
+  }));
+  which.addEventListener("change", () => {
+    const cur = state.verdicts[key];
+    const boxes = [...which.querySelectorAll("input[type=checkbox]")];
+    cur.wrong = boxes.filter(cb => cb.checked && cb.value !== "__other").map(cb => cb.value);
+    cur.other = boxes.some(cb => cb.checked && cb.value === "__other");
+    save();
+  });
+  note.addEventListener("input", () => { state.verdicts[key].note = note.value; save(); });
+  render();
+  return row;
+}
+
+async function start() {
+  const manifest = await (await fetch("manifest.json", { cache: "no-store" })).json();
+  try {
+    const r = await fetch("verdicts.json", { cache: "no-store" });
+    if (r.ok) state.verdicts = await r.json();
+  } catch (e) { /* no verdicts yet */ }
+  const byItem = {};
+  Object.entries(manifest.clips).forEach(([key, clip]) => (byItem[clip.item] = byItem[clip.item] || []).push([key, clip]));
+  const root = document.getElementById("items");
+  let total = 0;
+  manifest.items.forEach(item => {
+    const clips = byItem[item.number] || [];
+    if (!clips.length) return;
+    const card = document.createElement("section");
+    card.className = "item";
+    card.innerHTML = `<p class="sentence">${item.number}. ${item.marked}</p>
+      <p class="judge">Judge: ${item.targets.map(t => `<b>${t}</b>`).join(", ")}</p>`;
+    shuffled(clips.sort(), item.number).forEach(([key, clip], i) => {
+      card.appendChild(clipRow(key, String.fromCharCode(65 + i), clip, item.targets));
+      total++;
+    });
+    root.appendChild(card);
+  });
+  document.getElementById("total").textContent = total;
+  updateCount();
+}
+start();
+</script>
+</body>
+</html>

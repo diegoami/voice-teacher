@@ -1,0 +1,4 @@
+.venv/
+.env
+# Generated audio and listening verdicts stay local.
+fixtures/

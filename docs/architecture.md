@@ -20,7 +20,7 @@ Sort every rule in the current controller by who should own it:
 | Ukrainian first (C10) | System prompt; a language detector on the model's output can flag drift. |
 | Voice formatting (C11) | Strip markdown before TTS; irrelevant to the model. |
 | Clean close (C12) | The engine closes; the model is not asked. |
-| Recognition repair (C13) | Language-locked STT makes garbling rare (POC 1: OpenAI `gpt-transcribe` 2.8% and ElevenLabs Scribe v2 4.2% WER, no Russian, on the learner's reading); the STT confidence score drives the repeat request, not the model. |
+| Recognition repair (C13) | Language-locked STT makes garbling rare (POC 1: ElevenLabs Scribe v2, 4.2% WER and no Russian on the learner's reading, and it keeps the learner's own mistakes); the STT confidence score drives the repeat request, not the model. |
 | Attempt before model (C14) | **Information hiding.** Each guided step carries `teacher_line` and `expected_outcome`; the learner's Ukrainian target is stored but injected into the model's context only after the first attempt has been recorded. |
 | Plain spelling (C15) | Two renderings of every phrase: `display` (plain) and `tts` (with stress in the engine's format). The model never sees the marks. |
 | Turn counts instead of minutes | A clock and per-phase time budgets. |
@@ -112,10 +112,16 @@ none of four API recognisers produced a Russian-spelt word. OpenAI
 all fourteen lines right that Claude voice mode had misrecognised in 4A;
 `gpt-4o-transcribe` (9.1%) and Deepgram Nova-3 (17.5%) made Ukrainian
 near-misses. The 4A drift was the Claude app's recogniser, not the learner's
-pronunciation. B stays the fallback. The choice between the two good
-recognisers is open: `gpt-transcribe` tidies disfluencies, Scribe writes
-them down, and the engine needs the learner's real errors. A reading with
-deliberate mistakes decides it; per-turn latency is also still unmeasured.
+pronunciation. B stays the fallback.
+
+**The recogniser is ElevenLabs Scribe v2 (POC 1 run 2).** Read with 18
+planted learner mistakes, Scribe kept 12 and corrected only 2;
+`gpt-transcribe` corrected 10, including five of seven Russian words. A
+recogniser that fixes the learner's Ukrainian hides exactly what the
+teacher must correct, so accuracy on correct speech is not the criterion.
+Transcription costs about four cents per lesson. Per-turn latency is still
+unmeasured. The same caution applies to runtime B: ChatGPT Voice's clean
+transcripts are not evidence that the learner spoke cleanly.
 
 ## Data model
 

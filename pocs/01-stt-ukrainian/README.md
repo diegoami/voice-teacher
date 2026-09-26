@@ -210,13 +210,11 @@ What this shows:
    clear the bar set above (WER well under 10%, no Russian, all 4A lines
    right): `gpt-transcribe` and Scribe v2. A speech-native teacher is the
    fallback, not the plan.
-3. **Which of the two is still open, and read speech cannot settle it.**
+3. **Which of the two could not be settled by correct reading.**
    `gpt-transcribe` is more accurate on what was meant; Scribe is more
    faithful to what was said. A teacher needs the learner's real errors, so
-   the tie-break is a learner-error check: read sentences with deliberate
-   mistakes (Russian words, wrong endings, wrong case) and see which
-   recogniser keeps them. Tidying that removes a stutter is harmless;
-   tidying that fixes an ending would hide the thing the lesson is for.
+   run 2 reads sentences with deliberate mistakes. Its answer: **Scribe v2**
+   (see below).
 
 Cost of this run, at list prices on 2026-09-26 for the 132 seconds each
 provider reported (the two refused OpenAI requests were not billed):
@@ -236,11 +234,7 @@ Limits: one recording of read speech, one day, one phone. Batch requests
 only: per-turn latency on short clips and the streaming variants are not
 measured.
 
-Next measurements, in order of value: (a) the learner-error check above,
-on `gpt-transcribe` and Scribe v2 (run 2 below); (b) per-turn latency on
-short clips, which decides whether the engine needs streaming STT.
-
-## Run 2: does the recogniser keep the learner's mistakes? (set up)
+## Run 2: does the recogniser keep the learner's mistakes? (2026-09-26)
 
 [reading_list_errors.md](reading_list_errors.md): 26 Session 4 sentences.
 Eighteen contain one planted mistake of the kinds a learner makes: seven
@@ -258,10 +252,85 @@ what was read, mistakes included. The recogniser for the engine is the one
 that keeps the most mistakes without inventing errors in the controls.
 
 ```bash
-uv run python -m stt --reading-list reading_list_errors.md run fixtures/audio/errors-1.m4a --provider openai --provider elevenlabs
+uv run python -m stt --reading-list reading_list_errors.md run fixtures/audio/<file>
 ```
 
-Two recognisers, about a minute and a half of audio: about two cents.
+### Answer
+
+**ElevenLabs Scribe v2 writes down the learner's mistakes; `gpt-transcribe`
+corrects most of them.** One phone recording (108 s), all four recognisers:
+
+| Provider (model) | Mistakes kept | Corrected (hidden) | Other | Controls exact | WER against what was read | Request time |
+| --- | --- | --- | --- | --- | --- | --- |
+| ElevenLabs (`scribe_v2`) | **12/18** | **2/18** | 4/18 | 7/8 | 8.0% | 2.8 s |
+| Deepgram (`nova-3`) | 7/18 | 3/18 | 8/18 | 6/8 | 18.8% | 2.4 s |
+| OpenAI (`gpt-transcribe`) | 6/18 | 10/18 | 2/18 | 8/8 | 11.6% | 4.5 s |
+| OpenAI (`gpt-4o-transcribe`) | 5/18 | 9/18 | 4/18 | 7/8 | 18.8% | 3.8 s |
+
+Per planted mistake:
+
+| # | Read (mistake → correct) | Scribe v2 | gpt-transcribe | gpt-4o-transcribe | Nova-3 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | где → де | kept | corrected | corrected | other |
+| 2 | до центр → до центру | kept | corrected | corrected | kept |
+| 4 | потом → потім | kept | corrected | corrected | corrected |
+| 5 | лівий → ліворуч | other | other | other | other |
+| 7 | нет → ні | kept | corrected | corrected | kept |
+| 9 | можно → можна | kept | corrected | corrected | corrected |
+| 10 | виходить → виходити | kept | corrected | kept | kept |
+| 11 | наступна зупинка → наступній зупинці | kept | kept | other | other |
+| 12 | до вокзал → до вокзалу | kept | kept | corrected | kept |
+| 15 | навпроти банк → навпроти банку | kept | kept | kept | other |
+| 16 | спасибо → спасибі | corrected | kept | kept | corrected |
+| 17 | найближчий → найближча | other | corrected | corrected | other |
+| 18 | біля готель → біля готелю | kept | kept | other | kept |
+| 21 | потрібна → потрібен | kept | corrected | corrected | kept |
+| 22 | здесь → тут | kept | kept | kept | other |
+| 23 | іншій бік → іншому боці | other | other | other | other |
+| 25 | повторите → повторіть | other | corrected | corrected | other |
+| 26 | українці → українців | corrected | corrected | kept | kept |
+
+Reading the table:
+
+- **`gpt-transcribe` hides the mistakes a teacher most needs to hear.** It
+  turned five of the seven Russian words into their Ukrainian equivalents
+  (где, потом, нет, можно, повторите) and fixed five endings or agreements
+  (до центр, виходить, найближчий, потрібна, українці). What it keeps is
+  mostly what cannot be tidied into a nearby Ukrainian word. The same
+  tidying made it the most accurate on correct reading in run 1. For a
+  transcript that is a virtue; for a teacher it removes the evidence.
+- **Scribe v2 kept 12 and corrected only 2.** Its four "other" results
+  still show a mistake: line 5 came out as a different wrong form
+  (all four recognisers agree on it, so it is probably how it was said),
+  lines 17 and 23 as other wrong forms, and line 25 as a Russian verb in
+  Ukrainian letters. Counting those, Scribe let the teacher see a mistake
+  in 16 of 18 lines. Of the seven Russian words it kept five, wrote
+  повторите in Ukrainian letters, and corrected only спасибо.
+- **Controls:** Scribe got one of the eight correct lines wrong (`їдете`
+  as `йдете`, by transport vs on foot); `gpt-transcribe` none.
+- `gpt-4o-transcribe` corrects like `gpt-transcribe` and is less accurate.
+  Nova-3 keeps some mistakes but garbles too much to tell them from its own
+  errors.
+
+**Decision: ElevenLabs Scribe v2 is the recogniser for the engine.** It is
+accurate on correct Ukrainian (run 1: 4.2% WER, no Russian, all 4A lines),
+keeps the learner's mistakes (run 2), and is the cheapest and fastest of
+the two good ones. `gpt-transcribe` is the better choice only where a clean
+transcript matters more than the learner's errors, such as a lesson summary.
+
+One consequence for the 4A comparison above: ChatGPT Voice's perfect
+opening transcript may be the same kind of tidying. Its transcript is not
+evidence that the learner said every line correctly.
+
+Cost of run 2 at the same list prices (108 s): Scribe $0.007,
+`gpt-transcribe` $0.008, `gpt-4o-transcribe` ≈ $0.011, Nova-3 $0.009;
+about $0.035. Both runs together: about $0.08.
+
+Limits: one reader, one recording, planted mistakes read deliberately.
+Real mistakes in spontaneous speech may sound less clear-cut. Next:
+per-turn latency on short clips (whether the engine needs Scribe's
+streaming model), then the first engine turns in POC 5 with Scribe
+transcripts shown to the learner.
 
 ## Files
 

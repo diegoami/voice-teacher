@@ -1,0 +1,226 @@
+{
+  "created": "2026-09-27",
+  "lesson": {
+    "source": "2026-09-26-session-4B",
+    "part": "4B",
+    "title": "Getting to the centre by transport",
+    "learner": "Діє́го. Uses masculine forms (я хоті́в би, я переду́мав). From Italy, lives in Berlin, works in software, speaks Italian, German and English.",
+    "main_goal": "Ask the best way to get somewhere by transport, choose between bus and metro, find the nearest station or stop, and ask where to get off and whether to change.",
+    "introduction": "Сього́дні ми повто́римо, як запи́тувати доро́гу й поя́снювати маршру́т. Ви запита́єте, де знахо́диться потрі́бне мі́сце, зрозумі́єте кі́лька вказіво́к і повто́рите маршру́т свої́ми слова́ми.",
+    "opening": [
+      "Перепро́шую, де знахо́диться ста́нція метро́?",
+      "Як пройти́ до це́нтру?",
+      "Іді́ть пря́мо до перехре́стя.",
+      "По́тім поверні́ть право́руч.",
+      "Ста́нція бу́де ліво́руч.",
+      "Це дале́ко?",
+      "Ні, хвили́н п’ять пі́шки.",
+      "Як кра́ще дої́хати до це́нтру?",
+      "Мо́жна авто́бусом або́ метро́.",
+      "Де мені́ вихо́дити?",
+      "На насту́пній зупи́нці.",
+      "Ні, не до вокза́лу. Мені́ потрі́бно до автовокза́лу."
+    ],
+    "active_phrases": [
+      "Як кра́ще дої́хати до…?",
+      "А що шви́дше?",
+      "Де найбли́жча ста́нція?",
+      "Де мені́ вихо́дити?",
+      "Чи тре́ба пересіда́ти?"
+    ],
+    "weak_expressions": [
+      "Це дале́ко? — Pimsleur review, Session 4A (asking whether the station is far)",
+      "туди́ versus там — Pimsleur review, Session 4 (asking how to get to a place just named)"
+    ],
+    "scenario": "You are a local person the learner asks for help, first outside his hotel, then in the street. Change one detail per cycle. Speak your own line, then wait: the learner's part is never spoken by you.",
+    "steps": [
+      {
+        "number": 1,
+        "teacher_line": "До́брий день!",
+        "expected": "ask the best way to get to the centre",
+        "setting": "",
+        "targets": [
+          "Як кра́ще дої́хати до це́нтру?"
+        ],
+        "phrase": "Як кра́ще дої́хати до…?",
+        "open_answer": false
+      },
+      {
+        "number": 2,
+        "teacher_line": "Мо́жна авто́бусом або́ метро́.",
+        "expected": "ask which is faster",
+        "setting": "",
+        "targets": [
+          "А що шви́дше?"
+        ],
+        "phrase": "А що шви́дше?",
+        "open_answer": false
+      },
+      {
+        "number": 3,
+        "teacher_line": "Метро́ шви́дше.",
+        "expected": "ask where the nearest station is",
+        "setting": "",
+        "targets": [
+          "Де найбли́жча ста́нція?"
+        ],
+        "phrase": "Де найбли́жча ста́нція?",
+        "open_answer": false
+      },
+      {
+        "number": 4,
+        "teacher_line": "Бі́ля готе́лю. Ви́йдіть із готе́лю й поверні́ть ліво́руч.",
+        "expected": "ask whether it is far (earlier weak expression)",
+        "setting": "",
+        "targets": [
+          "Це дале́ко?"
+        ],
+        "phrase": "Це дале́ко?",
+        "open_answer": false
+      },
+      {
+        "number": 5,
+        "teacher_line": "Ні, дві хвили́ни пі́шки.",
+        "expected": "ask where to get off",
+        "setting": "",
+        "targets": [
+          "Де мені́ вихо́дити?"
+        ],
+        "phrase": "Де мені́ вихо́дити?",
+        "open_answer": false
+      },
+      {
+        "number": 6,
+        "teacher_line": "На тре́тій зупи́нці.",
+        "expected": "ask whether he has to change",
+        "setting": "",
+        "targets": [
+          "Чи тре́ба пересіда́ти?"
+        ],
+        "phrase": "Чи тре́ба пересіда́ти?",
+        "open_answer": false
+      },
+      {
+        "number": 7,
+        "teacher_line": "Ні, це пряма́ лі́нія.",
+        "expected": "thank you",
+        "setting": "",
+        "targets": [
+          "Дя́кую!"
+        ],
+        "phrase": "",
+        "open_answer": true
+      },
+      {
+        "number": 8,
+        "teacher_line": "До́брий день! Куди́ ви ї́дете?",
+        "expected": "say where he is going and ask how to get there (earlier weak expression)",
+        "setting": "New cycle, in the street",
+        "targets": [
+          "Я ї́ду до це́нтру. Як туди́ дої́хати?"
+        ],
+        "phrase": "туди́ versus там",
+        "open_answer": true
+      },
+      {
+        "number": 9,
+        "teacher_line": "Мо́жна авто́бусом но́мер два́дцять або́ метро́.",
+        "expected": "ask which is faster",
+        "setting": "",
+        "targets": [
+          "А що шви́дше?"
+        ],
+        "phrase": "А що шви́дше?",
+        "open_answer": false
+      },
+      {
+        "number": 10,
+        "teacher_line": "Авто́бус шви́дше.",
+        "expected": "ask where the bus stop is",
+        "setting": "",
+        "targets": [
+          "Де найбли́жча зупи́нка?"
+        ],
+        "phrase": "Де найбли́жча ста́нція?",
+        "open_answer": false
+      },
+      {
+        "number": 11,
+        "teacher_line": "Зупи́нка на і́ншому бо́ці ву́лиці.",
+        "expected": "ask where to get off",
+        "setting": "",
+        "targets": [
+          "Де мені́ вихо́дити?"
+        ],
+        "phrase": "Де мені́ вихо́дити?",
+        "open_answer": false
+      },
+      {
+        "number": 12,
+        "teacher_line": "На п’я́тій зупи́нці.",
+        "expected": "thank you",
+        "setting": "",
+        "targets": [
+          "Дя́кую!"
+        ],
+        "phrase": "",
+        "open_answer": true
+      }
+    ],
+    "recall": [
+      {
+        "number": 1,
+        "prompt": "Запита́йте, як кра́ще дої́хати до це́нтру.",
+        "targets": [
+          "Як кра́ще дої́хати до це́нтру?"
+        ],
+        "phrase": "Як кра́ще дої́хати до…?"
+      },
+      {
+        "number": 2,
+        "prompt": "Запита́йте, що шви́дше: авто́бус чи метро́.",
+        "targets": [
+          "А що шви́дше: авто́бус чи метро́?",
+          "А що шви́дше?"
+        ],
+        "phrase": "А що шви́дше?"
+      },
+      {
+        "number": 3,
+        "prompt": "Запита́йте, де найбли́жча ста́нція.",
+        "targets": [
+          "Де найбли́жча ста́нція?"
+        ],
+        "phrase": "Де найбли́жча ста́нція?"
+      },
+      {
+        "number": 4,
+        "prompt": "Запита́йте, де вам вихо́дити.",
+        "targets": [
+          "Де мені́ вихо́дити?"
+        ],
+        "phrase": "Де мені́ вихо́дити?"
+      },
+      {
+        "number": 5,
+        "prompt": "Запита́йте, чи тре́ба пересіда́ти.",
+        "targets": [
+          "Чи тре́ба пересіда́ти?"
+        ],
+        "phrase": "Чи тре́ба пересіда́ти?"
+      }
+    ],
+    "closing": "Заня́ття закі́нчено."
+  },
+  "derived_by": "openai/gpt-6-sol",
+  "usage": {
+    "model": "openai/gpt-6-sol",
+    "input_tokens": 1449,
+    "output_tokens": 1124,
+    "cost_usd": 0.014861
+  },
+  "unverified_stress": [
+    "Дя́кую",
+    "ї́ду"
+  ]
+}

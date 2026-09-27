@@ -80,7 +80,13 @@ def main() -> int:
            "usage": None, "unverified_stress": []}
     if not args.no_derive:
         from .derive import derive, unverified_stress  # needs a key only here
-        lesson, usage = derive(lesson)
+        import openai
+        try:
+            lesson, usage = derive(lesson)
+        except openai.APIStatusError as exc:
+            detail = exc.body.get("message") if isinstance(exc.body, dict) else exc.message
+            print(f"The model request failed (HTTP {exc.status_code}): {detail}", file=sys.stderr)
+            return 1
         out.update(derived_by=usage["model"], usage=usage,
                    unverified_stress=unverified_stress(lesson, (folder / "package.md").read_text(encoding="utf-8")))
         cost = f", ${usage['cost_usd']:.4f}" if usage.get("cost_usd") is not None else ""

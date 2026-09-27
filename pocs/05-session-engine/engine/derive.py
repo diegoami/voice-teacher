@@ -16,6 +16,7 @@ from .llm import Connection, connection, usage_of
 from .package import Lesson, normalise, plain
 
 MAX_TARGETS = 3
+MAX_OUTPUT_TOKENS = 4000  # 17 sets of targets fit easily; OpenRouter reserves credit for this many
 
 SYSTEM = """You prepare lesson data for a spoken Ukrainian lesson engine. The engine
 hides each step's target sentence from the teacher until the learner has tried,
@@ -125,6 +126,7 @@ def derive(lesson: Lesson, conn: Connection | None = None, client=None) -> tuple
         messages=[{"role": "system", "content": SYSTEM},
                   {"role": "user", "content": request_text(lesson)}],
         response_format=Derived,
+        max_tokens=MAX_OUTPUT_TOKENS,
         extra_body=conn.extra_body(),
     )
     message = completion.choices[0].message

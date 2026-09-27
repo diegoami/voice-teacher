@@ -126,6 +126,7 @@ def test_derive_request_and_result(folder, monkeypatch):
     lesson, usage = derive(lesson, OPENROUTER, client)
     call = client.calls[0]
     assert call["model"] == "openai/gpt-6-sol" and call["response_format"] is Derived
+    assert call["max_tokens"] == 4000
     assert call["extra_body"] == {"provider": {"require_parameters": True}, "usage": {"include": True}}
     assert call["messages"][0]["role"] == "system"
     assert "the teacher says «Ось, будь ла́ска.»; the learner is to ask the price (earlier weak expression)." \

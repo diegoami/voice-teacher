@@ -11,7 +11,7 @@ has a written answer in its own `README.md`, with evidence.
 | 2 | `02-tts-stress/` | Does any TTS model place Ukrainian stress correctly, with plain text or with the material's stress marks? | Fifteen sentences (4A lesson lines and Ukrainian/Russian stress traps) rendered by three ElevenLabs models and OpenAI `gpt-4o-mini-tts`, plain and marked; blind listening verdict per target word per variant. |
 | 3 | `03-session-store/` | Can the current Markdown records (tracker, queue, iterations, sessions) round-trip through the relational schema without losing anything? | SQLite database built by an importer; exporter regenerates the Markdown; diff is empty or explained. |
 | 4 | `04-adherence-eval/` | Can the C1–C15 checklist be scored automatically from a transcript with the failing turn cited, matching the hand-scored rows in `VOICE_ITERATIONS.md`? | Agreement per check on the 2B and 2C transcripts; disagreements explained. |
-| 5 | `05-session-engine/` | Does a state machine plus a small teacher prompt, with the learner's target withheld until an attempt, produce more independent production than controller v4? | A text-only run of one lesson part against the engine, then a voice run; evidence counts compared with 2C. |
+| 5 | `05-session-engine/` | Does an engine that owns the turn loop (state machine, small Claude prompt, target withheld until the first attempt) produce more independent production than controller v4, at an acceptable turn latency with Scribe and Multilingual v2? | One real voice lesson through the engine; independent productions per guided step compared with the v4 runs (3A, 4A on Claude and ChatGPT); turn latency and cost per lesson logged. |
 
 Status (2026-09-26): POC 0 answered (the connector delivers a lesson; it cannot
 record or steer one). POC 1 answered: locked to Ukrainian, ElevenLabs Scribe v2 hears the
@@ -20,7 +20,7 @@ learner's mistakes (12 of 18 planted, 2 corrected), so STT → Claude → TTS
 stays the default runtime with Scribe as the recogniser (see
 `docs/architecture.md`). POC 2 answered: ElevenLabs Multilingual v2
 with stress-marked text places Ukrainian stress right (0 of 28 judged words
-wrong); `у мене́` needs a pronunciation fix.
+wrong); `у мене́` needs a pronunciation fix. POC 5 planned (milestones in its README).
 
 POCs 1 and 2 are the go/no-go items; run them early even though they are
 small. POCs 3 and 4 make the existing skills cheaper without touching the

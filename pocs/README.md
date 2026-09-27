@@ -18,8 +18,9 @@ record or steer one). POC 1 answered: locked to Ukrainian, ElevenLabs Scribe v2 
 learner's Ukrainian as Ukrainian (4.2% WER, no Russian) and keeps the
 learner's mistakes (12 of 18 planted, 2 corrected), so STT → Claude → TTS
 stays the default runtime with Scribe as the recogniser (see
-`docs/architecture.md`). POC 2 rendered and awaiting the listening
-verdicts.
+`docs/architecture.md`). POC 2 answered: ElevenLabs Multilingual v2
+with stress-marked text places Ukrainian stress right (0 of 28 judged words
+wrong); `у мене́` needs a pronunciation fix.
 
 POCs 1 and 2 are the go/no-go items; run them early even though they are
 small. POCs 3 and 4 make the existing skills cheaper without touching the

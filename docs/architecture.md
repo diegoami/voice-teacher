@@ -49,9 +49,9 @@ prompt, and a much smaller checklist, than v4.
 └───┬──────────────┬──────────────────┬─────────────────────────────────┘
     │              │                  │
  STT service    Claude Messages    TTS service
- (ElevenLabs    API (Sonnet 5      (ElevenLabs /
-  Scribe v2 /   default; Opus 5    Google / Azure
-  Deepgram)     for evaluation)    Ukrainian voice)
+ (ElevenLabs    API (Sonnet 5      (ElevenLabs
+  Scribe v2)    default; Opus 5    Multilingual v2,
+                for evaluation)    stress-marked text)
                                      
 ┌──────────────────────────────────────────────────────────────────────┐
 │ Database (SQLite for one user → Postgres)                            │
@@ -122,6 +122,24 @@ teacher must correct, so accuracy on correct speech is not the criterion.
 Transcription costs about four cents per lesson. Per-turn latency is still
 unmeasured. The same caution applies to runtime B: ChatGPT Voice's clean
 transcripts are not evidence that the learner spoke cleanly.
+
+## The teacher's voice (POC 2, 2026-09-27)
+
+ElevenLabs Multilingual v2, fed the `tts` rendering with stress marks, put
+the stress right on all 28 judged words of fifteen test sentences; without
+marks it got three wrong. Plain-text voices fall into Russian stress on
+words like `дочка́`, `кропива́` and `ви́хід`; the 4A lesson lines themselves
+were safe on almost every voice. Flash v2.5 is about four times faster but ignores
+the marks, so it is not the teacher's voice. Two consequences for the
+design:
+
+- **The stress marks are load-bearing.** Models follow them, wrong ones
+  included (`лі́воруч` in the material was said as marked until corrected to
+  `ліво́руч`). Checking marks against a dictionary belongs in authoring.
+- **A per-word correction list is needed anyway.** Seven of eight voices
+  said `у ме́не` for `у мене́`, most of them despite the mark. The engine
+  keeps a small pronunciation dictionary (ElevenLabs alias rules) for
+  words like this, grown from listening checks.
 
 ## Data model
 
@@ -279,8 +297,9 @@ loop, and the curated content per language, not from the plumbing.
   Ukrainian did not (POC 1: 2.8% and 4.2% WER for the two best, no Russian
   on any). Read speech is the easy case: spontaneous turns with real
   learner errors are still unmeasured.
-- TTS stress handling for Ukrainian may be poor on every provider; the
-  listening test in Phase 3 is a go/no-go.
+- TTS stress for Ukrainian was the second go/no-go. POC 2: Multilingual v2
+  with stress marks got every judged word right, but only if the marks are
+  right, and `у мене́` needs a pronunciation fix on every voice tested.
 - Latency: three network hops per turn. Streaming STT and streaming TTS keep
   it acceptable; a non-streaming first version will feel slow.
 - Content is the long pole for a second language; the engine is not.

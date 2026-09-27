@@ -94,9 +94,82 @@ characters (1,021 characters each, about $0.10 each), Flash v2.5 $0.05 (about
 $0.05), OpenAI about $0.015 per minute of speech (about $0.03). **About $0.30
 in total.**
 
-## Answer
+## Answer (2026-09-27, one listener, all 120 clips judged blind)
 
-Pending: waiting for the listening verdicts.
+**Go, with ElevenLabs Multilingual v2 and stress marks, and one fix to
+make.** Given the material's stress marks, Multilingual v2 put the stress
+right on every one of the 28 judged words. The lesson lines are safe on
+almost every variant. The traps are where the variants differ.
+
+| Variant | Target words wrong | Clips with every target right | Other word wrong | Median request time |
+| --- | --- | --- | --- | --- |
+| **ElevenLabs Multilingual v2, marks** | **0/28** | 13/15 | 1 | 1.0 s |
+| ElevenLabs v3, marks | 1/28 | 13/15 | 0 | 2.7 s |
+| ElevenLabs v3, plain | 1/26 (one clip unclear) | 12/15 | 1 | 1.5 s |
+| OpenAI `gpt-4o-mini-tts`, marks | 1/28 | 11/15 | 1 | 1.2 s |
+| ElevenLabs Multilingual v2, plain | 3/28 | 11/15 | 1 | 1.0 s |
+| ElevenLabs Flash v2.5, plain | 3/28 | 11/15 | 1 | 0.3 s |
+| ElevenLabs Flash v2.5, marks | 4/28 | 10/15 | 1 | 0.3 s |
+| OpenAI `gpt-4o-mini-tts`, plain | 4/28 | 11/15 | 1 | 1.3 s |
+
+Request time is for the whole clip without streaming. "Clips with every
+target right" also counts two verdicts for things other than stress: a
+rushed «Ні, хвилин» and an unclear `щ`.
+
+Per item (✗ = the judged word that was wrong):
+
+| # | Judged | v2 plain | v2 marks | v3 plain | v3 marks | Flash plain | Flash marks | OpenAI plain | OpenAI marks |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1–10 | 20 words in 4A lesson lines | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ два́дцять | ✗ поті́м, право́руч | ✗ перепро́шую |
+| 11 | одина́дцять, чотирна́дцять | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 12 | дочка́, легки́й | ✗ дочка́ | ✓ | ✓ | ✓ | ✗ дочка́ | ✗ дочка́ | ✗ дочка́ | ✓ |
+| 13 | за́мок / замо́к | ✗ замо́к | ✓ | ? | ✗ (unspecified) | ✗ замо́к | ✓ | ✗ замо́к | ✗ (unspecified) |
+| 14 | кропива́ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ | ✓ |
+| 15 | ви́хід | ✗ | ✓ | ✓ | ✗ | ✓ | ✗ | ✓ | ✓ |
+
+What this shows:
+
+1. **The lesson lines are not the problem.** On the 20 judged words of the
+   4A lines, the eight variants got four words wrong, in three of 80 clips,
+   none of them from Multilingual v2 or v3.
+2. **Russian-stress traps are.** `дочка́` came out as `до́чка` in four
+   variants, `кропива́` in three, `ви́хід` in three. Every plain variant
+   failed at least one of them.
+3. **Stress marks help Multilingual v2 and OpenAI.** v2 went from 3 wrong
+   words to 0, OpenAI from 4 to 1. The marks fixed `дочка́` in both, and the
+   homograph `замо́к` in v2. **Flash v2.5 does not use them** (3 plain, 4
+   marked).
+4. **One error is almost universal: `у ме́не` for `у мене́`.** Seven of eight
+   variants said it, including v2 and OpenAI with the mark on the right
+   syllable. Only v3 with marks said `мене́`. «У мене…» is a frequent lesson
+   phrase, so this needs a fix of its own.
+5. **Marks must be right, because models follow them.** Before `лі́воруч`
+   was corrected to `ліво́руч` (see `stress_items.md`), two marked variants
+   said the wrong `лі́воруч` and the listener caught it. The material audit in
+   learnukrainian is a prerequisite, not a nicety.
+
+**Decision.** The teacher's voice is ElevenLabs Multilingual v2 with the
+`tts` rendering carrying stress marks (as `docs/architecture.md` already
+plans), at $0.10 per 1,000 characters and about one second per clip before
+streaming. Flash v2.5 is fast but ignores the marks and falls into the
+Russian traps, so it is not the teacher's voice. v3 with marks is as good on
+stress and is the only one to say `мене́`, but it is slower; it is a
+candidate for pre-rendering fixed lines.
+
+Still open:
+- **`мене́`:** try an ElevenLabs pronunciation dictionary (alias rule) and
+  v3 for lines with «у мене», in a short round 2 on the words the listener
+  flagged.
+- **Two ✗ without detail on item 13** (v3 marks, OpenAI marks): they do not
+  change the decision.
+- **Streaming first-audio latency** of Multilingual v2, measured in the
+  engine (POC 5).
+- **One listener, one voice per provider, 15 sentences.** Enough to choose;
+  not a guarantee for every word, which is why the marks and a small
+  per-word correction list matter.
+
+Cost: the render, the re-renders after the two mark corrections and the
+Scribe sanity check came to about **$0.35**.
 
 ## Files
 

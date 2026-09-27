@@ -10,6 +10,8 @@ Environment:
   OPENROUTER_API_KEY / OPENCODE_API_KEY / OPENAI_API_KEY
   TARGETS_MODEL   model that derives the step targets (one call per lesson)
   TEACHER_MODEL   model that plays the teacher (chosen in milestone 2)
+  TEACHER_REASONING  reasoning effort for the teacher (default "minimal"; "none" sends nothing,
+                  for models without reasoning)
 """
 
 from __future__ import annotations
@@ -42,9 +44,15 @@ class Connection:
     def extra_body(self) -> dict:
         """Provider-specific request fields."""
         if self.provider == "openrouter":
-            # Route only to endpoints that honour structured output and tools; report the cost.
-            return {"provider": {"require_parameters": True}, "usage": {"include": True}}
+            # Route only to endpoints that honour structured output and tools, fastest first
+            # (a model's cheaper "flex" endpoints took 2–4 s a call); report the cost.
+            return {"provider": {"require_parameters": True, "sort": "latency"}, "usage": {"include": True}}
         return {}
+
+    def reasoning(self) -> dict:
+        """The teacher's reasoning setting, as a request field ({} for none)."""
+        effort = os.environ.get("TEACHER_REASONING", "minimal")
+        return {"reasoning": {"effort": effort}} if self.provider == "openrouter" and effort != "none" else {}
 
     def model(self, role: str) -> str:
         name = os.environ.get(f"{role.upper()}_MODEL") or (DEFAULT_TARGETS_MODEL if role == "targets" else "")

@@ -9,7 +9,7 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from .package import Lesson, parse_package
+from .package import Lesson, parse_package, plain
 
 HERE = Path(__file__).resolve().parent.parent
 LESSONS = HERE / "fixtures" / "lessons"
@@ -58,6 +58,61 @@ def review(data: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+def load_lesson(path: Path) -> Lesson:
+    return Lesson.from_dict(json.loads(path.read_text(encoding="utf-8"))["lesson"])
+
+
+def save_session(session, name: str) -> Path:
+    from datetime import datetime
+    folder = HERE / "fixtures" / "sessions"
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{name}-{datetime.now():%Y%m%d-%H%M%S}.jsonl"
+    with path.open("w", encoding="utf-8") as out:
+        for event in session.log:
+            out.write(json.dumps(event, ensure_ascii=False) + "\n")
+        for e in session.evidence:
+            out.write(json.dumps({"event": "evidence", **e.__dict__}, ensure_ascii=False) + "\n")
+    return path
+
+
+def play(lesson_path: Path, model: str | None) -> int:
+    """A typed lesson in the terminal: the teacher's lines in plain spelling, the task card, your answer."""
+    from .judge import LLMJudge
+    from .session import Session
+    lesson = load_lesson(lesson_path)
+    session = Session(lesson, LLMJudge(lesson, model=model))
+    print(f"Lesson {lesson.part}: {lesson.title}. Model: {session.judge.model}. Type your answers; Ctrl+D stops.\n")
+    says, card = session.start(), None
+    while True:
+        for say in says:
+            print(f"  Teacher: {plain(say.text)}")
+        if session.done:
+            break
+        if session.card and session.card != card:
+            print(f"  [{session.card}]")
+        card = session.card
+        try:
+            text = input("  You: ").strip()
+        except EOFError:
+            print()
+            break
+        if text:
+            says = session.hear(text)
+    path = save_session(session, lesson.part)
+    judged = [e for e in session.log if e["event"] == "judge"]
+    seconds = sorted(e["seconds"] for e in judged)
+    cost = sum((e["usage"].get("cost_usd") or 0) for e in judged)
+    counts: dict[str, int] = {}
+    for e in session.evidence:
+        if e.phase == "guided" and e.round > 0 or e.phase == "recall":
+            counts[e.label] = counts.get(e.label, 0) + 1
+    print(f"\nEvidence (rounds 1–2 and recall): {counts}")
+    if seconds:
+        print(f"Model calls: {len(seconds)}, median {seconds[len(seconds) // 2]} s, cost ${cost:.4f}")
+    print(f"Session log: {path}")
+    return 0
+
+
 def main() -> int:
     load_env(HERE / ".env")
     parser = argparse.ArgumentParser(prog="python -m engine")
@@ -68,7 +123,13 @@ def main() -> int:
     lp.add_argument("--no-derive", action="store_true", help="parse only; leave the targets empty")
     rp = sub.add_parser("review", help="print the targets of a lesson.json for checking")
     rp.add_argument("lesson", type=Path)
+    pp = sub.add_parser("play", help="a typed lesson in the terminal")
+    pp.add_argument("lesson", type=Path)
+    pp.add_argument("--model", help="teacher model (default: TEACHER_MODEL)")
     args = parser.parse_args()
+
+    if args.command == "play":
+        return play(args.lesson, args.model)
 
     if args.command == "review":
         print(review(json.loads(args.lesson.read_text(encoding="utf-8"))), end="")

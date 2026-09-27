@@ -1,6 +1,7 @@
 # POC 5 — Session engine
 
-Status: planned (2026-09-27). Nothing built yet.
+Status (2026-09-27): milestone 1 built and tested (package parser, target
+derivation, review sheet); the derivation call waits for an Anthropic API key.
 
 ## Question
 

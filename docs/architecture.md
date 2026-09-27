@@ -269,6 +269,30 @@ hard-coded `LEARNER` becomes a row), content tooling to author a unit from
 any material, a second language to prove the engine is generic, billing,
 audio retention consent.
 
+### The phone app: from POC to a Duolingo-style product (2026-09-27)
+
+Lessons happen on the phone, so Android comes first. The client is thin:
+a talk button that sends the learner's audio to the session engine and
+plays the answer. Everything expensive (lesson shape, recognition, voice,
+evidence, teacher) is on the server and does not depend on the client. The
+client therefore grows in three steps, each reusing the one before:
+
+1. **POC 5: an installable web app (PWA)** served over HTTPS, added to the
+   Android home screen. The fastest way to find out whether the engine
+   teaches better than controller v4. POC 5 records what the PWA could not
+   do on Android.
+2. **Store apps from the same code.** The web app wrapped with Capacitor
+   for the Play Store (and later the App Store), or a native client if
+   lessons with the screen locked or headset-button push-to-talk turn out
+   to matter.
+3. **Product features, in Phase 4:** accounts, a daily streak, reminder
+   notifications, progress from the evidence table, and a subscription
+   through Play billing. That needs a store app, and it is why step 2
+   exists.
+
+What does not change between the steps: the engine's API (audio in, audio
+and text out, per session), so a better client never means a new engine.
+
 ## Marketability, honestly
 
 **Who it is for.** Not beginners: returning learners who did a course years

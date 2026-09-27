@@ -1,0 +1,5 @@
+.venv/
+.env
+# Session logs, audio and learner transcripts stay local.
+fixtures/sessions/
+fixtures/audio/

@@ -58,18 +58,36 @@ package has no explicit target per step, so the first milestone derives
 them once with a strong model and the learner checks them. If it works,
 `/voice-prepare` in learnukrainian writes `lesson.json` directly.
 
-**Phases.**
-- *Opening:* the engine speaks line *k* (pre-rendered, authored marks),
-  records the repetition, and says it once more only if the transcript
-  shares less than half its words with the line. No model call.
-- *Guided:* after each learner turn the teacher model (brief cached where the provider caches) answers
-  with one short spoken line and one tool: `accept`, `cue(partial)`,
-  `correct(attempt, preferred, chunk)`, or `model_sentence`. The engine
-  rejects `model_sentence` before two attempts and asks for a cue. The
-  target enters the context only after the first attempt is logged.
-- *Delayed recall:* the engine reads the prompts one at a time; the model
-  judges the answer and may only correct, never cue before an attempt.
-- *Close:* the engine says «Заняття закінчено.» and stops.
+**Lesson shape (set with the learner, 2026-09-27).** Each part of the lesson
+makes one thing easier than the next:
+
+1. *Opening review:* the previous lesson's lines. The teacher says a line,
+   the learner repeats it. The screen says: «Listen and repeat exactly what
+   you hear. Don't answer, even when it is a question.»
+2. *Round 0, new sentences:* this lesson's own target sentences, each once,
+   to repeat, with the card «Repeat exactly what you hear; don't answer it.
+   You will need it to …».
+3. *Round 1, with the script:* the guided dialogue; each step shows its
+   task card («Your turn: ask where the nearest station is»).
+4. *Round 2, without the script:* the same dialogue, no cards.
+5. *Delayed recall:* the prompts one at a time, no help before an attempt.
+6. *Close:* «Заня́ття закі́нчено.»
+
+In the repeat phases no model is called. A turn counts as a repetition when at
+most one word in three differs, so a lost or garbled word passes but an answer
+(«це коштує двадцять» for «Скільки це коштує?») does not; the line is said
+once more, then the lesson moves on.
+
+**The model only judges.** The engine writes every teacher line: the step
+lines, the task cards, the correction template «Ви́правлення: … Скажі́ть усе́
+ре́чення.», a partial cue (the target's first words) and, after two misses,
+the full sentence to repeat. The model returns a verdict for one learner turn
+(`accept`, `error`, `unclear`, `question`), the chunk to correct and, for a
+question about meaning, a one-sentence answer. It cannot break the lesson
+rules because it never chooses what to say; its call is small, so it is fast
+and cheap. Evidence labels follow from the help used: `independent` (the card
+holds no Ukrainian), `cued`, `corrected_repeated`, `modelled_repeated`,
+`needs_turn`.
 
 **Task cards (found 2026-09-27, by the learner).** A step's teacher line does
 not tell the learner what to say next: after «Метро́ шви́дше.» nothing implies

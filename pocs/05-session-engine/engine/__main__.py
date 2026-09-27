@@ -113,6 +113,41 @@ def play(lesson_path: Path, model: str | None) -> int:
     return 0
 
 
+def simulate(lesson_path: Path, models: list[str], seed: int) -> int:
+    """The same simulated lesson for each teacher model; writes fixtures/simulations/<part>.md."""
+    from .judge import LLMJudge
+    from .simulate import report, run, write_script
+    lesson = load_lesson(lesson_path)
+    script_path = lesson_path.with_name(f"{lesson.part}-learner.json")
+    if script_path.exists():
+        answers = json.loads(script_path.read_text(encoding="utf-8"))["answers"]
+    else:
+        answers, usage = write_script(lesson)
+        script_path.write_text(json.dumps({"written_by": usage["model"], "usage": usage, "answers": answers},
+                                          ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"Learner script written by {usage['model']} (${usage.get('cost_usd') or 0:.4f})", file=sys.stderr)
+    from .simulate import Result
+    out = HERE / "fixtures" / "simulations" / f"{lesson.part}.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    raw = out.with_suffix(".json")
+    saved = json.loads(raw.read_text(encoding="utf-8")) if raw.exists() else {}
+    results = []
+    for model in models:
+        key = f"{model} seed {seed}"
+        if key in saved:
+            print(f"{model}: reusing the saved run", file=sys.stderr)
+            results.append(Result(**saved[key]))
+            continue
+        print(f"{model}: simulating…", file=sys.stderr)
+        results.append(run(lesson, answers, LLMJudge(lesson, model=model), seed))
+        saved[key] = results[-1].to_dict()
+        raw.write_text(json.dumps(saved, ensure_ascii=False, indent=1), encoding="utf-8")
+    text = report(results, lesson)
+    out.write_text(text, encoding="utf-8")
+    print(text, end="")
+    return 0
+
+
 def main() -> int:
     load_env(HERE / ".env")
     parser = argparse.ArgumentParser(prog="python -m engine")
@@ -126,8 +161,14 @@ def main() -> int:
     pp = sub.add_parser("play", help="a typed lesson in the terminal")
     pp.add_argument("lesson", type=Path)
     pp.add_argument("--model", help="teacher model (default: TEACHER_MODEL)")
+    sp = sub.add_parser("simulate", help="compare teacher models on the same simulated lesson")
+    sp.add_argument("lesson", type=Path)
+    sp.add_argument("--model", action="append", required=True, help="teacher model (repeatable)")
+    sp.add_argument("--seed", type=int, default=1)
     args = parser.parse_args()
 
+    if args.command == "simulate":
+        return simulate(args.lesson, args.model, args.seed)
     if args.command == "play":
         return play(args.lesson, args.model)
 

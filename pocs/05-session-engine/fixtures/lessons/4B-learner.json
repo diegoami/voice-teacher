@@ -1,0 +1,181 @@
+{
+  "written_by": "openai/gpt-6-sol",
+  "usage": {
+    "model": "openai/gpt-6-sol",
+    "input_tokens": 812,
+    "output_tokens": 2411,
+    "cost_usd": 0.025734
+  },
+  "answers": {
+    "step 1": {
+      "item": "step 1",
+      "variant": "Як найзручніше дістатися центру?",
+      "russian": "Як лучше доїхати до центру?",
+      "russian_mistake": "лучше",
+      "ending": "Як краще доїхати до центр?",
+      "ending_mistake": "центр",
+      "word": "Як краще доїхати до парку?",
+      "word_mistake": "парку"
+    },
+    "step 2": {
+      "item": "step 2",
+      "variant": "Який варіант швидший?",
+      "russian": "А что швидше?",
+      "russian_mistake": "что",
+      "ending": "А що швидша?",
+      "ending_mistake": "швидша",
+      "word": "А що дешевше?",
+      "word_mistake": "дешевше"
+    },
+    "step 3": {
+      "item": "step 3",
+      "variant": "Підкажіть, де розташована найближча станція?",
+      "russian": "Где найближча станція?",
+      "russian_mistake": "Где",
+      "ending": "Де найближчий станція?",
+      "ending_mistake": "найближчий",
+      "word": "Де найближча аптека?",
+      "word_mistake": "аптека"
+    },
+    "step 4": {
+      "item": "step 4",
+      "variant": "Звідси далеко?",
+      "russian": "Это далеко?",
+      "russian_mistake": "Это",
+      "ending": "Це далекі?",
+      "ending_mistake": "далекі",
+      "word": "Це близько?",
+      "word_mistake": "близько"
+    },
+    "step 5": {
+      "item": "step 5",
+      "variant": "На якій зупинці мені вийти?",
+      "russian": "Где мені виходити?",
+      "russian_mistake": "Где",
+      "ending": "Де мене виходити?",
+      "ending_mistake": "мене",
+      "word": "Де мені заходити?",
+      "word_mistake": "заходити"
+    },
+    "step 6": {
+      "item": "step 6",
+      "variant": "Мені потрібно робити пересадку?",
+      "russian": "Чи надо пересідати?",
+      "russian_mistake": "надо",
+      "ending": "Чи треба пересідаю?",
+      "ending_mistake": "пересідаю",
+      "word": "Чи треба виходити?",
+      "word_mistake": "виходити"
+    },
+    "step 7": {
+      "item": "step 7",
+      "variant": "Дуже вам вдячний!",
+      "russian": "Спасибо!",
+      "russian_mistake": "Спасибо",
+      "ending": "Дякує!",
+      "ending_mistake": "Дякує",
+      "word": "Вітаю!",
+      "word_mistake": "Вітаю"
+    },
+    "step 8": {
+      "item": "step 8",
+      "variant": "Мені потрібно до центру. Як туди дістатися?",
+      "russian": "Я еду до центру. Як туди доїхати?",
+      "russian_mistake": "еду",
+      "ending": "Я їду до центр. Як туди доїхати?",
+      "ending_mistake": "центр",
+      "word": "Я їду до вокзалу. Як туди доїхати?",
+      "word_mistake": "вокзалу"
+    },
+    "step 9": {
+      "item": "step 9",
+      "variant": "Який варіант швидший?",
+      "russian": "А что швидше?",
+      "russian_mistake": "что",
+      "ending": "А що швидша?",
+      "ending_mistake": "швидша",
+      "word": "А що дешевше?",
+      "word_mistake": "дешевше"
+    },
+    "step 10": {
+      "item": "step 10",
+      "variant": "Де тут найближча автобусна зупинка?",
+      "russian": "Где найближча зупинка?",
+      "russian_mistake": "Где",
+      "ending": "Де найближчий зупинка?",
+      "ending_mistake": "найближчий",
+      "word": "Де найближча станція?",
+      "word_mistake": "станція"
+    },
+    "step 11": {
+      "item": "step 11",
+      "variant": "На якій зупинці мені вийти?",
+      "russian": "Где мені виходити?",
+      "russian_mistake": "Где",
+      "ending": "Де мене виходити?",
+      "ending_mistake": "мене",
+      "word": "Де мені заходити?",
+      "word_mistake": "заходити"
+    },
+    "step 12": {
+      "item": "step 12",
+      "variant": "Дуже вам вдячний!",
+      "russian": "Спасибо!",
+      "russian_mistake": "Спасибо",
+      "ending": "Дякує!",
+      "ending_mistake": "Дякує",
+      "word": "Вітаю!",
+      "word_mistake": "Вітаю"
+    },
+    "recall 1": {
+      "item": "recall 1",
+      "variant": "Як найзручніше дістатися центру?",
+      "russian": "Як лучше доїхати до центру?",
+      "russian_mistake": "лучше",
+      "ending": "Як краще доїхати до центр?",
+      "ending_mistake": "центр",
+      "word": "Як краще доїхати до парку?",
+      "word_mistake": "парку"
+    },
+    "recall 2": {
+      "item": "recall 2",
+      "variant": "Чим швидше дістатися: автобусом чи метро?",
+      "russian": "А что швидше: автобус чи метро?",
+      "russian_mistake": "что",
+      "ending": "А що швидше: автобуса чи метро?",
+      "ending_mistake": "автобуса",
+      "word": "А що швидше: автобус чи трамвай?",
+      "word_mistake": "трамвай"
+    },
+    "recall 3": {
+      "item": "recall 3",
+      "variant": "Підкажіть, де розташована найближча станція?",
+      "russian": "Где найближча станція?",
+      "russian_mistake": "Где",
+      "ending": "Де найближчий станція?",
+      "ending_mistake": "найближчий",
+      "word": "Де найближча аптека?",
+      "word_mistake": "аптека"
+    },
+    "recall 4": {
+      "item": "recall 4",
+      "variant": "На якій зупинці мені вийти?",
+      "russian": "Где мені виходити?",
+      "russian_mistake": "Где",
+      "ending": "Де мене виходити?",
+      "ending_mistake": "мене",
+      "word": "Де мені заходити?",
+      "word_mistake": "заходити"
+    },
+    "recall 5": {
+      "item": "recall 5",
+      "variant": "Мені потрібно робити пересадку?",
+      "russian": "Чи надо пересідати?",
+      "russian_mistake": "надо",
+      "ending": "Чи треба пересідаю?",
+      "ending_mistake": "пересідаю",
+      "word": "Чи треба виходити?",
+      "word_mistake": "виходити"
+    }
+  }
+}

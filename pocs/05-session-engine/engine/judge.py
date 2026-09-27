@@ -14,6 +14,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Literal
 
+import openai
 from pydantic import BaseModel
 
 from .llm import Connection, connection, usage_of
@@ -50,6 +51,18 @@ return:
 
 Judge strictly on Russian: a Russian word is an error even when understandable.
 Judge generously on everything else a Ukrainian listener would let pass."""
+
+
+RATE_LIMIT_RETRIES = 6
+
+
+def rate_limit_wait(exc: openai.RateLimitError) -> float:
+    """Seconds until OpenRouter's rate-limit window resets (new accounts: 20 calls a minute per model)."""
+    try:
+        reset_ms = int(exc.body["metadata"]["headers"]["X-RateLimit-Reset"])
+        return min(65.0, max(1.0, reset_ms / 1000 - time.time() + 0.5))
+    except (KeyError, TypeError, ValueError):
+        return 10.0
 
 
 class Verdict(BaseModel):
@@ -103,15 +116,22 @@ class LLMJudge:
         self.system = SYSTEM + "\n\n" + lesson_context(lesson)
 
     def __call__(self, item: Item, learner: str) -> Judgement:
-        started = time.monotonic()
-        completion = self.client.chat.completions.parse(
-            model=self.model,
-            messages=[{"role": "system", "content": self.system},
-                      {"role": "user", "content": turn_message(item, learner)}],
-            response_format=Verdict,
-            max_tokens=2000,
-            extra_body={**self.conn.extra_body(), **self.conn.reasoning()},
-        )
+        for attempt in range(RATE_LIMIT_RETRIES + 1):
+            started = time.monotonic()
+            try:
+                completion = self.client.chat.completions.parse(
+                    model=self.model,
+                    messages=[{"role": "system", "content": self.system},
+                              {"role": "user", "content": turn_message(item, learner)}],
+                    response_format=Verdict,
+                    max_tokens=2000,
+                    extra_body={**self.conn.extra_body(), **self.conn.reasoning()},
+                )
+                break
+            except openai.RateLimitError as exc:
+                if attempt == RATE_LIMIT_RETRIES:
+                    raise
+                time.sleep(rate_limit_wait(exc))  # not part of the measured time: only the call that answers is
         seconds = round(time.monotonic() - started, 2)
         message = completion.choices[0].message
         if message.parsed is None:

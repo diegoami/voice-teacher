@@ -48,10 +48,10 @@ prompt, and a much smaller checklist, than v4.
 │  writes turns + evidence rows as they happen                         │
 └───┬──────────────┬──────────────────┬─────────────────────────────────┘
     │              │                  │
- STT service    Claude Messages    TTS service
- (ElevenLabs    API (Sonnet 5      (ElevenLabs
-  Scribe v2)    default; Opus 5    Multilingual v2,
-                for evaluation)    stress-marked text)
+ STT service    Language model     TTS service
+ (ElevenLabs    (any, through an   (ElevenLabs
+  Scribe v2)    OpenAI-compatible  Multilingual v2,
+                API: OpenRouter)   stress-marked text)
                                      
 ┌──────────────────────────────────────────────────────────────────────┐
 │ Database (SQLite for one user → Postgres)                            │
@@ -64,10 +64,14 @@ prompt, and a much smaller checklist, than v4.
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-Model choice: the teacher turn is short and latency-bound, so Sonnet 5 at low
-effort with the brief cached is the sensible default; run the adherence
-evaluation and authoring on Opus 5, where quality matters and latency does
-not. Fable is not needed anywhere in this loop.
+Model choice (changed 2026-09-27, the learner's decision): the engine is not
+tied to one vendor. It calls any model through an OpenAI-compatible
+chat-completions API, OpenRouter by default (OpenCode Zen or OpenAI by
+setting), with one model per role. The teacher turn is short and
+latency-bound, so the teacher wants a fast model that writes good Ukrainian
+and returns reliable tool calls; POC 5 chooses it by measurement, running
+simulated lessons on a frontier, a fast and a cheap candidate. Authoring and
+evaluation, where quality matters and latency does not, use a strong model.
 
 ## Speech recognition decides the runtime (Session 4A, 2026-09-25)
 
@@ -86,8 +90,10 @@ model: a teacher that reads Russian cannot correct Ukrainian.
 So the recogniser is the deciding component, and there are now two serious
 runtimes for the session engine:
 
-- **A. STT → Claude → TTS** (the diagram above). It keeps Claude as the
-  teacher, the rules in code and the cheapest cost per session. It depends
+- **A. STT → language model → TTS** (the diagram above; written «STT → Claude
+  → TTS» when this section was drafted, before the model became a setting).
+  It keeps the rules in code, the teacher model a free choice and the cost
+  per session lowest. It depends
   on a language-locked recogniser hearing *this learner's* Ukrainian as
   Ukrainian. That is POC 1's question, now the first go/no-go.
 - **B. A speech-native teacher.** The model hears the audio itself, as
@@ -97,7 +103,7 @@ runtimes for the session engine:
   the own engine it means a speech-to-speech API (OpenAI Realtime or a
   successor) with the engine's state machine driving it through tools and
   per-step instructions, at several times the cost per session of A (see
-  the cost table), and with the teacher model no longer Claude.
+  the cost table), and with the teacher model fixed to the speech model's vendor.
 
 POC 1 decides the default: if one of the language-locked recognisers is
 accurate and stays Ukrainian on the learner's recording, keep A; if all of
@@ -224,13 +230,14 @@ only in guided and recall phases (~25 calls).
 
 | Component | Estimate |
 | --- | --- |
-| Claude Sonnet 5, ~25 calls, ~4k cached input + ~80 output tokens each | ≈ $0.05–0.15 |
-| Claude Opus 5 instead | ≈ $0.15–0.40 |
+| Teacher model, ~25 calls, ~4k input (cached where the provider caches) + ~80 output tokens each: a fast mid-price model ($0.75/$3.75 per million tokens) | ≈ $0.05–0.10 |
+| A frontier model instead ($2–5 in, $10–25 out per million) | ≈ $0.15–0.40 |
+| A cheap model instead ($0.10 in, $0.50 out per million) | < $0.02 |
 | Speech-to-text, 10 min (ElevenLabs Scribe / Deepgram, list prices) | ≈ $0.05–0.10 |
 | Text-to-speech, ~2,500 characters | ≈ $0.05–0.50 depending on provider and tier |
 | **Total, own loop** | **≈ $0.15–1.00** |
 | OpenAI Realtime speech-to-speech for comparison (10 min in, 10 min out) | ≈ $3.00 |
-| Post-session evaluation (Opus 5, one transcript, checklist + evidence verification) | ≈ $0.10–0.30 |
+| Post-session evaluation (a strong model, one transcript, checklist + evidence verification) | ≈ $0.10–0.30 |
 
 Cheap enough that a subscription at a few euros a month covers daily use.
 The biggest cost driver is TTS provider choice, not the model.

@@ -3,7 +3,7 @@
 Everything that can be read from the package deterministically is read here:
 the opening, each guided step's teacher line and expected outcome, the recall
 prompts. Only the per-step target sentences, which the package does not
-state, are derived with Claude (`derive.py`).
+state, are derived with a language model (`derive.py`).
 """
 
 from __future__ import annotations

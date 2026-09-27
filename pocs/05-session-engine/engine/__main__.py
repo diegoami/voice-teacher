@@ -79,12 +79,13 @@ def main() -> int:
     out = {"created": date.today().isoformat(), "lesson": None, "derived_by": None,
            "usage": None, "unverified_stress": []}
     if not args.no_derive:
-        from .derive import derive, unverified_stress  # needs the SDK and a key only here
+        from .derive import derive, unverified_stress  # needs a key only here
         lesson, usage = derive(lesson)
         out.update(derived_by=usage["model"], usage=usage,
                    unverified_stress=unverified_stress(lesson, (folder / "package.md").read_text(encoding="utf-8")))
+        cost = f", ${usage['cost_usd']:.4f}" if usage.get("cost_usd") is not None else ""
         print(f"Derived with {usage['model']}: {usage['input_tokens']} tokens in, "
-              f"{usage['output_tokens']} out", file=sys.stderr)
+              f"{usage['output_tokens']} out{cost}", file=sys.stderr)
     out["lesson"] = lesson.to_dict()
     LESSONS.mkdir(parents=True, exist_ok=True)
     path = LESSONS / f"{lesson.part}.json"

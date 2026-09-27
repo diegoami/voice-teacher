@@ -1,15 +1,16 @@
 # POC 5 — Session engine
 
 Status (2026-09-27): milestone 1 built and tested (package parser, target
-derivation, review sheet); the derivation call waits for an Anthropic API key.
+derivation, review sheet); the derivation call waits for an OpenRouter (or
+OpenCode Zen) key.
 
 ## Question
 
 Does an engine that owns the turn loop, a state machine for the lesson
-shape plus a small Claude teacher prompt with the learner's target withheld
+shape plus a small teacher prompt with the learner's target withheld
 until the first attempt, produce **more independent production** than
 controller v4 in a general voice chat? And does the whole loop (Scribe →
-engine → Claude → ElevenLabs Multilingual v2) run at a **turn latency a
+engine → language model → ElevenLabs Multilingual v2) run at a **turn latency a
 learner accepts**?
 
 Why it is next: POCs 1 and 2 settled the ear (Scribe v2, keeps the
@@ -41,8 +42,8 @@ learner (Android phone: installable web app, push-to-talk)
    ▼                                    │
 Scribe v2 (uk) ──► engine state machine ──► text ──► stress marks ──► Multilingual v2
                      │  opening: no model                (authored lines keep theirs;
-                     │  guided:  Claude, tools             free turns go through an
-                     │  recall:  Claude judges, no cues    automatic stress marker plus
+                     │  guided:  teacher model, tools      free turns go through an
+                     │  recall:  model judges, no cues     automatic stress marker plus
                      │  close:   engine                    a correction list: мене́, …)
                      ▼
                session log (JSON Lines: turns, evidence, timings, costs)
@@ -54,14 +55,14 @@ packages). Each guided step carries: the teacher line (marked and plain),
 the expected outcome (English, what the model sees before an attempt), and
 the target sentence(s) (Ukrainian, hidden until the first attempt). The
 package has no explicit target per step, so the first milestone derives
-them once with Claude and the learner checks them. If it works,
+them once with a strong model and the learner checks them. If it works,
 `/voice-prepare` in learnukrainian writes `lesson.json` directly.
 
 **Phases.**
 - *Opening:* the engine speaks line *k* (pre-rendered, authored marks),
   records the repetition, and says it once more only if the transcript
   shares less than half its words with the line. No model call.
-- *Guided:* after each learner turn Claude (Sonnet 5, brief cached) answers
+- *Guided:* after each learner turn the teacher model (brief cached where the provider caches) answers
   with one short spoken line and one tool: `accept`, `cue(partial)`,
   `correct(attempt, preferred, chunk)`, or `model_sentence`. The engine
   rejects `model_sentence` before two attempts and asks for a cue. The
@@ -75,7 +76,7 @@ them once with Claude and the learner checks them. If it works,
 writes the transcript in the learnukrainian format, so `/voice-record` can
 record the lesson as usual.
 
-**Stress in free turns.** Claude writes plain Ukrainian. POC 2 showed plain
+**Stress in free turns.** The teacher model writes plain Ukrainian. POC 2 showed plain
 text costs Multilingual v2 about one wrong stress in ten words on traps. So
 free turns go through an automatic stress marker (first candidate: the
 `ukrainian-word-stress` package from lang-uk; to verify) and a small
@@ -86,8 +87,8 @@ keep their checked marks.
 
 | # | Milestone | Output | Learner's part |
 | --- | --- | --- | --- |
-| 1 | `lesson.json` from a package: parser plus a one-off Claude pass for the per-step targets | `lesson.json` for the next unused lesson part, tests | Check the targets (5 minutes) |
-| 2 | Text engine: state machine, Claude teacher with tools, evidence log, transcript export; a simulated learner (Claude playing a learner with typical errors) for automatic runs | CLI lesson in the terminal; tests; three simulated runs | One typed lesson |
+| 1 | `lesson.json` from a package: parser plus a one-off model pass for the per-step targets | `lesson.json` for the next unused lesson part, tests | Check the targets (5 minutes) |
+| 2 | Text engine: state machine, teacher model with tools, evidence log, transcript export; a simulated learner (a model playing a learner with typical errors) for automatic runs; **the teacher model chosen by measurement**: the same simulated lessons on three candidates (frontier, fast, cheap), compared on judging, latency and cost | CLI lesson in the terminal; tests; simulated runs per candidate | One typed lesson |
 | 3 | Voice on Android: a mobile-first web app (PWA: home-screen icon, full screen) with push-to-talk, served over HTTPS through the POC 0 tunnel; Scribe per turn; stress marker + correction list; Multilingual v2, streamed; timings logged | `python -m engine serve`, the app on the phone | Install it, a short sound check |
 | 4 | One real voice lesson on the phone; export and `/voice-record` in learnukrainian; comparison with the v4 runs; a note on what the PWA could not do on Android | Answer in this README; `docs/architecture.md` updated | One lesson (15–25 min) |
 
@@ -112,14 +113,17 @@ useful on its own (a text tutor with the lesson shape enforced).
   copied (only `lesson.json` fixtures live here).
 - **Batch Scribe per turn** first; its streaming model only if latency
   demands it.
-- Model: `claude-sonnet-5` for the teacher; the simulated learner and the
-  target derivation on the same model.
+- **Models through OpenRouter**, any vendor, one setting per role
+  (`engine/llm.py`): `TARGETS_MODEL` (default `openai/gpt-6-sol`) derives the
+  targets; `TEACHER_MODEL` is chosen in milestone 2. OpenCode Zen or OpenAI
+  by setting `LLM_PROVIDER`. (Changed 2026-09-27 from Claude only, the
+  learner's decision.)
 
 ## Cost
 
 Per 20-minute lesson, from POCs 1 and 2 and the architecture's estimate:
 speech-to-text about $0.04, teacher voice about $0.25 (2,500 characters),
-Claude about $0.05–0.15. **About $0.35–0.45 per lesson.** Building it:
+the teacher model $0.02–0.40 depending on the one chosen. **About $0.30–0.70 per lesson.** Building it:
 simulated runs cost a few cents each; the target derivation is one call per
 lesson part.
 

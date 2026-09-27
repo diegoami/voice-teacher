@@ -6,7 +6,8 @@ from types import SimpleNamespace
 import pytest
 
 from engine import __main__ as cli
-from engine.derive import MODEL, Derived, RecallTargets, StepTargets, apply, derive, request_text, unverified_stress
+from engine.derive import Derived, RecallTargets, StepTargets, apply, derive, request_text, unverified_stress
+from engine.llm import PROVIDERS, Connection, connection
 from engine.package import Lesson, parse_package, parse_step
 
 VOICE_SESSIONS = Path(__file__).resolve().parents[4] / "learnukrainian" / "pimsleur-review" / "voice-sessions"
@@ -100,31 +101,38 @@ def derived_for(lesson):
 
 
 class FakeClient:
-    def __init__(self, response):
+    """Stands in for openai.OpenAI: records the request, returns a canned completion."""
+
+    def __init__(self, parsed=None, refusal=None, finish="stop", cost=0.012):
         self.calls = []
-        self.beta = SimpleNamespace(messages=SimpleNamespace(parse=self.parse))
-        self.response = response
+        self.chat = SimpleNamespace(completions=SimpleNamespace(parse=self.parse))
+        self.completion = SimpleNamespace(
+            model="openai/gpt-6-sol",
+            choices=[SimpleNamespace(finish_reason=finish, message=SimpleNamespace(parsed=parsed, refusal=refusal))],
+            usage=SimpleNamespace(prompt_tokens=1200, completion_tokens=300, model_extra={"cost": cost}))
 
     def parse(self, **kwargs):
         self.calls.append(kwargs)
-        return self.response
+        return self.completion
 
 
-def test_derive_request_and_result(folder):
+OPENROUTER = Connection("openrouter", *PROVIDERS["openrouter"])
+
+
+def test_derive_request_and_result(folder, monkeypatch):
+    monkeypatch.delenv("TARGETS_MODEL", raising=False)
     lesson = parse_package(folder)
-    response = SimpleNamespace(stop_reason="end_turn", parsed_output=derived_for(lesson), model=MODEL,
-                               usage=SimpleNamespace(input_tokens=1200, output_tokens=300), stop_details=None)
-    client = FakeClient(response)
-    lesson, usage = derive(lesson, client)
+    client = FakeClient(parsed=derived_for(lesson))
+    lesson, usage = derive(lesson, OPENROUTER, client)
     call = client.calls[0]
-    assert call["model"] == "claude-opus-5" and call["output_format"] is Derived
-    assert call["fallbacks"] == "default" and call["betas"] == ["server-side-fallback-2026-07-01"]
-    assert call["thinking"] == {"type": "adaptive"}
+    assert call["model"] == "openai/gpt-6-sol" and call["response_format"] is Derived
+    assert call["extra_body"] == {"provider": {"require_parameters": True}, "usage": {"include": True}}
+    assert call["messages"][0]["role"] == "system"
     assert "the teacher says «Ось, будь ла́ска.»; the learner is to ask the price (earlier weak expression)." \
-        in call["messages"][0]["content"]
+        in call["messages"][1]["content"]
     assert lesson.steps[2].targets == ["Дя́кую.", "Ду́же дя́кую.", "Дякую ще раз."]  # at most three kept
     assert lesson.steps[2].open_answer and lesson.recall[0].phrase == "Скі́льки це ко́штує?"
-    assert usage == {"model": MODEL, "input_tokens": 1200, "output_tokens": 300}
+    assert usage == {"model": "openai/gpt-6-sol", "input_tokens": 1200, "output_tokens": 300, "cost_usd": 0.012}
 
 
 def test_derive_refuses_bad_answers(folder):
@@ -133,10 +141,30 @@ def test_derive_refuses_bad_answers(folder):
     bad.steps = bad.steps[:2]
     with pytest.raises(ValueError, match="do not match"):
         apply(lesson, bad)
-    refusal = SimpleNamespace(stop_reason="refusal", parsed_output=None, model=MODEL,
-                              usage=None, stop_details="policy")
+    empty = derived_for(lesson)
+    empty.recall[0].targets = []
+    with pytest.raises(ValueError, match="no targets for recall 1"):
+        apply(parse_package(folder), empty)
     with pytest.raises(RuntimeError, match="declined"):
-        derive(parse_package(folder), FakeClient(refusal))
+        derive(parse_package(folder), OPENROUTER, FakeClient(refusal="no"))
+    with pytest.raises(RuntimeError, match="finish reason length"):
+        derive(parse_package(folder), OPENROUTER, FakeClient(parsed=derived_for(lesson), finish="length"))
+
+
+def test_connection_settings(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "opencode")
+    monkeypatch.setenv("TARGETS_MODEL", "openai/gpt-6-sol")
+    monkeypatch.delenv("OPENCODE_API_KEY", raising=False)
+    conn = connection()
+    assert conn.base_url == "https://opencode.ai/zen/v1" and conn.extra_body() == {}
+    assert conn.model("targets") == "gpt-6-sol"  # vendor prefix is OpenRouter's naming only
+    with pytest.raises(RuntimeError, match="OPENCODE_API_KEY is not set"):
+        conn.client()
+    with pytest.raises(RuntimeError, match="TEACHER_MODEL is not set"):
+        conn.model("teacher")
+    monkeypatch.setenv("LLM_PROVIDER", "nope")
+    with pytest.raises(RuntimeError, match="must be one of"):
+        connection()
 
 
 def test_unverified_stress(folder):

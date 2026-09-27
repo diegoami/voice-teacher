@@ -1,4 +1,4 @@
-"""Derive each guided step's and recall prompt's target sentences with Claude.
+"""Derive each guided step's and recall prompt's target sentences with a language model.
 
 One structured-output call per lesson part. The package says what the learner
 is to do in English («Wait for the learner to ask which is faster») but not
@@ -10,12 +10,11 @@ from __future__ import annotations
 
 import re
 
-import anthropic
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
+from .llm import Connection, connection, usage_of
 from .package import Lesson, normalise, plain
 
-MODEL = "claude-opus-5"
 MAX_TARGETS = 3
 
 SYSTEM = """You prepare lesson data for a spoken Ukrainian lesson engine. The engine
@@ -44,14 +43,14 @@ Return the steps and prompts in the brief's order, numbered as in the input."""
 
 class StepTargets(BaseModel):
     step: int
-    targets: list[str] = Field(min_length=1)
+    targets: list[str]
     phrase: str
     open_answer: bool
 
 
 class RecallTargets(BaseModel):
     prompt: int
-    targets: list[str] = Field(min_length=1)
+    targets: list[str]
     phrase: str
 
 
@@ -81,6 +80,10 @@ def apply(lesson: Lesson, derived: Derived) -> Lesson:
                          f"the package's {[s.number for s in lesson.steps]}")
     if [r.prompt for r in derived.recall] != [r.number for r in lesson.recall]:
         raise ValueError("derived recall prompts do not match the package's")
+    empty = [f"step {d.step}" for d in derived.steps if not d.targets] + \
+            [f"recall {d.prompt}" for d in derived.recall if not d.targets]
+    if empty:
+        raise ValueError(f"no targets for {', '.join(empty)}")
     for step, d in zip(lesson.steps, derived.steps):
         step.targets, step.phrase, step.open_answer = d.targets[:MAX_TARGETS], d.phrase, d.open_answer
     for prompt, d in zip(lesson.recall, derived.recall):
@@ -113,23 +116,20 @@ def unverified_stress(lesson: Lesson, brief: str) -> list[str]:
     return sorted(found.values(), key=str.lower)
 
 
-def derive(lesson: Lesson, client: anthropic.Anthropic | None = None) -> tuple[Lesson, dict]:
-    """Ask Claude for the targets. Returns the lesson and the usage for the cost log."""
-    client = client or anthropic.Anthropic()
-    response = client.beta.messages.parse(
-        model=MODEL,
-        max_tokens=16000,
-        thinking={"type": "adaptive"},
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
-        system=SYSTEM,
-        messages=[{"role": "user", "content": request_text(lesson)}],
-        output_format=Derived,
+def derive(lesson: Lesson, conn: Connection | None = None, client=None) -> tuple[Lesson, dict]:
+    """Ask the targets model. Returns the lesson and the usage for the cost log."""
+    conn = conn or connection()
+    client = client or conn.client()
+    completion = client.chat.completions.parse(
+        model=conn.model("targets"),
+        messages=[{"role": "system", "content": SYSTEM},
+                  {"role": "user", "content": request_text(lesson)}],
+        response_format=Derived,
+        extra_body=conn.extra_body(),
     )
-    if response.stop_reason == "refusal":
-        raise RuntimeError(f"Claude declined to derive the targets: {response.stop_details}")
-    if response.stop_reason == "max_tokens" or response.parsed_output is None:
-        raise RuntimeError(f"no complete answer from Claude (stop reason {response.stop_reason})")
-    usage = {"model": response.model, "input_tokens": response.usage.input_tokens,
-             "output_tokens": response.usage.output_tokens}
-    return apply(lesson, response.parsed_output), usage
+    message = completion.choices[0].message
+    if message.refusal:
+        raise RuntimeError(f"the model declined to derive the targets: {message.refusal}")
+    if completion.choices[0].finish_reason == "length" or message.parsed is None:
+        raise RuntimeError(f"no complete answer (finish reason {completion.choices[0].finish_reason})")
+    return apply(lesson, message.parsed), usage_of(completion)

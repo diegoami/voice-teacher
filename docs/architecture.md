@@ -21,7 +21,7 @@ Sort every rule in the current controller by who should own it:
 | Voice formatting (C11) | Strip markdown before TTS; irrelevant to the model. |
 | Clean close (C12) | The engine closes; the model is not asked. |
 | Recognition repair (C13) | Language-locked STT makes garbling rare (POC 1: ElevenLabs Scribe v2, 4.2% WER and no Russian on the learner's reading, and it keeps the learner's own mistakes); the STT confidence score drives the repeat request, not the model. |
-| Attempt before model (C14) | **Information hiding.** Each guided step carries `teacher_line` and `expected_outcome`; the learner's Ukrainian target is stored but injected into the model's context only after the first attempt has been recorded. |
+| Attempt before model (C14) | **Information hiding.** Each guided step carries `teacher_line` and `expected_outcome`; the learner's Ukrainian target is stored but injected into the model's context only after the first attempt has been recorded. The learner sees the step's task in English on screen (a task card, as in Pimsleur), so the attempt does not depend on guessing what the step wants (POC 5). |
 | Plain spelling (C15) | Two renderings of every phrase: `display` (plain) and `tts` (with stress in the engine's format). The model never sees the marks. |
 | Turn counts instead of minutes | A clock and per-phase time budgets. |
 

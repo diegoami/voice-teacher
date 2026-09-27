@@ -71,6 +71,19 @@ them once with a strong model and the learner checks them. If it works,
   judges the answer and may only correct, never cue before an attempt.
 - *Close:* the engine says «Заняття закінчено.» and stops.
 
+**Task cards (found 2026-09-27, by the learner).** A step's teacher line does
+not tell the learner what to say next: after «Метро́ шви́дше.» nothing implies
+«Де найбли́жча ста́нція?». The package tells only the teacher ("wait for the
+learner to ask where the nearest station is"), so in the voice lessons the
+learner had to guess, which may explain some of the lines the teachers ended
+up supplying (C14). The engine shows each step's task on the phone screen,
+in English, while the teacher speaks Ukrainian: «Your turn: ask where the
+nearest station is.» It is the Pimsleur prompt, and it is already in every
+package (the step's expected outcome). Help comes in stages: the task card,
+then a partial cue (the first word or two), then the full sentence to
+repeat. An answer given after the card alone counts as independent: the card
+holds no Ukrainian.
+
 **Evidence.** Every tool call writes an evidence row (`independent`, `cued`,
 `corrected_repeated`, `modelled`, …) with the turn it rests on. The export
 writes the transcript in the learnukrainian format, so `/voice-record` can

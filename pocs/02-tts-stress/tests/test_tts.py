@@ -79,7 +79,7 @@ def test_render_writes_clips_and_manifest(rendered, monkeypatch):
     manifest = json.loads((rendered / "manifest.json").read_text(encoding="utf-8"))
     assert len(manifest["clips"]) == 16 and len(manifest["items"]) == 15
     clip = manifest["clips"]["13/el-v3-marks"]
-    assert (rendered / clip["file"]).read_bytes() == "mp3:Це стари́й за́мок, а на дверя́х нови́й замо́к.".encode()
+    assert (rendered / clip["file"]).read_bytes() == "mp3:Це стари́й за́мок, а на две́рях нови́й замо́к.".encode()
     # Cached: a second render asks for nothing.
     monkeypatch.setattr(cli, "synthesise", lambda *a: pytest.fail("should not synthesise again"))
     assert cli.render(ITEMS, rendered, None, [4, 13], False) == 0

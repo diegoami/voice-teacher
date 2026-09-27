@@ -1,8 +1,9 @@
 # POC 5 — Session engine
 
-Status (2026-09-27): milestone 1 built and tested (package parser, target
-derivation, review sheet); the derivation call waits for an OpenRouter (or
-OpenCode Zen) key.
+Status (2026-09-27): milestone 1 done (4B targets derived by GPT-6 Sol for 1.5
+cents); milestone 2 built: the lesson state machine, the typed lesson, the
+simulated comparison (Gemini 3.8 Flash chosen as teacher). Next: one typed
+lesson with the learner, then voice.
 
 ## Question
 
@@ -125,6 +126,32 @@ keep their checked marks.
 
 Each milestone is committed and tested before the next; milestone 2 is
 useful on its own (a text tutor with the lesson shape enforced).
+
+## Milestone 2 result: the teacher model (2026-09-27)
+
+The simulated 4B lesson (`python -m engine simulate`): 29 first attempts,
+the same for every model, written once by GPT-6 Sol with planted mistakes (a
+Russian word, a wrong ending, a wrong word) and correct variants in other
+words. Report: [fixtures/simulations/4B.md](fixtures/simulations/4B.md).
+
+| Teacher model | Mistakes caught | Correct answers accepted | Unclear handled | Median / slowest call | Cost of the lesson's judging |
+| --- | --- | --- | --- | --- | --- |
+| **Gemini 3.8 Flash** | 12/12 | 15/15 | 1/1 | **1.06** / 2.59 s | $0.030 |
+| GPT-6 Luna | 12/12 | 15/15 | 1/1 | 1.35 / 3.27 s | $0.004 |
+| GPT-6 Sol | 12/12 | 15/15 | 1/1 | 1.58 / 2.75 s | $0.075 |
+
+All three judged every turn right and gave correct correction chunks
+(«до це́нтру», «мені́», «кра́ще»), so on this set the difference is speed and
+cost. **Gemini 3.8 Flash is the default teacher**: it is fastest, and speed is
+what the voice loop is short of; its cost is three cents a lesson. GPT-6 Luna
+is the fallback if cost ever matters (a seventh of it, 0.3 s slower).
+
+What this does not show: the planted mistakes are clear-cut. Real learner
+mistakes are subtler and arrive through speech recognition; the typed and the
+voice lessons are where the judge is really tested. Two settings mattered for
+speed: OpenRouter's fastest-provider routing (a model's discounted "flex"
+endpoint took 2–4 s a call) and minimal reasoning. The whole comparison,
+including the learner script, cost about $0.14.
 
 ## Defaults (change them if you disagree)
 

@@ -161,8 +161,10 @@ def test_connection_settings(monkeypatch):
     assert conn.model("targets") == "gpt-6-sol"  # vendor prefix is OpenRouter's naming only
     with pytest.raises(RuntimeError, match="OPENCODE_API_KEY is not set"):
         conn.client()
-    with pytest.raises(RuntimeError, match="TEACHER_MODEL is not set"):
-        conn.model("teacher")
+    monkeypatch.delenv("TEACHER_MODEL", raising=False)
+    assert conn.model("teacher") == "gemini-3.8-flash"
+    with pytest.raises(RuntimeError, match="EVALUATOR_MODEL is not set"):
+        conn.model("evaluator")
     monkeypatch.setenv("LLM_PROVIDER", "nope")
     with pytest.raises(RuntimeError, match="must be one of"):
         connection()

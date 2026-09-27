@@ -9,7 +9,7 @@ Environment:
   LLM_PROVIDER    openrouter (default) | opencode | openai
   OPENROUTER_API_KEY / OPENCODE_API_KEY / OPENAI_API_KEY
   TARGETS_MODEL   model that derives the step targets (one call per lesson)
-  TEACHER_MODEL   model that plays the teacher (chosen in milestone 2)
+  TEACHER_MODEL   model that judges the learner's turns (default chosen in milestone 2)
   TEACHER_REASONING  reasoning effort for the teacher (default "minimal"; "none" sends nothing,
                   for models without reasoning)
 """
@@ -27,6 +27,7 @@ PROVIDERS = {
     "openai": ("https://api.openai.com/v1", "OPENAI_API_KEY"),
 }
 DEFAULT_TARGETS_MODEL = "openai/gpt-6-sol"  # a strong model: the targets are written once and judged against
+DEFAULT_TEACHER_MODEL = "google/gemini-3.8-flash"  # milestone 2: judged as well as GPT-6 Sol, fastest of three
 
 
 @dataclass(frozen=True)
@@ -55,7 +56,8 @@ class Connection:
         return {"reasoning": {"effort": effort}} if self.provider == "openrouter" and effort != "none" else {}
 
     def model(self, role: str) -> str:
-        name = os.environ.get(f"{role.upper()}_MODEL") or (DEFAULT_TARGETS_MODEL if role == "targets" else "")
+        defaults = {"targets": DEFAULT_TARGETS_MODEL, "teacher": DEFAULT_TEACHER_MODEL}
+        name = os.environ.get(f"{role.upper()}_MODEL") or defaults.get(role, "")
         if not name:
             raise RuntimeError(f"{role.upper()}_MODEL is not set")
         if self.provider != "openrouter":

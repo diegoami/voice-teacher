@@ -104,9 +104,9 @@ almost every variant. The traps are where the variants differ.
 | Variant | Target words wrong | Clips with every target right | Other word wrong | Median request time |
 | --- | --- | --- | --- | --- |
 | **ElevenLabs Multilingual v2, marks** | **0/28** | 13/15 | 1 | 1.0 s |
-| ElevenLabs v3, marks | 1/28 | 13/15 | 0 | 2.7 s |
 | ElevenLabs v3, plain | 1/26 (one clip unclear) | 12/15 | 1 | 1.5 s |
-| OpenAI `gpt-4o-mini-tts`, marks | 1/28 | 11/15 | 1 | 1.2 s |
+| ElevenLabs v3, marks | 2/28 | 13/15 | 0 | 2.7 s |
+| OpenAI `gpt-4o-mini-tts`, marks | 2/28 | 11/15 | 1 | 1.2 s |
 | ElevenLabs Multilingual v2, plain | 3/28 | 11/15 | 1 | 1.0 s |
 | ElevenLabs Flash v2.5, plain | 3/28 | 11/15 | 1 | 0.3 s |
 | ElevenLabs Flash v2.5, marks | 4/28 | 10/15 | 1 | 0.3 s |
@@ -123,7 +123,7 @@ Per item (✗ = the judged word that was wrong):
 | 1–10 | 20 words in 4A lesson lines | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ два́дцять | ✗ поті́м, право́руч | ✗ перепро́шую |
 | 11 | одина́дцять, чотирна́дцять | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | 12 | дочка́, легки́й | ✗ дочка́ | ✓ | ✓ | ✓ | ✗ дочка́ | ✗ дочка́ | ✗ дочка́ | ✓ |
-| 13 | за́мок / замо́к | ✗ замо́к | ✓ | ? | ✗ (unspecified) | ✗ замо́к | ✓ | ✗ замо́к | ✗ (unspecified) |
+| 13 | за́мок / замо́к | ✗ замо́к | ✓ | ? | ✗ замо́к | ✗ замо́к | ✓ | ✗ замо́к | ✗ замо́к |
 | 14 | кропива́ | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ | ✓ |
 | 15 | ви́хід | ✗ | ✓ | ✓ | ✗ | ✓ | ✗ | ✓ | ✓ |
 
@@ -136,9 +136,11 @@ What this shows:
    variants, `кропива́` in three, `ви́хід` in three. Every plain variant
    failed at least one of them.
 3. **Stress marks help Multilingual v2 and OpenAI.** v2 went from 3 wrong
-   words to 0, OpenAI from 4 to 1. The marks fixed `дочка́` in both, and the
-   homograph `замо́к` in v2. **Flash v2.5 does not use them** (3 plain, 4
-   marked).
+   words to 0, OpenAI from 4 to 2. The marks fixed `дочка́` in both. The
+   homograph was the hardest item: with marks, only v2 and Flash said
+   `замо́к` (lock) rather than a second `за́мок` (castle); v3 and OpenAI did
+   not, and no plain variant did. **Flash v2.5 does not use the marks
+   otherwise** (3 wrong plain, 4 marked).
 4. **One error is almost universal: `у ме́не` for `у мене́`.** Seven of eight
    variants said it, including v2 and OpenAI with the mark on the right
    syllable. Only v3 with marks said `мене́`. «У мене…» is a frequent lesson
@@ -152,16 +154,14 @@ What this shows:
 `tts` rendering carrying stress marks (as `docs/architecture.md` already
 plans), at $0.10 per 1,000 characters and about one second per clip before
 streaming. Flash v2.5 is fast but ignores the marks and falls into the
-Russian traps, so it is not the teacher's voice. v3 with marks is as good on
-stress and is the only one to say `мене́`, but it is slower; it is a
-candidate for pre-rendering fixed lines.
+Russian traps, so it is not the teacher's voice. v3 with marks is close (2
+wrong: the homograph and `ви́хід`) and the only one to say
+`мене́`, but it is almost three times slower.
 
 Still open:
 - **`мене́`:** try an ElevenLabs pronunciation dictionary (alias rule) and
   v3 for lines with «у мене», in a short round 2 on the words the listener
   flagged.
-- **Two ✗ without detail on item 13** (v3 marks, OpenAI marks): they do not
-  change the decision.
 - **Streaming first-audio latency** of Multilingual v2, measured in the
   engine (POC 5).
 - **One listener, one voice per provider, 15 sentences.** Enough to choose;

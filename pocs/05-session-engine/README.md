@@ -35,7 +35,7 @@ part (3A and 4A on Claude, 4A on ChatGPT):
 ## Design
 
 ```
-learner (browser, push-to-talk)
+learner (Android phone: installable web app, push-to-talk)
    │ audio per turn                     ▲ teacher audio (MP3, streamed)
    ▼                                    │
 Scribe v2 (uk) ──► engine state machine ──► text ──► stress marks ──► Multilingual v2
@@ -87,17 +87,24 @@ keep their checked marks.
 | --- | --- | --- | --- |
 | 1 | `lesson.json` from a package: parser plus a one-off Claude pass for the per-step targets | `lesson.json` for the next unused lesson part, tests | Check the targets (5 minutes) |
 | 2 | Text engine: state machine, Claude teacher with tools, evidence log, transcript export; a simulated learner (Claude playing a learner with typical errors) for automatic runs | CLI lesson in the terminal; tests; three simulated runs | One typed lesson |
-| 3 | Voice: local web page with push-to-talk; Scribe per turn; stress marker + correction list; Multilingual v2, streamed; timings logged | `python -m engine serve`, page on the PC | A short sound check |
-| 4 | One real voice lesson; export and `/voice-record` in learnukrainian; comparison with the v4 runs | Answer in this README; `docs/architecture.md` updated | One lesson (15–25 min) |
+| 3 | Voice on Android: a mobile-first web app (PWA: home-screen icon, full screen) with push-to-talk, served over HTTPS through the POC 0 tunnel; Scribe per turn; stress marker + correction list; Multilingual v2, streamed; timings logged | `python -m engine serve`, the app on the phone | Install it, a short sound check |
+| 4 | One real voice lesson on the phone; export and `/voice-record` in learnukrainian; comparison with the v4 runs; a note on what the PWA could not do on Android | Answer in this README; `docs/architecture.md` updated | One lesson (15–25 min) |
 
 Each milestone is committed and tested before the next; milestone 2 is
 useful on its own (a text tutor with the lesson shape enforced).
 
 ## Defaults (change them if you disagree)
 
-- **PC browser first**, with the microphone you use for calls. The phone
-  needs HTTPS for microphone access, i.e. the tunnel from POC 0; that comes
-  after milestone 4.
+- **Android first, as an installable web app (PWA)**, not a native app.
+  Chrome on Android allows the microphone only on HTTPS, which the POC 0
+  Cloudflare tunnel provides; the PC runs the engine and must be on. The
+  same page works in a PC browser for development. A native app (Kotlin,
+  or the PWA wrapped with Capacitor) only if milestone 4 hits a limit the
+  PWA cannot cross: the lesson stopping with the screen locked, Bluetooth
+  headset buttons as push-to-talk, audio routing. A stable address (named
+  tunnel or a small server) comes with daily use, not with this POC.
+- **Audio from the phone** is what Chrome records (WebM/Opus); Scribe
+  accepts it as is.
 - **Push-to-talk**, as the architecture says. Automatic end-of-turn
   detection later.
 - **The next unused lesson part** from learnukrainian, read in place, not
@@ -124,6 +131,11 @@ lesson part.
 - **The stress marker.** If the automatic marker is poor, free turns fall
   back to plain text (3 of 28 words wrong in POC 2) until a better marker or
   a larger correction list exists.
+- **Android.** Microphone permission, audio playback without a fresh tap,
+  and the screen locking mid-lesson are the known PWA pain points; the
+  push-to-talk tap covers playback, and a screen wake lock covers the rest
+  where Chrome supports it. What is left decides whether a native app is
+  needed.
 - **Scribe on short turns.** POC 1 measured whole readings. One-word turns
   («Так.», «Дякую.») may be harder; the log will show it, and a low
   confidence score triggers «Повторіть, будь ласка.» instead of a correction.

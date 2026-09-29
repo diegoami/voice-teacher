@@ -117,7 +117,7 @@ def play(lesson_path: Path, model: str | None) -> int:
     return 0
 
 
-def simulate(lesson_path: Path, models: list[str], seed: int) -> int:
+def simulate(lesson_path: Path, models: list[str], seed: int, tag: str = "") -> int:
     """The same simulated lesson for each teacher model; writes fixtures/simulations/<part>.md."""
     from .judge import LLMJudge
     from .simulate import report, run, write_script
@@ -137,16 +137,18 @@ def simulate(lesson_path: Path, models: list[str], seed: int) -> int:
     saved = json.loads(raw.read_text(encoding="utf-8")) if raw.exists() else {}
     results = []
     for model in models:
-        key = f"{model} seed {seed}"
+        key = f"{model} seed {seed}" + (f" {tag}" if tag else "")
         if key in saved:
             print(f"{model}: reusing the saved run", file=sys.stderr)
             results.append(Result(**saved[key]))
             continue
         print(f"{model}: simulating…", file=sys.stderr)
         results.append(run(lesson, answers, LLMJudge(lesson, model=model), seed))
+        if tag:
+            results[-1].model += f" ({tag})"
         saved[key] = results[-1].to_dict()
         raw.write_text(json.dumps(saved, ensure_ascii=False, indent=1), encoding="utf-8")
-    text = report(results, lesson)
+    text = report([Result(**r) for r in saved.values()], lesson)  # every run so far, in the order made
     out.write_text(text, encoding="utf-8")
     print(text, end="")
     return 0
@@ -169,10 +171,11 @@ def main() -> int:
     sp.add_argument("lesson", type=Path)
     sp.add_argument("--model", action="append", required=True, help="teacher model (repeatable)")
     sp.add_argument("--seed", type=int, default=1)
+    sp.add_argument("--tag", default="", help="label a re-run, e.g. after a prompt change; earlier runs stay saved")
     args = parser.parse_args()
 
     if args.command == "simulate":
-        return simulate(args.lesson, args.model, args.seed)
+        return simulate(args.lesson, args.model, args.seed, args.tag)
     if args.command == "play":
         return play(args.lesson, args.model)
 

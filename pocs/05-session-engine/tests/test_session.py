@@ -5,8 +5,8 @@ import pytest
 
 from engine.judge import Item, Judgement, Verdict, turn_message
 from engine.package import Lesson
-from engine.session import (CORRECTION, LISTEN, MODEL_CARD, NEW_SENTENCES, OPENING_CARD, RECALL, REPEAT_PLEASE,
-                            ROUND_TWO, START_TALK, Session, cue_for, round_zero)
+from engine.session import (CORRECTION, LISTEN, LISTENING, MODEL_CARD, NEW_SENTENCES, OPENING_CARD, RECALL,
+                            REPEAT_PLEASE, ROUND_TWO, START_TALK, Session, cue_for, round_zero, wants_to_stop)
 
 HERE = Path(__file__).resolve().parents[1]
 LESSON_4B = HERE / "fixtures" / "lessons" / "4B.json"
@@ -37,8 +37,9 @@ class FakeJudge:
 
     def __call__(self, item, learner):
         self.asked.append((item, learner))
-        verdict, chunk, reply = (self.queue.pop(0) + ("", ""))[:3]
-        v = Verdict(verdict=verdict, on_task=verdict != "unclear", chunk=chunk, reply=reply, note="")
+        entry = self.queue.pop(0)
+        verdict, chunk, reply, step = entry + ("accept", "", "", 0)[len(entry):]
+        v = Verdict(verdict=verdict, on_task=verdict != "unclear", chunk=chunk, reply=reply, step=step, note="")
         return Judgement(v, 0.4, {"cost_usd": 0.001})
 
 
@@ -191,3 +192,59 @@ def test_repeats_tells_repetition_from_answer():
     assert repeats("Як кра́ще дої́хати до це́нтру?", "як краще доехать до центру")  # one garbled word
     assert not repeats("Скі́льки це ко́штує?", "це коштує двадцять")  # an answer
     assert not repeats("Як пройти́ до це́нтру?", "ідіть прямо до центру")  # an answer to the question
+
+
+def three_step_lesson() -> Lesson:
+    lesson = small_lesson()
+    data = lesson.to_dict()
+    data["steps"].append({"number": 3, "teacher_line": "Два́дцять гри́вень.", "expected": "thank you",
+                          "targets": ["Дя́кую."], "open_answer": True})
+    return Lesson.from_dict(data)
+
+
+def test_greeting_back_is_not_an_attempt():
+    judge = FakeJudge(("social",), ("accept",))
+    s = Session(small_lesson(), judge)
+    through_opening(s)
+    assert texts(s.hear("добрий день")) == [LISTENING]
+    assert texts(s.hear("один квиток будь ласка")) == ["Ось, будь ла́ска."]
+    assert s.evidence[-1].label == "independent" and s.evidence[-1].attempts == 0
+
+
+def test_running_ahead_jumps_to_that_step():
+    lesson = three_step_lesson()
+    s = Session(lesson, FakeJudge(("later_step", "", "", 2)))
+    s.start()
+    for line in lesson.opening:
+        s.hear(line)
+    for sentence, _ in round_zero(lesson):
+        s.hear(sentence)
+    says = s.hear("скільки це коштує")  # at step 1 the learner asks step 2's question
+    assert texts(says) == ["Два́дцять гри́вень."]  # the teacher answers it: step 3's line
+    assert [(e.number, e.label) for e in s.evidence if e.phase == "guided" and e.round == 1] == \
+        [(1, "skipped"), (2, "independent")]
+
+
+def test_the_judge_sees_the_next_steps():
+    judge = FakeJudge(("accept",))
+    s = Session(three_step_lesson(), judge)
+    through_opening(s)
+    s.hear("дякую")  # round 0 has a third sentence here
+    s.hear("один квиток будь ласка")
+    item, _ = judge.asked[0]
+    assert item.later == [(2, "ask the price"), (3, "thank you")]
+    assert json.loads(turn_message(item, "x"))["later_steps"][0] == {"step": 2, "task": "ask the price"}
+
+
+def test_a_later_step_the_judge_was_not_offered_is_an_error():
+    s = Session(small_lesson(), FakeJudge(("later_step", "", "", 7)))
+    through_opening(s)
+    assert texts(s.hear("щось")) == ["Оди́н…"]  # treated as a miss, not a jump
+
+
+def test_stop_words_end_the_lesson():
+    assert wants_to_stop("Закінчимо") and wants_to_stop("закинчимо") and wants_to_stop("Стоп!")
+    assert not wants_to_stop("Де мені виходити?")
+    s = Session(small_lesson(), FakeJudge())
+    s.start()
+    assert texts(s.hear("закінчимо, будь ласка")) == ["Заня́ття закі́нчено."] and s.done

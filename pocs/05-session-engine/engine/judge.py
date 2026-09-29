@@ -30,9 +30,11 @@ return:
 
 - verdict:
   - "accept": correct Ukrainian that does the task. A different correct
-    sentence is fine, and so is a missing «а» or a small word-order change.
-    When the step is an open answer, any correct sentence of the right kind is
-    fine.
+    sentence is fine, and so is a missing «а» or a small word-order change. A
+    question that asks for the same information in other words does the task
+    (asking whether it is a direct line does the task "ask whether he has to
+    change"). When the step is an open answer, any correct sentence of the
+    right kind is fine.
   - "error": the learner tried the task but the Ukrainian is wrong: a Russian
     word or form (где, как, нет, потом, можно, спасибо …), a wrong ending or
     case, a wrong word, a missing key word; or the learner did something else
@@ -40,6 +42,11 @@ return:
   - "unclear": you cannot tell what the learner meant (a few syllables,
     hesitation only, noise).
   - "question": the learner asks what a word means or asks for help.
+  - "social": a normal social reply that is not the task, such as returning
+    the teacher's greeting. The learner will do the task next.
+  - "later_step": correct Ukrainian that does the task of one of the
+    later_steps instead of this one (the learner ran ahead in the dialogue).
+    Put that step's number in step.
 - on_task: true when the learner tried to do the step's task.
 - chunk: for "error" only, the correct Ukrainian for the single most important
   mistake, one to four words, with stress marks (combining acute after the
@@ -47,6 +54,7 @@ return:
   short. "" otherwise.
 - reply: for "question" only, one short Ukrainian sentence that answers it. ""
   otherwise.
+- step: for "later_step" only, the number of the later step; 0 otherwise.
 - note: a few English words on what was wrong, for the log. "" when accepted.
 
 Judge strictly on Russian: a Russian word is an error even when understandable.
@@ -66,10 +74,11 @@ def rate_limit_wait(exc: openai.RateLimitError) -> float:
 
 
 class Verdict(BaseModel):
-    verdict: Literal["accept", "error", "unclear", "question"]
+    verdict: Literal["accept", "error", "unclear", "question", "social", "later_step"]
     on_task: bool
     chunk: str
     reply: str
+    step: int
     note: str
 
 
@@ -88,6 +97,7 @@ class Item:
     targets: list[str]
     open_answer: bool = False
     history: list[tuple[str, str]] = field(default_factory=list)  # earlier (learner, teacher) exchanges on this item
+    later: list[tuple[int, str]] = field(default_factory=list)  # (number, task) of the next steps in this round
 
 
 def turn_message(item: Item, learner: str) -> str:
@@ -97,6 +107,7 @@ def turn_message(item: Item, learner: str) -> str:
         "targets": item.targets,
         "open_answer": item.open_answer,
         "earlier_attempts": [{"learner": a, "teacher": b} for a, b in item.history],
+        "later_steps": [{"step": n, "task": task} for n, task in item.later],
         "learner_turn": learner,
     }, ensure_ascii=False)
 

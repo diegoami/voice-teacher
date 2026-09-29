@@ -32,7 +32,7 @@ class PlantedJudge:
             verdict = "unclear"
         else:
             verdict = "accept"
-        return Judgement(Verdict(verdict=verdict, on_task=True, chunk="", reply="", note=""), 0.5, {"cost_usd": 0.001})
+        return Judgement(Verdict(verdict=verdict, on_task=True, chunk="", reply="", step=0, note=""), 0.5, {"cost_usd": 0.001})
 
 
 def test_plan_is_fixed_by_the_seed():

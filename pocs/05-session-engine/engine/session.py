@@ -29,12 +29,15 @@ START_TALK = "До́бре. А тепе́р почні́мо розмо́ву."
 ROUND_TWO = "До́бре. А тепе́р ще раз, без підка́зок."
 RECALL = "Тепе́р кі́лька запита́нь."
 REPEAT_PLEASE = "Повторі́ть, будь ла́ска."
+LISTENING = "Слу́хаю вас."  # after a greeting back: the learner's turn is still to come
 CORRECTION = "Ви́правлення: {chunk}. Скажі́ть усе́ ре́чення."
 
 OPENING_CARD = "Listen and repeat exactly what you hear. Don't answer, even when it is a question."
 MODEL_CARD = "Repeat exactly what you hear; don't answer it. You will need it to {task}."
 
 MAX_CHUNK_WORDS = 4
+LOOK_AHEAD = 4  # later steps the judge may recognise when the learner runs ahead
+STOP_WORDS = ("закінч", "закинч", "стоп", "досить", "кінець")  # «Закінчимо» ends the lesson
 
 
 @dataclass
@@ -48,7 +51,7 @@ class Evidence:
     phase: str  # opening | guided | recall
     round: int  # 0 (repeat), 1 (task cards), 2 (no cards) for guided; 0 otherwise
     number: int  # line, step or prompt number
-    label: str  # repeated | independent | cued | corrected_repeated | modelled_repeated | needs_turn
+    label: str  # repeated | independent | cued | corrected_repeated | modelled_repeated | needs_turn | skipped
     attempts: int  # judged attempts that failed before the result
     learner: str  # the turn the label rests on
     target: str
@@ -121,6 +124,10 @@ class Session:
         if self.done:
             raise RuntimeError("the lesson is closed")
         self._log("learner", text=text)
+        if wants_to_stop(text):
+            self.phase, self.card = "closed", None
+            self._log("stopped")
+            return self._teacher([Say(self.lesson.closing, "close")])
         if self.phase == "opening" or (self.phase == "guided" and self.round == 0):
             return self._teacher(self._opening(text))
         return self._teacher(self._answer(text))
@@ -159,7 +166,9 @@ class Session:
     def _item(self) -> Item:
         if self.phase == "guided":
             step = self.lesson.steps[self.index]
-            return Item("step", step.teacher_line, step.expected, step.targets, step.open_answer, self.state.history)
+            later = [(s.number, s.expected) for s in self.lesson.steps[self.index + 1:self.index + 1 + LOOK_AHEAD]]
+            return Item("step", step.teacher_line, step.expected, step.targets, step.open_answer,
+                        self.state.history, later)
         prompt = self.lesson.recall[self.index]
         return Item("recall", prompt.prompt, plain(prompt.prompt), prompt.targets, False, self.state.history)
 
@@ -192,6 +201,10 @@ class Session:
 
         if v.verdict == "question":
             return self._reply(text, [Say(v.reply, "reply"), Say(item.teacher_said, "repeat")])
+        if v.verdict == "social":
+            return self._reply(text, [Say(LISTENING, "reply")])
+        if v.verdict == "later_step" and item.kind == "step" and v.step in [n for n, _ in item.later]:
+            return self._jump(text, v.step)
         if v.verdict == "unclear" and st.unclear == 0:
             st.unclear = 1
             return self._reply(text, [Say(REPEAT_PLEASE, "repeat")])
@@ -211,6 +224,15 @@ class Session:
             return self._reply(text, [Say(cue_for(target), "cue")])
         st.help, st.awaiting_repeat = "model", True
         return self._reply(text, [Say(target, "model"), Say(REPEAT_PLEASE, "repeat")])
+
+    def _jump(self, learner: str, number: int) -> list[Say]:
+        """The learner did a later step's task: the steps in between are skipped, that one is done."""
+        for skipped in range(self.index, number - 1):
+            step = self.lesson.steps[skipped]
+            self.evidence.append(Evidence("guided", self.round, step.number, "skipped", 0, "", step.targets[0]))
+        self.index = number - 1
+        self.state = ItemState()
+        return self._finish(learner, "independent")
 
     def _reply(self, learner: str, says: list[Say]) -> list[Say]:
         self.state.history.append((learner, " ".join(s.text for s in says)))
@@ -243,6 +265,10 @@ class Session:
     def _log(self, event: str, **data) -> None:
         self.log.append({"t": round(self.clock(), 3), "event": event, "phase": self.phase,
                          "round": self.round, "index": self.index + 1, **data})
+
+
+def wants_to_stop(text: str) -> bool:
+    return any(word.startswith(STOP_WORDS) for word in normalise(text).split())
 
 
 def round_zero(lesson: Lesson) -> list[tuple[str, str]]:

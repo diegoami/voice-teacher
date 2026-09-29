@@ -2,8 +2,8 @@
 
 Status (2026-09-27): milestone 1 done (4B targets derived by GPT-6 Sol for 1.5
 cents); milestone 2 built: the lesson state machine, the typed lesson, the
-simulated comparison (Gemini 3.8 Flash chosen as teacher). Next: one typed
-lesson with the learner, then voice.
+simulated comparison (Gemini 3.8 Flash chosen as teacher), and one typed
+lesson with the learner, which led to judge v2. Next: voice on Android.
 
 ## Question
 
@@ -152,6 +152,33 @@ voice lessons are where the judge is really tested. Two settings mattered for
 speed: OpenRouter's fastest-provider routing (a model's discounted "flex"
 endpoint took 2–4 s a call) and minimal reasoning. The whole comparison,
 including the learner script, cost about $0.14.
+
+## Milestone 2: the first typed lesson (2026-09-29)
+
+The learner typed lesson 4B through the engine with Gemini 3.8 Flash
+(`python -m engine play`). The session log stays local
+(`fixtures/sessions/`, git-ignored); this is the summary.
+
+- The shape worked: opening review and round 0 as pure repetition, round 1
+  with task cards, round 2 without, recall, close. Evidence in rounds 1–2
+  and recall: 23 independent, 3 cued, 2 corrected and repeated, 1 modelled.
+- Judging: 35 calls, median 1.11 s, slowest 2.32 s; 2.6 cents for the
+  lesson.
+
+What the lesson exposed, all in round 2 and recall, where there is no card:
+
+| What the learner did | What the engine did | Fix (judge v2) |
+| --- | --- | --- |
+| Returned the teacher's greeting | Counted a failed attempt, gave a cue | New verdict `social`: the teacher says «Слу́хаю вас.» and waits; no attempt counted |
+| Asked a later step's question (ran ahead in the dialogue) | Rejected it twice, modelled the expected question | New verdict `later_step`: the judge sees the next four steps' tasks; the engine marks the steps in between `skipped`, records that step `independent` and answers with its reply |
+| Asked the same thing in other words ("is it a direct line?" for "do I have to change?") | Rejected it | The judge accepts a question that asks for the same information in other words |
+| Typed «закінчимо» at a recall prompt | Treated it as an attempt | «Закінчимо», «стоп», «досить» end the lesson, decided by the engine without a model call |
+
+Judge v2 on the simulated lesson: still 12/12 mistakes caught and 15/15
+correct answers accepted, median 1.04 s. It now also accepts «Як пройти до
+центру?» for "ask the best way to get to the centre", which v1 corrected
+toward «Як кра́ще дої́хати»: correct Ukrainian that does the task, as the v4
+controller already required.
 
 ## Defaults (change them if you disagree)
 

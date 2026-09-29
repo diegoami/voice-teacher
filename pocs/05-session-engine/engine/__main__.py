@@ -77,6 +77,10 @@ def save_session(session, name: str) -> Path:
 
 def play(lesson_path: Path, model: str | None) -> int:
     """A typed lesson in the terminal: the teacher's lines in plain spelling, the task card, your answer."""
+    try:
+        import readline  # noqa: F401  enables line editing for input() (uv's Linux Python links libedit)
+    except ImportError:
+        pass
     from .judge import LLMJudge
     from .session import Session
     lesson = load_lesson(lesson_path)

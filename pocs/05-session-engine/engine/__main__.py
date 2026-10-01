@@ -1,4 +1,4 @@
-"""Command line: lesson (build lesson.json from a package), review."""
+"""Command line: lesson (build lesson.json from a package), review, play, simulate, serve."""
 
 from __future__ import annotations
 
@@ -117,6 +117,39 @@ def play(lesson_path: Path, model: str | None) -> int:
     return 0
 
 
+def secret_token() -> str:
+    """The secret URL prefix: fixtures/token (git-ignored), created on the first run."""
+    import secrets
+    path = HERE / "fixtures" / "token"
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(secrets.token_urlsafe(24), encoding="utf-8")
+        path.chmod(0o600)
+    return path.read_text(encoding="utf-8").strip()
+
+
+def serve(lesson_path: Path, port: int, model: str | None) -> int:
+    """The voice lesson as a web app on 127.0.0.1; the tunnel (run.sh) makes it reachable from the phone."""
+    import uvicorn
+    from .judge import LLMJudge
+    from .server import create_app
+    from .voice import ElevenLabs
+    lesson = load_lesson(lesson_path)
+    try:
+        voice = ElevenLabs()
+        LLMJudge(lesson, model=model)  # fail now, not at the first turn, when a key is missing
+    except RuntimeError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    token = secret_token()
+    app = create_app(lesson, token, voice.transcribe, voice.synthesise,
+                     lambda lesson: LLMJudge(lesson, model=model), HERE / "fixtures" / "tts-cache",
+                     save=lambda session, part: save_session(session, part))
+    print(f"Lesson {lesson.part}. Local address: http://127.0.0.1:{port}/{token}/", file=sys.stderr)
+    uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
+    return 0
+
+
 def simulate(lesson_path: Path, models: list[str], seed: int, tag: str = "") -> int:
     """The same simulated lesson for each teacher model; writes fixtures/simulations/<part>.md."""
     from .judge import LLMJudge
@@ -167,6 +200,10 @@ def main() -> int:
     pp = sub.add_parser("play", help="a typed lesson in the terminal")
     pp.add_argument("lesson", type=Path)
     pp.add_argument("--model", help="teacher model (default: TEACHER_MODEL)")
+    vp = sub.add_parser("serve", help="the voice lesson as a web app (see run.sh for the phone)")
+    vp.add_argument("lesson", type=Path)
+    vp.add_argument("--port", type=int, default=8765)
+    vp.add_argument("--model", help="teacher model (default: TEACHER_MODEL)")
     sp = sub.add_parser("simulate", help="compare teacher models on the same simulated lesson")
     sp.add_argument("lesson", type=Path)
     sp.add_argument("--model", action="append", required=True, help="teacher model (repeatable)")
@@ -176,6 +213,8 @@ def main() -> int:
 
     if args.command == "simulate":
         return simulate(args.lesson, args.model, args.seed, args.tag)
+    if args.command == "serve":
+        return serve(args.lesson, args.port, args.model)
     if args.command == "play":
         return play(args.lesson, args.model)
 

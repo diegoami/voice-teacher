@@ -3,3 +3,10 @@
 # Session logs, audio and learner transcripts stay local.
 fixtures/sessions/
 fixtures/audio/
+# The voice app: the secret URL token, synthesised teacher audio, anything recorded on the phone.
+fixtures/token
+fixtures/tts-cache/
+fixtures/recordings/
+*.webm
+*.mp3
+fixtures/logs/

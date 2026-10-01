@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6feb">
+<meta name="mobile-web-app-capable" content="yes">
+<title>__TITLE__</title>
+<link rel="manifest" href="__BASE__manifest.webmanifest">
+<link rel="icon" href="__BASE__icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="__BASE__icon-192.png">
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #14171c; --muted: #5b6573; --line: #d9dde3;
+  --accent: #1f6feb; --on-accent: #ffffff; --rec: #d92d20; --card: #fff4cc; --card-ink: #3d2f00; --err: #b42318;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216; --panel: #181c22; --ink: #eceff3; --muted: #9aa5b3; --line: #2b323b;
+    --accent: #4c8dff; --on-accent: #06101f; --rec: #ff6b5e; --card: #3a3012; --card-ink: #ffe9a3; --err: #ff8f85;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 18px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  display: flex; flex-direction: column;
+  padding: env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 12px);
+  -webkit-tap-highlight-color: transparent;
+}
+header { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; gap: 8px; }
+header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+.small { font-size: 14px; color: var(--muted); }
+button { font: inherit; color: inherit; }
+.ghost { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; min-height: 40px; }
+main { flex: 1; display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow-y: auto; padding-bottom: 8px; }
+#card {
+  background: var(--card); color: var(--card-ink); border-radius: 14px; padding: 16px 18px;
+  font-size: 22px; font-weight: 600; line-height: 1.3;
+}
+#card[hidden] { display: none; }
+#teacher { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; min-height: 96px; }
+#teacher p { margin: 0 0 8px; font-size: 24px; line-height: 1.3; }
+#teacher p:last-child { margin-bottom: 0; }
+#teacher .placeholder { color: var(--muted); font-size: 18px; }
+#heard { min-height: 20px; }
+#heard b { font-weight: 600; }
+#error { color: var(--err); font-weight: 600; font-size: 16px; }
+#error[hidden] { display: none; }
+footer { display: flex; flex-direction: column; gap: 12px; align-items: center; padding-top: 8px; }
+#status { font-size: 16px; color: var(--muted); min-height: 24px; text-align: center; }
+#talk {
+  width: min(78vw, 280px); aspect-ratio: 1; border-radius: 50%; border: 0;
+  background: var(--accent); color: var(--on-accent); font-size: 22px; font-weight: 700;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,.25);
+}
+#talk.recording { background: var(--rec); animation: pulse 1.2s ease-in-out infinite; }
+#talk:disabled { opacity: .45; box-shadow: none; }
+@keyframes pulse { 50% { transform: scale(1.04); } }
+@media (prefers-reduced-motion: reduce) { #talk.recording { animation: none; } }
+.row { display: flex; gap: 10px; width: 100%; justify-content: center; flex-wrap: wrap; }
+#start { background: var(--accent); color: var(--on-accent); border: 0; border-radius: 14px; padding: 16px 28px; font-size: 20px; font-weight: 700; min-height: 56px; }
+#stop { color: var(--err); border-color: var(--err); }
+[hidden] { display: none !important; }
+@media (max-height: 560px) { #talk { width: 140px; font-size: 18px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>__TITLE__</h1>
+  <button id="mode" class="ghost" type="button" aria-label="Switch between tap to talk and hold to talk"></button>
+</header>
+<main>
+  <div id="card" hidden></div>
+  <div id="teacher" aria-live="polite"><p class="placeholder">Press Start when you are ready. Headphones are best.</p></div>
+  <div id="heard" class="small"></div>
+  <div id="error" role="alert" hidden></div>
+</main>
+<footer>
+  <div id="status" role="status"></div>
+  <button id="start" type="button">Start the lesson</button>
+  <button id="talk" type="button" hidden></button>
+  <div class="row">
+    <button id="again" class="ghost" type="button" hidden>Hear again</button>
+    <button id="stop" class="ghost" type="button" hidden>Stop the lesson</button>
+  </div>
+</footer>
+<script>
+"use strict";
+const BASE = "__BASE__";
+const $ = id => document.getElementById(id);
+const el = {mode: $("mode"), card: $("card"), teacher: $("teacher"), heard: $("heard"), error: $("error"),
+  status: $("status"), start: $("start"), talk: $("talk"), again: $("again"), stop: $("stop")};
+const audio = new Audio();
+audio.preload = "auto";
+const SILENCE = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+
+let state = "ready";      // ready | starting | speaking | idle | recording | thinking | finished
+let session = null;
+let mode = "tap";
+try { mode = localStorage.getItem("mode") === "hold" ? "hold" : "tap"; } catch (e) {}
+let recorder = null, chunks = [], recStart = 0, recStream = null, pointerRecording = false;
+let thinkingTimer = null, thinkingSince = 0;
+let wakeLock = null;
+let queue = [], lastTurns = [], playing = false, current = null, gen = 0;
+
+function show(message) { el.error.textContent = message || ""; el.error.hidden = !message; }
+
+function setMode(m) {
+  mode = m;
+  try { localStorage.setItem("mode", m); } catch (e) {}
+  el.mode.textContent = m === "tap" ? "Tap to talk" : "Hold to talk";
+  render();
+}
+
+function render() {
+  el.start.hidden = !(state === "ready" || state === "finished");
+  el.start.textContent = state === "finished" ? "Start again" : "Start the lesson";
+  const live = ["speaking", "idle", "recording", "thinking"].includes(state);
+  el.talk.hidden = !live;
+  el.stop.hidden = !live;
+  el.talk.disabled = state !== "idle" && state !== "recording";
+  el.talk.classList.toggle("recording", state === "recording");
+  el.talk.textContent = state === "recording" ? (mode === "tap" ? "Tap to send" : "Release to send")
+                                            : (mode === "tap" ? "Tap, then speak" : "Hold and speak");
+  el.again.hidden = !(live && lastTurns.length && state !== "recording");
+  el.again.disabled = state === "thinking" || state === "speaking";
+  el.status.textContent = {
+    ready: "Ready.", starting: "Starting…", speaking: "The teacher is speaking…",
+    idle: "Your turn.", recording: "Listening… " + (mode === "tap" ? "tap again when you have finished." : "release when you have finished."),
+    thinking: "Thinking… " + Math.round((Date.now() - thinkingSince) / 1000) + " s",
+    finished: "The lesson is finished.",
+  }[state];
+}
+
+function set(next) { state = next; render(); }
+
+function startThinking() {
+  thinkingSince = Date.now();
+  set("thinking");
+  clearInterval(thinkingTimer);
+  thinkingTimer = setInterval(render, 250);
+}
+function stopThinking() { clearInterval(thinkingTimer); thinkingTimer = null; }
+
+async function api(path, options) {
+  let response;
+  try {
+    response = await fetch(BASE + path, Object.assign({cache: "no-store"}, options));
+  } catch (e) {
+    throw new Error("No connection to the server. Check the phone's network and that the PC is still running the lesson.");
+  }
+  let data = null;
+  try { data = await response.json(); } catch (e) {}
+  if (!response.ok) throw new Error((data && data.error) || "The server answered with HTTP " + response.status + ".");
+  return data;
+}
+
+// --- wake lock ---------------------------------------------------------------
+async function holdScreen() {
+  try {
+    if ("wakeLock" in navigator && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    }
+  } catch (e) { wakeLock = null; }
+}
+function releaseScreen() { try { if (wakeLock) wakeLock.release(); } catch (e) {} wakeLock = null; }
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && session && state !== "finished") holdScreen();
+});
+
+// --- teacher audio -----------------------------------------------------------
+function showTurn(turn, first) {
+  if (first) el.teacher.textContent = "";
+  const p = document.createElement("p");
+  p.textContent = turn.text;
+  el.teacher.appendChild(p);
+}
+
+function renderCard(card) {
+  el.card.hidden = !card;
+  el.card.textContent = card || "";
+}
+
+function speak(turns, then) {
+  const my = ++gen;
+  lastTurns = turns;
+  queue = turns.slice();
+  let first = true;
+  set(queue.length ? "speaking" : state);
+  const next = () => {
+    if (my !== gen) return;
+    const turn = queue.shift();
+    if (!turn) { then(); return; }
+    showTurn(turn, first);
+    first = false;
+    audio.onended = next;
+    audio.onerror = () => {
+      show("The audio could not be played. The text is shown; press Hear again or carry on.");
+      next();
+    };
+    audio.src = turn.audio;
+    const started = audio.play();
+    if (started && started.catch) started.catch(() => {
+      show("The browser blocked the audio. Tap Hear again.");
+      queue = [];
+      then();
+    });
+  };
+  next();
+}
+
+function replay() {
+  if (!lastTurns.length) return;
+  show("");
+  const turns = lastTurns, resume = state;
+  speak(turns, () => set(resume === "finished" ? "finished" : "idle"));
+}
+
+// --- one turn ----------------------------------------------------------------
+function applyReply(data, onFinished) {
+  renderCard(data.card);
+  const turns = data.turns || [];
+  const after = () => {
+    if (data.done) { set("finished"); session = null; releaseScreen(); } else set("idle");
+  };
+  if (turns.length) speak(turns, after); else after();
+}
+
+async function start() {
+  show("");
+  el.heard.textContent = "";
+  el.teacher.textContent = "";
+  el.card.hidden = true;
+  lastTurns = [];
+  set("starting");
+  // Within the tap: unlock audio playback and ask for the microphone early.
+  audio.src = SILENCE;
+  try { await audio.play(); } catch (e) {}
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("insecure");
+    }
+    const probe = await navigator.mediaDevices.getUserMedia({audio: true});
+    probe.getTracks().forEach(t => t.stop());
+  } catch (e) {
+    set(session ? state : "ready");
+    show(microphoneMessage(e));
+    return;
+  }
+  await holdScreen();
+  try {
+    const data = await api("start", {method: "POST"});
+    session = data.session;
+    applyReply(data);
+  } catch (e) {
+    show(e.message);
+    set("ready");
+    releaseScreen();
+  }
+}
+
+function microphoneMessage(e) {
+  if (e && e.message === "insecure") return "This page needs HTTPS to use the microphone. Open the link that starts with https://.";
+  if (e && (e.name === "NotAllowedError" || e.name === "SecurityError"))
+    return "The microphone is blocked. Tap the lock icon next to the address, allow the microphone for this site, then press Start again.";
+  if (e && e.name === "NotFoundError") return "No microphone was found on this device.";
+  if (e && e.name === "NotReadableError") return "The microphone is in use by another app. Close it and try again.";
+  return "The microphone could not be opened: " + (e && e.message || e);
+}
+
+function pickType() {
+  for (const t of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"]) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return "";
+}
+
+async function beginRecording() {
+  if (state !== "idle") return;
+  show("");
+  audio.pause();
+  gen++;  // a teacher line still playing is cut off
+  try {
+    recStream = await navigator.mediaDevices.getUserMedia({audio: {echoCancellation: true, noiseSuppression: true}});
+  } catch (e) { show(microphoneMessage(e)); pointerRecording = false; return; }
+  if (state !== "idle") { recStream.getTracks().forEach(t => t.stop()); return; }
+  if (mode === "hold" && !pointerRecording) {  // released while the microphone was opening
+    recStream.getTracks().forEach(t => t.stop());
+    return;
+  }
+  const type = pickType();
+  chunks = [];
+  recorder = new MediaRecorder(recStream, type ? {mimeType: type} : undefined);
+  recorder.ondataavailable = ev => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+  recorder.onstop = () => finishRecording(recorder.mimeType || type || "audio/webm");
+  recorder.start();
+  recStart = Date.now();
+  set("recording");
+}
+
+function endRecording() {
+  if (state !== "recording" || !recorder) return;
+  if (recorder.state !== "inactive") recorder.stop();
+}
+
+async function finishRecording(type) {
+  recStream.getTracks().forEach(t => t.stop());
+  const seconds = (Date.now() - recStart) / 1000;
+  const blob = new Blob(chunks, {type});
+  chunks = []; recorder = null;
+  if (seconds < 0.5 || !blob.size) {
+    set("idle");
+    show("That was too short. " + (mode === "tap" ? "Tap, speak, tap again." : "Hold the button while you speak."));
+    return;
+  }
+  startThinking();
+  try {
+    const data = await api("turn?s=" + encodeURIComponent(session), {method: "POST", headers: {"Content-Type": blob.type}, body: blob});
+    stopThinking();
+    el.heard.textContent = "";
+    const b = document.createElement("b");
+    b.textContent = data.heard ? "Heard: " + data.heard : "Nothing was recognised.";
+    el.heard.appendChild(b);
+    applyReply(data);
+  } catch (e) {
+    stopThinking();
+    show(e.message + " Your turn again.");
+    set(session ? "idle" : "ready");
+  }
+}
+
+async function stopLesson() {
+  if (!session) return;
+  if (recorder && recorder.state !== "inactive") { recorder.onstop = () => recStream.getTracks().forEach(t => t.stop()); recorder.stop(); }
+  audio.pause(); gen++;
+  const id = session;
+  startThinking();
+  try {
+    const data = await api("stop?s=" + encodeURIComponent(id), {method: "POST"});
+    stopThinking();
+    session = null;
+    renderCard(null);
+    el.teacher.textContent = "";
+    const turns = data.turns || [];
+    if (turns.length) speak(turns, () => set("finished")); else set("finished");
+    releaseScreen();
+  } catch (e) {
+    stopThinking();
+    show(e.message);
+    set("idle");
+  }
+}
+
+// --- events ------------------------------------------------------------------
+el.start.addEventListener("click", start);
+el.stop.addEventListener("click", stopLesson);
+el.again.addEventListener("click", replay);
+el.mode.addEventListener("click", () => { if (state !== "recording") setMode(mode === "tap" ? "hold" : "tap"); });
+el.talk.addEventListener("contextmenu", ev => ev.preventDefault());
+el.talk.addEventListener("click", () => {
+  if (mode !== "tap") return;
+  if (state === "idle") beginRecording(); else if (state === "recording") endRecording();
+});
+el.talk.addEventListener("pointerdown", ev => {
+  if (mode !== "hold") return;
+  ev.preventDefault();
+  pointerRecording = true;
+  try { el.talk.setPointerCapture(ev.pointerId); } catch (e) {}
+  beginRecording();
+});
+for (const name of ["pointerup", "pointercancel"]) {
+  el.talk.addEventListener(name, () => {
+    if (mode !== "hold" || !pointerRecording) return;
+    pointerRecording = false;
+    endRecording();
+  });
+}
+
+setMode(mode);
+render();
+if ("serviceWorker" in navigator) navigator.serviceWorker.register(BASE + "sw.js", {scope: BASE}).catch(() => {});
+</script>
+</body>
+</html>

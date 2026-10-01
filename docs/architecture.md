@@ -217,6 +217,11 @@ TTS accepts for Ukrainian stress: the combining acute already used in the
 material, SSML `<phoneme>`, or a per-engine stress notation; keep the one
 that survives a listening test. The learner-facing text stays plain.
 
+Decided by POC 5 milestone 3: no stress library. Lesson text is pre-marked;
+model-written text (correction chunks, rare answers) is marked from a
+dictionary of every marked word in the lesson plus a small correction list
+(`мене́`), and left plain otherwise. See `pocs/05-session-engine/README.md`.
+
 **Audio retention.** Keep learner audio per turn (opt-in). It turns the
 current "cannot say whether `хотел бы` was speech or transcription" into a
 checkable fact, and it makes pronunciation feedback a future feature instead

@@ -1,9 +1,11 @@
 # POC 5 — Session engine
 
-Status (2026-09-27): milestone 1 done (4B targets derived by GPT-6 Sol for 1.5
-cents); milestone 2 built: the lesson state machine, the typed lesson, the
-simulated comparison (Gemini 3.8 Flash chosen as teacher), and one typed
-lesson with the learner, which led to judge v2. Next: voice on Android.
+Status (2026-10-02): milestone 1 done (4B targets derived by GPT-6 Sol for 1.5
+cents); milestone 2 done (the lesson state machine, the typed lesson, Gemini
+3.8 Flash as teacher, judge v2 after the first typed lesson); milestone 3
+built and tested offline, with one smoke test of the real speech services
+(the voice app, `python -m engine serve`); it has not been run on a phone
+yet. Next: install it on the phone, then one real voice lesson (milestone 4).
 
 ## Question
 
@@ -109,11 +111,9 @@ writes the transcript in the learnukrainian format, so `/voice-record` can
 record the lesson as usual.
 
 **Stress in free turns.** The teacher model writes plain Ukrainian. POC 2 showed plain
-text costs Multilingual v2 about one wrong stress in ten words on traps. So
-free turns go through an automatic stress marker (first candidate: the
-`ukrainian-word-stress` package from lang-uk; to verify) and a small
-correction list for words every voice gets wrong (`мене́`). Authored lines
-keep their checked marks.
+text costs Multilingual v2 about one wrong stress in ten words on traps. The
+first plan was an automatic stress marker (the `ukrainian-word-stress`
+package from lang-uk). Milestone 3 does without it: see "Stress marks" below.
 
 ## Milestones
 
@@ -180,6 +180,153 @@ correct answers accepted, median 1.04 s. It now also accepts «Як пройти
 toward «Як кра́ще дої́хати»: correct Ukrainian that does the task, as the v4
 controller already required.
 
+## Milestone 3: voice on Android (2026-10-02)
+
+A mobile-first web app served by the engine. One learner turn is one request:
+the phone uploads the recording, the server sends it to Scribe v2, passes the
+text to the session, synthesises every line the teacher says with Multilingual
+v2 and answers with JSON (plain text per line, an audio URL per line, the task
+card, whether the lesson is done).
+
+Files: `engine/server.py` (Starlette app, routes, per-turn log), `engine/app.html`
+(the page: inline CSS and JS, no external resources), `engine/voice.py` (the
+Scribe and ElevenLabs requests), `engine/stress.py` (stress marks), `run.sh`.
+
+### How to run
+
+On the PC (needs `ELEVENLABS_API_KEY` and `OPENROUTER_API_KEY` in the
+git-ignored `.env`):
+
+```
+cd pocs/05-session-engine
+uv sync
+./run.sh                       # server + Cloudflare quick tunnel; prints the HTTPS address
+```
+
+`run.sh` takes an optional lesson file (default `fixtures/lessons/4B.json`)
+and passes further arguments to the server (`./run.sh fixtures/lessons/4B.json --model openai/gpt-6-luna`).
+Ctrl+C stops both the server and the tunnel. Without the tunnel, for
+development in a PC browser (`localhost` counts as secure for the microphone):
+
+```
+uv run python -m engine serve fixtures/lessons/4B.json --port 8765
+# open http://127.0.0.1:8765/<token>/ ; the token is in fixtures/token
+```
+
+All routes sit under `/<token>/`; anything else is 404. The token is created on
+the first run in `fixtures/token` (git-ignored). Anyone with the address can
+run lessons on your keys, so keep it private; it stays the same between runs,
+but the quick tunnel's host changes every time.
+
+### On the phone
+
+1. Open the printed `https://….trycloudflare.com/<token>/` address in Chrome
+   on Android.
+2. Menu (three dots) → "Add to Home screen" (or "Install app"). The icon opens
+   the lesson full screen. The home-screen icon keeps the old address, so after a
+   new `run.sh` open the new address in Chrome again (the host changes each time).
+3. Press Start, allow the microphone when asked. Headphones are best (no echo of
+   the teacher into the microphone).
+
+The page shows the teacher's lines in plain spelling (each appears as it is
+spoken), the task card in a yellow box, and in small text what speech
+recognition heard. States: ready, starting, the teacher speaking, your turn,
+listening, thinking (with elapsed seconds), finished. Errors are written out:
+microphone denied or missing, no connection, a failed speech service.
+"Hear again" replays the last teacher turn; "Stop the lesson" ends the lesson
+with the closing line. The screen stays on during a lesson where Chrome allows
+a wake lock.
+
+**Tap to talk is the default; hold to talk is a switch** (top right, remembered
+on the phone). Tap to talk: tap, speak, tap again. It is the default because a
+learner thinking before a Ukrainian sentence would have to keep a thumb pressed
+for several seconds, and a thumb that slips ends the turn mid-word. Hold to
+talk gives a clear end of the turn and no stray recording, at the price of the
+held thumb; the long-press menu is suppressed on the button. Recordings under
+half a second are discarded with a message.
+
+### What is logged per turn
+
+Each learner turn appends a `timing` event to the session log
+(`fixtures/sessions/<part>-<time>.jsonl`, git-ignored, written when the lesson
+finishes, is stopped, or is abandoned by starting another): what was heard,
+`stt_seconds`, `judge_seconds` (from the judge's own log entry), `tts_seconds`
+(wall time for all the turn's lines, the new ones synthesised in parallel),
+`total_seconds` (upload received to response sent), `audio_seconds` (from
+Scribe, when it says), `tts_chars_billed` and `cost_usd` per part: Scribe at
+$0.22 per hour of audio, the judge from OpenRouter's reported cost, ElevenLabs at
+$0.10 per 1,000 characters **not served from the cache**. Turn 0 is the start.
+If Scribe returns no text, the lesson does not advance: the teacher says «Повторіть, будь ласка.»
+and the turn is logged with `retry: true`.
+
+Teacher audio is cached under `fixtures/tts-cache/` (git-ignored), keyed by a
+hash of model, voice and the marked text, so every fixed line is paid for once.
+
+### Stress marks, and why there is no stress library
+
+The engine speaks pre-marked lesson text almost everywhere: the introduction,
+opening, step lines, targets, recall prompts and its own fixed phrases all carry
+checked marks. Only a correction chunk (the model's «до це́нтру») and a
+one-sentence answer to a question about meaning come from the model, in plain
+spelling. For those, `engine/stress.py` applies, to every line before synthesis:
+
+1. a word that already has a mark is left alone;
+2. an unmarked word is looked up in a dictionary built once per lesson from every
+   marked word in the lesson and the engine's fixed phrases, keeping its
+   capitalisation and punctuation;
+3. then the `CORRECTIONS` dict in `stress.py` (words every voice gets wrong; it
+   starts with `мене` → `мене́`, easy to extend);
+4. everything else stays unmarked.
+
+A stress library (the candidate was lang-uk's `ukrainian-word-stress`, a
+machine-learning install; not tried here) would mark a few words per lesson at
+a cost in install weight and machine load, and with a risk of wrong marks
+(Multilingual v2 follows a wrong mark; POC 2).
+The correction chunks reuse the lesson's own words, so the lesson dictionary
+already covers most of them. What this approach cannot do: mark a word the
+lesson never marked and the correction list lacks, tell homographs apart
+(the dictionary has one marked form per spelling), or fix a form the lesson
+marks in another case. Those words go to the voice unmarked, the case POC 2
+measured at roughly one wrong word in ten. The lessons will show which words
+to add to `CORRECTIONS`. Unit-tested in `tests/test_stress.py`.
+
+### Verified, and not
+
+Verified: the 46 tests (endpoints with a fake speech-to-text, fake
+text-to-speech and the fake judge; the cache; wrong token gives 404; stress
+marking); the server started locally and answers under the token path, 404
+elsewhere; one smoke test with the real services: the start request synthesised
+the introduction and the first opening line (279 characters, 2.9 s for the
+request, about $0.028), and Scribe read that MP3 back: «Перепрошую, де
+знаходиться станція метро?», identical to the line, 0.72 s, 2.46 s of audio
+(about $0.0002).
+
+Not verified, because nothing was run on a phone: the page's behaviour in
+Chrome on Android (recording, playback order, the autoplay unlock, wake lock,
+installability: the manifest has PNG and SVG icons and a service worker, but
+Chrome decides), the tunnel (`run.sh` was written and not run), hold to talk
+on a touch screen, and real turn latency over the phone's network.
+
+### Known limits
+
+- Not streamed: each line is a whole MP3 and the page plays after the response
+  arrives, so a turn costs recognition + judge + synthesis in sequence (new lines
+  are synthesised in parallel). Streaming is the next step if the latency is too slow.
+- One lesson in memory; starting again abandons it (its log is saved). A server
+  restart loses a running lesson.
+- If synthesis fails after the lesson has advanced (a service error mid-turn),
+  the page shows the error and the teacher's line for that turn is lost; the
+  learner can stop and start again. A recognition failure leaves the lesson
+  untouched.
+- The microphone is opened for each recording, not kept open, so playback is
+  not ducked by a call-style audio mode; the first words may be clipped if you
+  speak at the instant you tap.
+- The screen locking, or Chrome in the background, stops recording and playback
+  where the wake lock is refused; milestone 4 will show whether it matters.
+- No automatic end of turn, no interruption of the teacher (the button is off
+  while the teacher speaks).
+- The quick-tunnel host changes on every run; a stable address comes later.
+
 ## Defaults (change them if you disagree)
 
 - **Android first, as an installable web app (PWA)**, not a native app.
@@ -218,9 +365,9 @@ lesson part.
   the model's output to one sentence should hold the guided phase under
   2.5 s; if not, pre-render the step lines and speak only the model's short
   reaction live.
-- **The stress marker.** If the automatic marker is poor, free turns fall
-  back to plain text (3 of 28 words wrong in POC 2) until a better marker or
-  a larger correction list exists.
+- **Unmarked model words.** Words the model writes that the lesson never
+  marked and the correction list lacks go to the voice plain (3 of 28 words
+  wrong in POC 2). The correction list grows from what the lessons show.
 - **Android.** Microphone permission, audio playback without a fresh tap,
   and the screen locking mid-lesson are the known PWA pain points; the
   push-to-talk tap covers playback, and a screen wake lock covers the rest

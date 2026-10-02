@@ -45,8 +45,10 @@ return:
   - "social": a normal social reply that is not the task, such as returning
     the teacher's greeting. The learner will do the task next.
   - "later_step": correct Ukrainian that does the task of one of the
-    later_steps instead of this one (the learner ran ahead in the dialogue).
-    Put that step's number in step.
+    later_steps instead of this one (the learner ran ahead in the dialogue),
+    also when it does that task in other words (asking whether it is a direct
+    line does a later "ask whether he has to change"). Put that step's number
+    in step.
 - on_task: true when the learner tried to do the step's task.
 - chunk: for "error" only, the correct Ukrainian for the single most important
   mistake, one to four words, with stress marks (combining acute after the

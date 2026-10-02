@@ -327,6 +327,49 @@ on a touch screen, and real turn latency over the phone's network.
   while the teacher speaks).
 - The quick-tunnel host changes on every run; a stable address comes later.
 
+## Milestone 4, run 1: the first voice lesson (2026-10-02)
+
+Lesson 4B on the learner's Android phone through `run.sh` (Scribe, Gemini 3.8
+Flash, ElevenLabs Multilingual v2). The session log stays local; this is the
+summary. The learner stopped with «стоп» at round 2, step 8, after 12 minutes.
+
+Time from the end of the upload to the reply (measured on the PC; the phone
+network and playback start come on top):
+
+| Turn | Speech to text | Judge | Voice | Total |
+| --- | --- | --- | --- | --- |
+| Repeat phases (no model) | median 0.9 s | – | 0.9 s, 0 when cached | about 1.8 s |
+| Rounds 1–2 | median 0.9 s | median 1.3 s, max 3.2 s | 0.9 s, 0 when cached | about 3 s, max 5.5 s |
+
+Cost: $0.155 for the lesson: voice $0.117 (first run: the cache filled;
+lines already cached cost nothing next time), speech to text $0.016, judge
+$0.022.
+
+Evidence: opening 10 of 12 lines repeated (2 needed another turn), round 0
+9 of 9, round 1: 6 independent, 2 cued, 1 corrected, 3 modelled; round 2
+(until the stop): 4 independent, 2 modelled.
+
+Findings:
+
+- **The learner sometimes repeated the teacher in round 1 instead of
+  answering**: after 21 listen-and-repeat lines the habit carries over, and
+  in a voice lesson the task card on screen is easy to miss. Proposed: in
+  round 1 the voice also reads the task card in English, as Pimsleur does.
+- **Speech recognition is rougher in a lesson than on the reading**:
+  garbled words in about one turn in five, `з` written as `с` in «зупинка»
+  three times (pronunciation or recognition; cannot tell without the audio),
+  and Latin-script output. Italian speech in the background (confirmed by
+  the learner) was transcribed into one 14-second turn and a few
+  Latin-script fragments: the recogniser writes whatever it hears. Lessons
+  need a quiet room; a warning on very long turns and on turns mostly in
+  another script would help.
+- **One judging miss, fixed (judge v3):** a later step's task done in other
+  words was rejected instead of recognised as running ahead. After the fix
+  the same turn is a `later_step` to step 6.
+- Worked as designed: the greeting back («Слу́хаю вас.»), running ahead to
+  the thank-you, «стоп», corrections of `мені́ вихо́дити`, `шви́дше`,
+  `зупи́нка`, cached lines in about 0 s.
+
 ## Defaults (change them if you disagree)
 
 - **Android first, as an installable web app (PWA)**, not a native app.

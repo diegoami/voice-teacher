@@ -34,11 +34,11 @@ class Fakes:
         self.saved.append((session, part))
 
 
-def make(tmp_path, *heard, verdicts=()):
+def make(tmp_path, *heard, verdicts=(), recordings=None):
     fakes = Fakes(*heard)
     fakes.judge = FakeJudge(*verdicts)
     app = create_app(small_lesson(), TOKEN, fakes.transcribe, fakes.synthesise, lambda lesson: fakes.judge,
-                     tmp_path / "cache", save=fakes.save)
+                     tmp_path / "cache", save=fakes.save, recordings=recordings)
     return TestClient(app), fakes
 
 
@@ -214,3 +214,24 @@ def test_provider_failures_are_readable_json(tmp_path):
     client.app.state.lessons.transcribe = broken
     response = turn(client, session)
     assert response.status_code == 502 and "speech recognition failed" in response.json()["error"]
+
+
+def test_learner_turns_are_kept_when_asked(tmp_path):
+    client, _ = make(tmp_path, "один квиток будь ласка", "скільки це коштує", recordings=tmp_path / "rec")
+    session = client.post(url("start")).json()["session"]
+    turn(client, session, audio=b"a" * 300)
+    turn(client, session, audio=b"b" * 400, content_type="audio/ogg;codecs=opus")
+    files = sorted((tmp_path / "rec").rglob("*.*"))
+    assert [f.name for f in files] == ["001.webm", "002.ogg"]
+    assert files[0].read_bytes() == b"a" * 300 and files[0].parent.name.startswith("9A-")
+    timing = [e for e in client.app.state.lessons.session.log if e["event"] == "timing" and e.get("turn")]
+    assert [e["recording"] for e in timing] == [str(f.relative_to(tmp_path / "rec")) for f in files]
+
+
+def test_no_recordings_by_default_in_the_app_factory(tmp_path):
+    client, _ = make(tmp_path, "один квиток будь ласка")
+    session = client.post(url("start")).json()["session"]
+    turn(client, session)
+    assert not (tmp_path / "rec").exists()
+    timing = [e for e in client.app.state.lessons.session.log if e["event"] == "timing" and e.get("turn")][-1]
+    assert timing["recording"] is None

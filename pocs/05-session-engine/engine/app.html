@@ -175,6 +175,7 @@ document.addEventListener("visibilitychange", () => {
 // --- teacher audio -----------------------------------------------------------
 function showTurn(turn, first) {
   if (first) el.teacher.textContent = "";
+  if (turn.kind === "task") return;  // spoken in English; the card already shows it
   const p = document.createElement("p");
   p.textContent = turn.text;
   el.teacher.appendChild(p);

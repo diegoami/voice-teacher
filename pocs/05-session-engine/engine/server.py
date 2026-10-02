@@ -115,8 +115,10 @@ class Speaker:
 class Lessons:
     """The one running lesson and the work of a turn."""
 
-    def __init__(self, lesson: Lesson, token: str, transcribe, speaker: Speaker, judge_factory, save, clock):
+    def __init__(self, lesson: Lesson, token: str, transcribe, speaker: Speaker, judge_factory, save, clock,
+                 recordings: Path | None = None):
         self.lesson, self.token = lesson, token
+        self.recordings = recordings  # where the learner's turns are kept (local, git-ignored); None: not kept
         self.transcribe, self.speaker, self.judge_factory, self.save, self.clock = \
             transcribe, speaker, judge_factory, save, clock
         self.stresser = Stresser(lesson)
@@ -139,6 +141,7 @@ class Lessons:
         started = self.clock()
         self.session = Session(self.lesson, self.judge_factory(self.lesson))
         self.id, self.saved = secrets.token_hex(4), False
+        self.started_at = time.strftime("%Y%m%d-%H%M%S")
         says = self.session.start()
         turns, tts = self.speech(says)
         self.session._log("timing", turn=0, stt_seconds=None, judge_seconds=0, tts_seconds=tts["seconds"],
@@ -150,6 +153,7 @@ class Lessons:
     def turn(self, audio: bytes, content_type: str) -> dict:
         started, session = self.clock(), self.session
         mark = len(session.log)
+        recording = self.keep(audio, content_type)
         t0 = self.clock()
         heard: Transcript = self.transcribe(audio, content_type)
         stt_seconds = round(self.clock() - t0, 3)
@@ -168,10 +172,23 @@ class Lessons:
                      stt_seconds=stt_seconds, judge_seconds=round(sum(e["seconds"] for e in judged), 3),
                      tts_seconds=tts["seconds"], total_seconds=round(self.clock() - started, 3),
                      audio_seconds=heard.audio_seconds, cost_usd=costs, tts_chars_billed=tts["chars"],
-                     retry=retry)
+                     retry=retry, recording=recording)
         if session.done:
             self._save()
         return self.reply(turns, heard=heard.text, retry=retry)
+
+    def keep(self, audio: bytes, content_type: str) -> str | None:
+        """Save the learner's turn so recognition and pronunciation can be checked later; returns its name."""
+        if self.recordings is None:
+            return None
+        number = sum(e["event"] == "timing" and bool(e.get("turn")) for e in self.session.log) + 1
+        ext = {"audio/ogg": "ogg", "audio/mp4": "m4a", "audio/mpeg": "mp3", "audio/wav": "wav"}.get(
+            content_type.split(";")[0].strip(), "webm")
+        folder = self.recordings / f"{self.lesson.part}-{self.started_at}-{self.id}"
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / f"{number:03d}.{ext}"
+        path.write_bytes(audio)
+        return str(path.relative_to(self.recordings))
 
     def stop(self) -> dict:
         session = self.session
@@ -202,12 +219,13 @@ class Lessons:
 
 
 def create_app(lesson: Lesson, token: str, transcribe, synthesise, judge_factory, cache_dir: Path,
-               save: Callable[[Session, str], Path] | None = None, clock=time.monotonic) -> Starlette:
+               save: Callable[[Session, str], Path] | None = None, clock=time.monotonic,
+               recordings: Path | None = None) -> Starlette:
     """`transcribe(audio, content_type) -> Transcript`, `synthesise(marked text) -> mp3 bytes`,
     `judge_factory(lesson) -> judge`, `save(session, part)` writes the session log."""
     base = f"/{token}/"
     lessons = Lessons(lesson, token, transcribe, Speaker(synthesise, cache_dir), judge_factory,
-                      save or (lambda session, part: Path()), clock)
+                      save or (lambda session, part: Path()), clock, recordings)
 
     def failure(exc: Exception) -> JSONResponse:
         text = str(exc) if isinstance(exc, (ProviderError, RuntimeError)) else f"{type(exc).__name__}: {exc}"

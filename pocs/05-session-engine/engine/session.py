@@ -178,8 +178,11 @@ class Session:
             step = self.lesson.steps[self.index]
             self.card = None
             if self.round == 1:
-                self.card = "Your turn: " + step.expected[0].upper() + step.expected[1:] + "." + \
-                    (" Any correct answer will do." if step.open_answer else "")
+                task = step.expected[0].upper() + step.expected[1:] + "."
+                self.card = "Your turn: " + task + (" Any correct answer will do." if step.open_answer else "")
+                # Spoken too, in English, as Pimsleur does: in the first voice lesson the learner
+                # repeated the teacher instead of answering when the card on screen went unseen.
+                return [Say(step.teacher_line, "line"), Say(task, "task")]
             return [Say(step.teacher_line, "line")]
         self.card = None
         return [Say(self.lesson.recall[self.index].prompt, "prompt")]

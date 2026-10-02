@@ -128,7 +128,7 @@ def secret_token() -> str:
     return path.read_text(encoding="utf-8").strip()
 
 
-def serve(lesson_path: Path, port: int, model: str | None) -> int:
+def serve(lesson_path: Path, port: int, model: str | None, keep_recordings: bool = True) -> int:
     """The voice lesson as a web app on 127.0.0.1; the tunnel (run.sh) makes it reachable from the phone."""
     import uvicorn
     from .judge import LLMJudge
@@ -144,7 +144,8 @@ def serve(lesson_path: Path, port: int, model: str | None) -> int:
     token = secret_token()
     app = create_app(lesson, token, voice.transcribe, voice.synthesise,
                      lambda lesson: LLMJudge(lesson, model=model), HERE / "fixtures" / "tts-cache",
-                     save=lambda session, part: save_session(session, part))
+                     save=lambda session, part: save_session(session, part),
+                     recordings=HERE / "fixtures" / "recordings" if keep_recordings else None)
     print(f"Lesson {lesson.part}. Local address: http://127.0.0.1:{port}/{token}/", file=sys.stderr)
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
     return 0
@@ -204,6 +205,8 @@ def main() -> int:
     vp.add_argument("lesson", type=Path)
     vp.add_argument("--port", type=int, default=8765)
     vp.add_argument("--model", help="teacher model (default: TEACHER_MODEL)")
+    vp.add_argument("--no-recordings", action="store_true",
+                    help="do not keep the learner's turns (kept by default in fixtures/recordings/, git-ignored)")
     sp = sub.add_parser("simulate", help="compare teacher models on the same simulated lesson")
     sp.add_argument("lesson", type=Path)
     sp.add_argument("--model", action="append", required=True, help="teacher model (repeatable)")
@@ -214,7 +217,7 @@ def main() -> int:
     if args.command == "simulate":
         return simulate(args.lesson, args.model, args.seed, args.tag)
     if args.command == "serve":
-        return serve(args.lesson, args.port, args.model)
+        return serve(args.lesson, args.port, args.model, not args.no_recordings)
     if args.command == "play":
         return play(args.lesson, args.model)
 

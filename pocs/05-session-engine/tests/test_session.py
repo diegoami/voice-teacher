@@ -73,7 +73,7 @@ def test_opening_needs_no_model_and_resays_once():
     says = s.hear("це коштує двадцять")  # an answer, not a repetition: said once more
     assert texts(says) == ["Скі́льки це ко́штує?"]
     says = s.hear("скільки це коштує")
-    assert texts(says) == [START_TALK, "До́брий день!"]
+    assert texts(says) == [START_TALK, "До́брий день!", "Ask for one ticket."]
     assert s.card == "Your turn: Ask for one ticket."
     assert judge.asked == []
     assert [(e.phase, e.round, e.label, e.attempts) for e in s.evidence] == [
@@ -95,7 +95,7 @@ def test_full_lesson_with_every_kind_of_help():
     )
     s = Session(small_lesson(), judge)
     through_opening(s)
-    assert texts(s.hear("один квиток будь ласка")) == ["Ось, будь ла́ска."]
+    assert texts(s.hear("один квиток будь ласка")) == ["Ось, будь ла́ска.", "Ask the price."]
     assert s.card == "Your turn: Ask the price."
     assert texts(s.hear("сколько это стоит")) == [CORRECTION.format(chunk="ко́штує")]
     says = s.hear("скільки це коштує")
@@ -139,7 +139,7 @@ def test_failed_repeat_moves_on():
     s.hear("х")
     s.hear("у")  # second miss: the full sentence
     assert texts(s.hear("не знаю")) == ["Оди́н квито́к, будь ла́ска."]  # said once more
-    assert texts(s.hear("не знаю")) == ["Ось, будь ла́ска."]  # then on to the next step
+    assert texts(s.hear("не знаю")) == ["Ось, будь ла́ска.", "Ask the price."]  # then on to the next step
     assert s.evidence[-1].label == "needs_turn"
 
 
@@ -207,7 +207,7 @@ def test_greeting_back_is_not_an_attempt():
     s = Session(small_lesson(), judge)
     through_opening(s)
     assert texts(s.hear("добрий день")) == [LISTENING]
-    assert texts(s.hear("один квиток будь ласка")) == ["Ось, будь ла́ска."]
+    assert texts(s.hear("один квиток будь ласка")) == ["Ось, будь ла́ска.", "Ask the price."]
     assert s.evidence[-1].label == "independent" and s.evidence[-1].attempts == 0
 
 
@@ -220,7 +220,7 @@ def test_running_ahead_jumps_to_that_step():
     for sentence, _ in round_zero(lesson):
         s.hear(sentence)
     says = s.hear("скільки це коштує")  # at step 1 the learner asks step 2's question
-    assert texts(says) == ["Два́дцять гри́вень."]  # the teacher answers it: step 3's line
+    assert texts(says) == ["Два́дцять гри́вень.", "Thank you."]  # the teacher answers it: step 3's line
     assert [(e.number, e.label) for e in s.evidence if e.phase == "guided" and e.round == 1] == \
         [(1, "skipped"), (2, "independent")]
 
@@ -248,3 +248,13 @@ def test_stop_words_end_the_lesson():
     s = Session(small_lesson(), FakeJudge())
     s.start()
     assert texts(s.hear("закінчимо, будь ласка")) == ["Заня́ття закі́нчено."] and s.done
+
+
+def test_round_one_speaks_the_task_and_round_two_does_not():
+    judge = FakeJudge(("accept",), ("accept",))
+    s = Session(small_lesson(), judge)
+    says = through_opening(s)
+    assert [(x.text, x.kind) for x in says][-2:] == [("До́брий день!", "line"), ("Ask for one ticket.", "task")]
+    s.hear("один квиток будь ласка")
+    says = s.hear("скільки це коштує")  # round 2 begins
+    assert texts(says) == [ROUND_TWO, "До́брий день!"]

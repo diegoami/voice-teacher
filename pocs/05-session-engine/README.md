@@ -353,8 +353,11 @@ Findings:
 
 - **The learner sometimes repeated the teacher in round 1 instead of
   answering**: after 21 listen-and-repeat lines the habit carries over, and
-  in a voice lesson the task card on screen is easy to miss. Proposed: in
-  round 1 the voice also reads the task card in English, as Pimsleur does.
+  in a voice lesson the task card on screen is easy to miss. **Done
+  (2026-10-02):** in round 1 the voice reads each step's task in English
+  after the teacher's line («Метро́ шви́дше.» — "Ask where the nearest station
+  is."), as Pimsleur does; round 2 stays silent. The page does not print the
+  spoken task again: the card shows it.
 - **Speech recognition is rougher in a lesson than on the reading**:
   garbled words in about one turn in five, `з` written as `с` in «зупинка»
   three times (pronunciation or recognition; cannot tell without the audio),
@@ -362,7 +365,12 @@ Findings:
   the learner) was transcribed into one 14-second turn and a few
   Latin-script fragments: the recogniser writes whatever it hears. Lessons
   need a quiet room; a warning on very long turns and on turns mostly in
-  another script would help.
+  another script would help. **Done (2026-10-02, with the learner's
+  consent):** the server keeps each learner turn's audio in
+  `fixtures/recordings/<part>-<time>-<id>/NNN.webm` (git-ignored, never
+  committed), and the session log names the file, so pronunciation (`з` or
+  `с`) and other recognisers can be checked on real lesson audio. `serve
+  --no-recordings` turns it off.
 - **One judging miss, fixed (judge v3):** a later step's task done in other
   words was rejected instead of recognised as running ahead. After the fix
   the same turn is a `later_step` to step 6.

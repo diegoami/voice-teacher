@@ -235,3 +235,17 @@ def test_no_recordings_by_default_in_the_app_factory(tmp_path):
     assert not (tmp_path / "rec").exists()
     timing = [e for e in client.app.state.lessons.session.log if e["event"] == "timing" and e.get("turn")][-1]
     assert timing["recording"] is None
+
+
+def test_part_names_the_saved_log_and_the_recordings(tmp_path):
+    fakes = Fakes("скільки це коштує")
+    fakes.judge = FakeJudge(("accept",))
+    app = create_app(small_lesson(), TOKEN, fakes.transcribe, fakes.synthesise, lambda lesson: fakes.judge,
+                     tmp_path / "cache", save=fakes.save, recordings=tmp_path / "rec", part="2")
+    client = TestClient(app)
+    assert "Lesson 9A, part 2" in client.get(url("")).text
+    session = client.post(url("start")).json()["session"]
+    turn(client, session)
+    client.post(url(f"stop?s={session}"))
+    assert fakes.saved[-1][1] == "9A-p2"
+    assert next((tmp_path / "rec").iterdir()).name.startswith("9A-p2-")

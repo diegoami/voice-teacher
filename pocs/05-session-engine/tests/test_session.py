@@ -192,6 +192,9 @@ def test_repeats_tells_repetition_from_answer():
     assert repeats("Як кра́ще дої́хати до це́нтру?", "як краще доехать до центру")  # one garbled word
     assert not repeats("Скі́льки це ко́штує?", "це коштує двадцять")  # an answer
     assert not repeats("Як пройти́ до це́нтру?", "ідіть прямо до центру")  # an answer to the question
+    assert repeats("Як кра́ще дої́хати до це́нтру?",
+                   "Тепер нові речення. Слухайте і повторюйте. Як краще доїхати до центру?")  # instruction repeated too
+    assert not repeats("Скі́льки це ко́штує?", "скільки це коштує двадцять гривень")  # a question, then an answer
 
 
 def three_step_lesson() -> Lesson:
@@ -258,3 +261,26 @@ def test_round_one_speaks_the_task_and_round_two_does_not():
     s.hear("один квиток будь ласка")
     says = s.hear("скільки це коштує")  # round 2 begins
     assert texts(says) == [ROUND_TWO, "До́брий день!"]
+
+
+def test_part_one_ends_after_round_one():
+    s = Session(small_lesson(), FakeJudge(("accept",), ("accept",)), part="1")
+    through_opening(s)
+    s.hear("один квиток будь ласка")
+    assert texts(s.hear("скільки це коштує")) == ["Заня́ття закі́нчено."] and s.done
+    assert {e.round for e in s.evidence if e.phase == "guided"} == {0, 1}
+
+
+def test_part_two_starts_at_round_two_and_ends_with_recall():
+    from engine.session import CONTINUE
+    s = Session(small_lesson(), FakeJudge(("accept",), ("accept",), ("accept",)), part="2")
+    assert texts(s.start()) == [CONTINUE, "До́брий день!"] and s.card is None  # no task in round 2
+    s.hear("один квиток будь ласка")
+    assert texts(s.hear("скільки це коштує")) == [RECALL, "Запита́йте ціну́."]
+    assert texts(s.hear("скільки це коштує")) == ["Заня́ття закі́нчено."] and s.done
+    assert [(e.phase, e.round) for e in s.evidence] == [("guided", 2), ("guided", 2), ("recall", 0)]
+
+
+def test_unknown_part_is_refused():
+    with pytest.raises(ValueError, match="part must be one of"):
+        Session(small_lesson(), FakeJudge(), part="3")

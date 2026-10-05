@@ -116,8 +116,9 @@ class Lessons:
     """The one running lesson and the work of a turn."""
 
     def __init__(self, lesson: Lesson, token: str, transcribe, speaker: Speaker, judge_factory, save, clock,
-                 recordings: Path | None = None):
-        self.lesson, self.token = lesson, token
+                 recordings: Path | None = None, part: str = "all"):
+        self.lesson, self.token, self.part = lesson, token, part
+        self.name = lesson.part if part == "all" else f"{lesson.part}-p{part}"  # 4B, 4B-p1, 4B-p2
         self.recordings = recordings  # where the learner's turns are kept (local, git-ignored); None: not kept
         self.transcribe, self.speaker, self.judge_factory, self.save, self.clock = \
             transcribe, speaker, judge_factory, save, clock
@@ -134,12 +135,12 @@ class Lessons:
 
     def _save(self) -> None:
         self.saved = True
-        self.save(self.session, self.lesson.part)
+        self.save(self.session, self.name)
 
     def start(self) -> dict:
         self.finish_old()
         started = self.clock()
-        self.session = Session(self.lesson, self.judge_factory(self.lesson))
+        self.session = Session(self.lesson, self.judge_factory(self.lesson), part=self.part)
         self.id, self.saved = secrets.token_hex(4), False
         self.started_at = time.strftime("%Y%m%d-%H%M%S")
         says = self.session.start()
@@ -184,7 +185,7 @@ class Lessons:
         number = sum(e["event"] == "timing" and bool(e.get("turn")) for e in self.session.log) + 1
         ext = {"audio/ogg": "ogg", "audio/mp4": "m4a", "audio/mpeg": "mp3", "audio/wav": "wav"}.get(
             content_type.split(";")[0].strip(), "webm")
-        folder = self.recordings / f"{self.lesson.part}-{self.started_at}-{self.id}"
+        folder = self.recordings / f"{self.name}-{self.started_at}-{self.id}"
         folder.mkdir(parents=True, exist_ok=True)
         path = folder / f"{number:03d}.{ext}"
         path.write_bytes(audio)
@@ -220,12 +221,12 @@ class Lessons:
 
 def create_app(lesson: Lesson, token: str, transcribe, synthesise, judge_factory, cache_dir: Path,
                save: Callable[[Session, str], Path] | None = None, clock=time.monotonic,
-               recordings: Path | None = None) -> Starlette:
+               recordings: Path | None = None, part: str = "all") -> Starlette:
     """`transcribe(audio, content_type) -> Transcript`, `synthesise(marked text) -> mp3 bytes`,
     `judge_factory(lesson) -> judge`, `save(session, part)` writes the session log."""
     base = f"/{token}/"
     lessons = Lessons(lesson, token, transcribe, Speaker(synthesise, cache_dir), judge_factory,
-                      save or (lambda session, part: Path()), clock, recordings)
+                      save or (lambda session, part: Path()), clock, recordings, part)
 
     def failure(exc: Exception) -> JSONResponse:
         text = str(exc) if isinstance(exc, (ProviderError, RuntimeError)) else f"{type(exc).__name__}: {exc}"
@@ -239,7 +240,7 @@ def create_app(lesson: Lesson, token: str, transcribe, synthesise, judge_factory
         return JSONResponse({"error": "No lesson is running; press Start."}, status_code=409, headers=NO_STORE)
 
     async def page(request: Request) -> Response:
-        html = PAGE.read_text(encoding="utf-8").replace("__BASE__", base).replace("__TITLE__", f"Lesson {lesson.part}")
+        html = PAGE.read_text(encoding="utf-8").replace("__BASE__", base).replace("__TITLE__", f"Lesson {lesson.part}" + (f", part {part}" if part != "all" else ""))
         return Response(html, media_type="text/html", headers=NO_STORE)
 
     async def manifest_route(request: Request) -> Response:

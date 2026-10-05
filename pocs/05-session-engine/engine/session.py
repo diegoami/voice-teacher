@@ -27,6 +27,8 @@ LISTEN = "Споча́тку послу́хайте, а по́тім повто�
 NEW_SENTENCES = "Тепе́р нові́ ре́чення. Слу́хайте і повто́рюйте."
 START_TALK = "До́бре. А тепе́р почні́мо розмо́ву."
 ROUND_TWO = "До́бре. А тепе́р ще раз, без підка́зок."
+CONTINUE = "Продо́вжимо розмо́ву. Тепе́р без підка́зок."  # part 2 starts at round 2
+PARTS = ("all", "1", "2")  # a lesson in one sitting, or in two (the learner found one sitting too long)
 RECALL = "Тепе́р кі́лька запита́нь."
 REPEAT_PLEASE = "Повторі́ть, будь ла́ска."
 LISTENING = "Слу́хаю вас."  # after a greeting back: the learner's turn is still to come
@@ -74,7 +76,13 @@ def repeats(line: str, heard: str) -> bool:
     words («це коштує двадцять» for «Скільки це коштує?») and fails.
     """
     want, got = normalise(line).split(), normalise(heard).split()
-    return word_edits(want, got) <= max(1, len(want) // 3)
+    allowed = max(1, len(want) // 3)
+    if word_edits(want, got) <= allowed:
+        return True
+    # The learner may repeat the teacher's instruction too («Тепер нові речення… Як краще…»): what counts
+    # is that the turn ends with the line. An answer does not end with the question it answers.
+    return any(word_edits(want, got[-n:]) <= allowed for n in range(max(1, len(want) - allowed), len(want) + allowed + 1)
+               if n <= len(got))
 
 
 def overlap(line: str, heard: str) -> float:
@@ -94,7 +102,10 @@ class ItemState:
 
 
 class Session:
-    def __init__(self, lesson: Lesson, judge, clock=time.monotonic):
+    def __init__(self, lesson: Lesson, judge, clock=time.monotonic, part: str = "all"):
+        if part not in PARTS:
+            raise ValueError(f"part must be one of {PARTS}, not {part!r}")
+        self.part = part  # "1": opening, round 0, round 1; "2": round 2 and recall
         self.lesson = lesson
         self.judge = judge
         self.clock = clock
@@ -115,6 +126,9 @@ class Session:
         return self.phase == "closed"
 
     def start(self) -> list[Say]:
+        if self.part == "2":
+            self.phase, self.round, self.index = "guided", 2, 0
+            return self._teacher([Say(CONTINUE, "intro")] + self._begin_item())
         self.phase = "opening"
         self.card = OPENING_CARD
         return self._teacher([Say(self.lesson.introduction + " " + LISTEN, "intro"),
@@ -248,6 +262,9 @@ class Session:
         self.index += 1
         if self.phase == "guided" and self.index < len(self.lesson.steps):
             return self._begin_item()
+        if self.phase == "guided" and self.round == 1 and self.part == "1":
+            self.phase, self.card = "closed", None
+            return [Say(self.lesson.closing, "close")]
         if self.phase == "guided" and self.round == 1:
             self.round, self.index = 2, 0
             return [Say(ROUND_TWO, "transition")] + self._begin_item()

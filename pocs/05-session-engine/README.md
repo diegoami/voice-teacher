@@ -419,6 +419,34 @@ Still rough: recognition garbled the first attempt at 7 of the 21 repeat
 lines (the second attempt passed each time), once in Latin letters in a
 quiet room.
 
+## After run 2: a lesson in two sittings (2026-10-05)
+
+The learner stopped both voice lessons at round 2, step 8, after 10–12
+minutes: one sitting of about 50 turns is too long. Chosen by the learner,
+a lesson part now runs in two sessions, nothing removed:
+
+- **Part 1:** opening review, round 0 (repeat), round 1 with the English
+  task, close. About 33 turns.
+- **Part 2** (another time): «Продо́вжимо розмо́ву. Тепе́р без підка́зок.»,
+  round 2 without prompts, delayed recall, close. About 17 turns.
+
+```bash
+./run.sh fixtures/lessons/4B.json --part 1
+```
+
+```bash
+./run.sh fixtures/lessons/4B.json --part 2
+```
+
+Without `--part` the lesson runs in one sitting as before. Session logs and
+recordings are named `4B-p1-…` and `4B-p2-…`.
+
+Also after run 2: in the repeat phases the learner sometimes repeats the
+teacher's instruction as well («Тепер нові речення. Слухайте і повторюйте.
+Як краще…»). A repetition now counts when the turn ends with the line, so
+that is no longer a miss; an answer still fails, since it does not end with
+the question.
+
 ## Defaults (change them if you disagree)
 
 - **Android first, as an installable web app (PWA)**, not a native app.

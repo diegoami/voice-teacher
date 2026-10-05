@@ -75,7 +75,7 @@ def save_session(session, name: str) -> Path:
     return path
 
 
-def play(lesson_path: Path, model: str | None) -> int:
+def play(lesson_path: Path, model: str | None, part: str = "all") -> int:
     """A typed lesson in the terminal: the teacher's lines in plain spelling, the task card, your answer."""
     try:
         import readline  # noqa: F401  enables line editing for input() (uv's Linux Python links libedit)
@@ -84,7 +84,7 @@ def play(lesson_path: Path, model: str | None) -> int:
     from .judge import LLMJudge
     from .session import Session
     lesson = load_lesson(lesson_path)
-    session = Session(lesson, LLMJudge(lesson, model=model))
+    session = Session(lesson, LLMJudge(lesson, model=model), part=part)
     print(f"Lesson {lesson.part}: {lesson.title}. Model: {session.judge.model}. Type your answers; Ctrl+D stops.\n")
     says, card = session.start(), None
     while True:
@@ -102,7 +102,7 @@ def play(lesson_path: Path, model: str | None) -> int:
             break
         if text:
             says = session.hear(text)
-    path = save_session(session, lesson.part)
+    path = save_session(session, lesson.part if part == "all" else f"{lesson.part}-p{part}")
     judged = [e for e in session.log if e["event"] == "judge"]
     seconds = sorted(e["seconds"] for e in judged)
     cost = sum((e["usage"].get("cost_usd") or 0) for e in judged)
@@ -128,7 +128,8 @@ def secret_token() -> str:
     return path.read_text(encoding="utf-8").strip()
 
 
-def serve(lesson_path: Path, port: int, model: str | None, keep_recordings: bool = True) -> int:
+def serve(lesson_path: Path, port: int, model: str | None, keep_recordings: bool = True,
+          part: str = "all") -> int:
     """The voice lesson as a web app on 127.0.0.1; the tunnel (run.sh) makes it reachable from the phone."""
     import uvicorn
     from .judge import LLMJudge
@@ -145,8 +146,8 @@ def serve(lesson_path: Path, port: int, model: str | None, keep_recordings: bool
     app = create_app(lesson, token, voice.transcribe, voice.synthesise,
                      lambda lesson: LLMJudge(lesson, model=model), HERE / "fixtures" / "tts-cache",
                      save=lambda session, part: save_session(session, part),
-                     recordings=HERE / "fixtures" / "recordings" if keep_recordings else None)
-    print(f"Lesson {lesson.part}. Local address: http://127.0.0.1:{port}/{token}/", file=sys.stderr)
+                     recordings=HERE / "fixtures" / "recordings" if keep_recordings else None, part=part)
+    print(f"Lesson {lesson.part}, part {part}. Local address: http://127.0.0.1:{port}/{token}/", file=sys.stderr)
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
     return 0
 
@@ -201,10 +202,13 @@ def main() -> int:
     pp = sub.add_parser("play", help="a typed lesson in the terminal")
     pp.add_argument("lesson", type=Path)
     pp.add_argument("--model", help="teacher model (default: TEACHER_MODEL)")
+    pp.add_argument("--part", choices=("all", "1", "2"), default="all")
     vp = sub.add_parser("serve", help="the voice lesson as a web app (see run.sh for the phone)")
     vp.add_argument("lesson", type=Path)
     vp.add_argument("--port", type=int, default=8765)
     vp.add_argument("--model", help="teacher model (default: TEACHER_MODEL)")
+    vp.add_argument("--part", choices=("all", "1", "2"), default="all",
+                    help="1: opening, round 0 and round 1; 2: round 2 and recall; all: one sitting")
     vp.add_argument("--no-recordings", action="store_true",
                     help="do not keep the learner's turns (kept by default in fixtures/recordings/, git-ignored)")
     sp = sub.add_parser("simulate", help="compare teacher models on the same simulated lesson")
@@ -217,9 +221,9 @@ def main() -> int:
     if args.command == "simulate":
         return simulate(args.lesson, args.model, args.seed, args.tag)
     if args.command == "serve":
-        return serve(args.lesson, args.port, args.model, not args.no_recordings)
+        return serve(args.lesson, args.port, args.model, not args.no_recordings, args.part)
     if args.command == "play":
-        return play(args.lesson, args.model)
+        return play(args.lesson, args.model, args.part)
 
     if args.command == "review":
         print(review(json.loads(args.lesson.read_text(encoding="utf-8"))), end="")

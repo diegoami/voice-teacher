@@ -378,6 +378,47 @@ Findings:
   the thank-you, «стоп», corrections of `мені́ вихо́дити`, `шви́дше`,
   `зупи́нка`, cached lines in about 0 s.
 
+## Milestone 4, run 2: with the task spoken in English (2026-10-05)
+
+Lesson 4B again, quiet room, task spoken in English in round 1, recordings
+kept locally. Stopped with «стоп» at round 2, step 8 (as in run 1), after
+10 minutes.
+
+| | Run 1 (2026-10-02) | Run 2 (2026-10-05) |
+| --- | --- | --- |
+| Round 1: independent / cued / corrected / modelled | 6 / 2 / 1 / 3 | **10** / 0 / 0 / 2 |
+| Round 1: learner repeated the teacher instead of answering | 2 steps | **none** |
+| Round 2 (until the stop): independent / corrected / modelled / needs another turn | 4 / 0 / 2 / 0 | 2 / 2 / 1 / 1 |
+| Repeat turns, total (median) | about 1.8 s | **0.99 s** (cache warm) |
+| Judged turns, total (median / max) | about 3 s / 5.5 s | 2.59 s / 5.4 s |
+| Cost | $0.155 | **$0.076** (voice $0.040: most lines cached) |
+
+The English task fixed the round-1 problem. Round 2, without any prompt,
+is where the learner still needs help.
+
+**Pronunciation or recognition? Checked on the recordings** with three
+recognisers (Scribe v2, `gpt-4o-transcribe`, Deepgram Nova-3), about one
+cent:
+
+- `зупинка` heard as «супінка»: on the turns where Scribe wrote it so, all
+  three recognisers heard an unvoiced `с`/`ш`, and even where Scribe wrote
+  «зупинка», `gpt-4o-transcribe` heard «supinka». **A pronunciation point:
+  `з` devoiced to `с`, and `и` pronounced as `і`.** The teacher's correction
+  «зупи́нка» was right; this is the kind of mistake the recogniser must keep.
+- «Як» heard as «Я»: on two of three turns the other recognisers heard
+  «Як»: **mostly Scribe** dropping a light final `к`. On the third, all three
+  heard no «Як»: the learner left it out.
+- `gpt-4o-transcribe` switched to Latin and even Greek letters on several
+  short turns: one more reason Scribe stays the recogniser.
+- One turn contains the teacher's transition line («Тепер нові речення.
+  Слухайте і повторюйте.») before the learner's sentence, heard by all
+  three. The talk button is disabled while the teacher speaks, so the
+  learner probably said it; to be confirmed.
+
+Still rough: recognition garbled the first attempt at 7 of the 21 repeat
+lines (the second attempt passed each time), once in Latin letters in a
+quiet room.
+
 ## Defaults (change them if you disagree)
 
 - **Android first, as an installable web app (PWA)**, not a native app.

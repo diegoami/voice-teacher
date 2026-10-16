@@ -93,7 +93,8 @@ Browser catalogue tests use two synthetic fake server catalogues with overlappin
 course/lesson IDs. They exercise pairing, both sources, mode selection, unsupported
 modes, remembered selection, original-session recovery after source change,
 failed delivery/start, server errors, revocation, learner separation, foreign-server
-navigation, keyboard selection, responsive layout, control sizing and installability.
+navigation, keyboard selection, native mobile taps on mode/start controls, responsive layout,
+control sizing and installability.
 They run the production build for desktop and emulated Android Chromium.
 Playwright is pinned to 1.63.0 for reproducibility. Native host rendering was
 unreliable in both Chromium 153 and 156: even a minimal native animation-frame

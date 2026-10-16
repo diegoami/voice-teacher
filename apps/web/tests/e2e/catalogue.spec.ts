@@ -277,7 +277,7 @@ test("catalogue: server change navigates without forwarding pairing credentials"
 test("catalogue: keyboard selection, touch-sized controls and no horizontal overflow", async ({
   page,
 }, info) => {
-  await fake(page);
+  const f = await fake(page);
   await pair(page);
   const source = page.getByLabel("Lesson source");
   await source.focus();
@@ -297,6 +297,18 @@ test("catalogue: keyboard selection, touch-sized controls and no horizontal over
   await expect(
     page.getByRole("heading", { name: "Session ready" }),
   ).toBeVisible();
+  expect(f.starts).toHaveLength(1);
+  if (info.project.name === "android") {
+    await page.getByRole("radio", { name: "Repetition", exact: false }).tap();
+    await expect(
+      page.getByRole("button", { name: "Start practice" }),
+    ).toBeDisabled();
+    await page
+      .getByRole("radio", { name: "Guided conversation", exact: false })
+      .tap();
+    await page.getByRole("button", { name: "Start practice" }).tap();
+    await expect.poll(() => f.starts.length).toBe(2);
+  }
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

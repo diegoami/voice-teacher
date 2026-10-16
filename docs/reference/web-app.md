@@ -4,7 +4,8 @@ T15 establishes `apps/web`, the mobile-first React/TypeScript client. The owner
 confirmed an installable Android/desktop web app for the first release. The UI
 uses native labelled inputs, selects, radio groups and buttons, with visible
 keyboard focus and touch-sized controls; no component library is required.
-Recording/playback belongs to T16 and full refresh/restart flows to T17.
+[Recording/playback](voice-client.md) is implemented by T16; full pause/continue
+and restart flows belong to T17.
 
 ## Build and serve
 
@@ -68,8 +69,8 @@ Sources, courses and lessons come from authenticated API responses; there are no
 hard-coded lesson paths. Every mode is presented with its actual availability.
 An authored but unsupported mode explains that its server planner is not enabled;
 a mode absent from the lesson explains the content limitation. The Start button
-is disabled until the complete source/course/lesson/mode is available. Repetition
-and free conversation become available through their own server tasks.
+is disabled until the complete source/course/lesson/mode is available. Repetition and guided conversation are available through their server planners;
+free conversation remains a later task.
 
 The browser remembers selection and session links by verified learner ID and
 browser origin. Selection changes do not modify an existing session. A start

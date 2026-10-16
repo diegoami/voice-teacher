@@ -44,6 +44,12 @@ export type Presentation = {
   card: string | null;
   teacher: { text: string; kind: string }[];
   audio_ids: string[];
+  activity?: {
+    activity_id: string;
+    position: number;
+    total: number;
+    complete: boolean;
+  } | null;
 };
 export type SavedSession = {
   start: Start;

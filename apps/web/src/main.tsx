@@ -21,6 +21,7 @@ import type {
   Presentation,
 } from "./api";
 import "./style.css";
+import { SessionScreen } from "./session";
 
 function App() {
   const [grant, setGrant] = useState<Grant | null>(() => readGrant());
@@ -446,18 +447,14 @@ function App() {
               </ul>
             )}
           </section>
-          {current && (
-            <section aria-labelledby="session">
-              <p className="eyebrow">{current.status}</p>
-              <h2 id="session">Session ready</h2>
-              {current.card && <p className="card">{current.card}</p>}
-              {current.teacher.map((t, i) => (
-                <p key={i} className="teacher">
-                  {t.text}
-                </p>
-              ))}
-              <p className="hint">Your session is saved on the server.</p>
-            </section>
+          {current && grant && (
+            <SessionScreen
+              key={grant.client_id + ":" + current.session_id}
+              initial={current}
+              grant={grant}
+              received={setCurrent}
+              unauthorized={failure}
+            />
           )}
         </>
       )}

@@ -27,10 +27,10 @@ jobs:
       - run: npm run build
       - run: npm test -- --run
       - run: node node_modules/@playwright/test/cli.js install --with-deps chromium
-      - run: npm run test:e2e -- catalogue --workers=2
+      - run: npm run test:e2e -- --workers=2
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: catalogue-browser-evidence
+          name: web-browser-evidence
           path: apps/web/test-results/
           retention-days: 14

@@ -4,7 +4,7 @@
 engine with durable request IDs, stored judge results and replayable teacher
 presentations. It uses `Store` and a callable judge; an optional delivery callback
 prepares audio references or other JSON metadata from saved teacher turns.
-Provider implementations and HTTP endpoints follow in T09/T10.
+T09/T10 provide [HTTP endpoints](session-api.md) and the [speech pipeline](voice-pipeline.md).
 
 `create(template, lesson, profile=UKRAINIAN, part="all")` takes a T03 private
 session envelope and a prepared T04 lesson. It validates pinned source/languages,
@@ -61,7 +61,7 @@ snapshots and record state events. Direct stop closes the engine without
 inventing a spoken learner transcript. Resume preserves phase/help; replaying
 the last teacher plan is a separate presentation action.
 
-Coordinator capsule version 1 contains the prepared lesson, language profile,
+Coordinator capsules contain the prepared lesson, language profile,
 inner T04 engine capsule and presentation. It lives inside T03's opaque
 `engine_state.data`; interchange schema version 1 is unchanged. Item provenance
 uses explicit curriculum item revisions; state events reference real existing
@@ -85,3 +85,7 @@ six failure boundaries, atomic request/progress commit, failed synthesis/playbac
 retry, provider transactions, pause/stop races, cancelled intents, assistance,
 two competing processes and v2/v3 migration failure/recovery. No live providers,
 real learner records or client playback are required for these checks.
+
+T10 writes coordinator capsule v2 and still reads v1. Version 2 preserves portable
+learner-reported recognition annotations through subsequent turns; older readers
+reject it instead of silently dropping reports. See [voice-pipeline.md](voice-pipeline.md).

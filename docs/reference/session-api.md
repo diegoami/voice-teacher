@@ -4,7 +4,7 @@ T09 adds `voice_teacher.api.create_app`, a FastAPI ASGI application around the
 durable coordinator and validated source registry. Importing it creates no
 providers and reads no credentials. Construct it with one runtime Store,
 Coordinator and operator token supplied out of band. `uvicorn` is included for
-same-origin local serving; T10 supplies production speech/judging wiring.
+same-origin local serving; [T10](voice-pipeline.md) supplies production speech/judging wiring.
 
 ```python
 from voice_teacher.api import create_app
@@ -128,3 +128,8 @@ typed error shapes and same-origin assets. No live provider is contacted:
 uv run pytest tests/api -q
 uv run pytest tests -q
 ```
+
+T10 adds saved first-reply audio recovery through session status, plus owner-only
+recognition read/report endpoints described in [voice-pipeline.md](voice-pipeline.md).
+A recognition report saves a portable annotation and returns the new revision,
+while preserving the original evidence and native lesson state.

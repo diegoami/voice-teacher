@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voice-teacher.invalid/schemas/v1/common.json",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mode": {
+      "enum": [
+        "repetition",
+        "guided_conversation",
+        "free_conversation"
+      ]
+    },
+    "rendering": {
+      "type": "object",
+      "properties": {
+        "display": {
+          "type": "string",
+          "minLength": 1
+        },
+        "speech": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "display",
+        "speech"
+      ],
+      "additionalProperties": false
+    },
+    "revision": {
+      "type": "object",
+      "properties": {
+        "commit": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "dirty": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "commit",
+        "content_sha256",
+        "dirty"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "dirty": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "commit": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "source_ref": {
+      "type": "object",
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$"
+        },
+        "course_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$"
+        },
+        "lesson_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$"
+        },
+        "revision": {
+          "type": "object",
+          "properties": {
+            "commit": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "dirty": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "commit",
+            "content_sha256",
+            "dirty"
+          ],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "dirty": {
+                    "const": false
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "commit": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "source_id",
+        "course_id",
+        "lesson_id",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "item_ref": {
+      "type": "object",
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$"
+        },
+        "course_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$"
+        },
+        "item_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$"
+        },
+        "item_revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "source_id",
+        "course_id",
+        "item_id",
+        "item_revision"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

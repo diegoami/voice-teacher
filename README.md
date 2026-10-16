@@ -28,13 +28,15 @@ grows out of the manual Claude-Code ↔ Claude-voice loop in
 - [docs/production-plan.md](docs/production-plan.md) — proposed product build: selectable lesson repositories, three practice modes, durable sessions, private progress and local-to-hosted operation.
 - [docs/tasks/README.md](docs/tasks/README.md) — dependency-ordered product backlog, with one contract and GitHub issue per task.
 - [docs/process.md](docs/process.md) — main-session/same-family implementation, GitHub PRs and independent OpenCode CLI review.
+- [docs/reference/data-formats.md](docs/reference/data-formats.md) — version 1 curriculum, private session and progress contracts, with offline validation.
 - [pocs/README.md](pocs/README.md) — the proofs of concept, in order, each with the question it must answer.
 
 ## Status
 
 2026-10-16: POC 5 has run real lessons on Android, with spoken task prompts
-and a two-sitting lesson option. Its 53 tests pass locally. The next proposed
-step is the [production plan](docs/production-plan.md); app/server extraction,
+and a two-sitting lesson option. Its 53 tests pass locally. The production
+build follows the [production plan](docs/production-plan.md). Version 1
+data contracts are defined; app/server extraction,
 durable storage, source selection and separate progress synchronization are
 planned, not implemented.
 

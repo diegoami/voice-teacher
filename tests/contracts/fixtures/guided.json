@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "kind": "curriculum",
+  "source_id": "synthetic-alpha",
+  "title": "Synthetic course catalogue",
+  "courses": [
+    {
+      "course_id": "basics",
+      "title": "Basics",
+      "language": "uk",
+      "instruction_language": "en",
+      "items": [
+        {
+          "item_id": "hello",
+          "item_revision": 1,
+          "text": {
+            "display": "Привіт",
+            "speech": "Приві́т"
+          },
+          "meaning": "Hello"
+        }
+      ],
+      "lessons": [
+        {
+          "lesson_id": "lesson-1",
+          "title": "Synthetic greeting",
+          "modes": [
+            "guided_conversation"
+          ],
+          "repetition_item_ids": [],
+          "guided_steps": [
+            {
+              "step_id": "greet",
+              "teacher": {
+                "display": "Say hello",
+                "speech": "Say hello"
+              },
+              "goal": "Greet a neighbour",
+              "target_item_ids": [
+                "hello"
+              ]
+            }
+          ],
+          "recall_goals": [
+            {
+              "goal_id": "recall-hello",
+              "prompt": {
+                "display": "Greet again",
+                "speech": "Greet again"
+              },
+              "target_item_ids": [
+                "hello"
+              ]
+            }
+          ],
+          "topic": null
+        }
+      ]
+    }
+  ]
+}

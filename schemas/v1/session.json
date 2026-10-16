@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voice-teacher.invalid/schemas/v1/session.json",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "session_snapshot"
+    },
+    "learner_id": {
+      "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+    },
+    "session_id": {
+      "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "event_sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "mode": {
+      "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/mode"
+    },
+    "status": {
+      "enum": [
+        "created",
+        "active",
+        "paused",
+        "finished"
+      ]
+    },
+    "source": {
+      "anyOf": [
+        {
+          "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/source_ref"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "curriculum_snapshot": {
+      "anyOf": [
+        {
+          "$ref": "https://voice-teacher.invalid/schemas/v1/curriculum.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "topic": {
+      "anyOf": [
+        {
+          "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/text"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "language": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+    },
+    "instruction_language": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+    },
+    "learner_profile": {
+      "type": "object"
+    },
+    "engine_state": {
+      "type": "object",
+      "properties": {
+        "format_version": {
+          "const": 1
+        },
+        "data": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "format_version",
+        "data"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "kind",
+    "learner_id",
+    "session_id",
+    "revision",
+    "event_sequence",
+    "mode",
+    "status",
+    "source",
+    "curriculum_snapshot",
+    "topic",
+    "language",
+    "instruction_language",
+    "learner_profile",
+    "engine_state"
+  ],
+  "additionalProperties": false
+}

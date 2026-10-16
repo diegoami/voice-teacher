@@ -1,0 +1,277 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voice-teacher.invalid/schemas/v1/progress.json",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "progress_event"
+    },
+    "event_id": {
+      "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+    },
+    "learner_id": {
+      "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+    },
+    "session_id": {
+      "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "event_type": {
+      "enum": [
+        "state.saved",
+        "turn.accepted",
+        "teacher.reply_planned",
+        "teacher.reply_delivered",
+        "evidence.recorded",
+        "observation.superseded"
+      ]
+    },
+    "mode": {
+      "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/mode"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/source_ref"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "turn": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "turn_id": {
+              "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+            },
+            "index": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "role": {
+              "enum": [
+                "learner",
+                "teacher",
+                "system"
+              ]
+            },
+            "text": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "turn_id",
+            "index",
+            "role",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "assistance": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "enum": [
+                "none",
+                "task_card",
+                "cue",
+                "model",
+                "correction"
+              ]
+            },
+            "help_level": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "target_exposed": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind",
+            "help_level",
+            "target_exposed"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "original_source": {
+          "anyOf": [
+            {
+              "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/source_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "original_item": {
+          "anyOf": [
+            {
+              "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/item_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "practice_source": {
+          "anyOf": [
+            {
+              "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/source_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "origin_session_id": {
+          "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+        },
+        "origin_turn_id": {
+          "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+        }
+      },
+      "required": [
+        "original_source",
+        "original_item",
+        "practice_source",
+        "origin_session_id",
+        "origin_turn_id"
+      ],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "outcome": {
+              "enum": [
+                "independent",
+                "repeated",
+                "cued",
+                "modelled_repeated",
+                "corrected_repeated",
+                "needs_turn",
+                "skipped",
+                "observed"
+              ]
+            },
+            "attempt": {
+              "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/text"
+            },
+            "preferred": {
+              "anyOf": [
+                {
+                  "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/text"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/text"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "recognition_uncertain": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "outcome",
+            "attempt",
+            "preferred",
+            "reason",
+            "recognition_uncertain"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "snapshot": {
+      "anyOf": [
+        {
+          "$ref": "https://voice-teacher.invalid/schemas/v1/session.json"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "supersedes_event_id": {
+      "anyOf": [
+        {
+          "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "kind",
+    "event_id",
+    "learner_id",
+    "session_id",
+    "sequence",
+    "occurred_at",
+    "event_type",
+    "mode",
+    "source",
+    "turn",
+    "assistance",
+    "provenance",
+    "evidence",
+    "snapshot",
+    "supersedes_event_id"
+  ],
+  "additionalProperties": false
+}

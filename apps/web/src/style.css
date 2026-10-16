@@ -1,0 +1,239 @@
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: #20352e;
+  background: #f7f6ef;
+  font-synthesis: none;
+  line-height: 1.55;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 920px;
+  margin: auto;
+  padding: 28px 20px;
+}
+header {
+  padding: 12px 0 30px;
+}
+.brand {
+  font-weight: 750;
+  font-size: 1.5rem;
+  color: #205c4b;
+  text-decoration: none;
+}
+header p {
+  margin: 0.3rem 0;
+  color: #626c61;
+}
+h1,
+h2 {
+  line-height: 1.2;
+  font-weight: 650;
+  margin: 0.3rem 0 1.3rem;
+}
+h1 {
+  font-size: 1.75rem;
+}
+h2 {
+  font-size: 1.5rem;
+}
+section {
+  background: #fffefa;
+  border: 1px solid #dedfd2;
+  border-radius: 20px;
+  padding: 28px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 14px #20352e05;
+}
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+.badge {
+  color: #205c4b;
+  background: #e4f0e7;
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+}
+label {
+  display: block;
+  font-weight: 600;
+  margin: 14px 0 8px;
+}
+input,
+select,
+button {
+  font: inherit;
+  min-height: 48px;
+}
+input:not([type="radio"]),
+select {
+  display: block;
+  width: 100%;
+  border: 1px solid #9ca99d;
+  border-radius: 9px;
+  background: white;
+  color: inherit;
+  padding: 10px 12px;
+  margin-top: 6px;
+}
+button {
+  border: 1px solid #205c4b;
+  border-radius: 10px;
+  padding: 10px 18px;
+  background: #205c4b;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+button.secondary {
+  background: transparent;
+  color: #205c4b;
+}
+button:disabled,
+select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+:focus-visible {
+  outline: 3px solid #b46b17;
+  outline-offset: 3px;
+}
+.hint,
+small,
+footer {
+  font-size: 0.9rem;
+  color: #61695e;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.selections {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 20px;
+}
+.selections label:first-child {
+  grid-column: 1/-1;
+}
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 24px 0;
+}
+legend {
+  font-weight: 650;
+}
+.mode {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #dedfd2;
+  border-radius: 10px;
+  padding: 12px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+.mode:has(input:checked) {
+  border-color: #205c4b;
+  background: #eef4ed;
+}
+input[type="radio"] {
+  width: 20px;
+  accent-color: #205c4b;
+  flex-shrink: 0;
+}
+small {
+  display: block;
+  font-weight: 400;
+}
+.eyebrow {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: #617561;
+  font-weight: 650;
+}
+.sessions {
+  list-style: none;
+  padding: 0;
+}
+.sessions li {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 16px 0;
+  border-top: 1px solid #e4e4da;
+}
+.sessions li div {
+  flex: 1;
+  min-width: 180px;
+  overflow-wrap: anywhere;
+}
+.card {
+  border-left: 3px solid #c58b37;
+  padding: 12px 18px;
+  background: #fff6df;
+}
+.teacher {
+  font-size: 1.15rem;
+}
+aside {
+  padding: 20px;
+  background: #fff0df;
+  border: 1px solid #bd7733;
+  border-radius: 14px;
+  margin-bottom: 20px;
+}
+footer {
+  text-align: center;
+  padding: 16px;
+}
+p {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 560px) {
+  main {
+    padding: 16px 12px;
+  }
+  section {
+    padding: 20px 16px;
+    border-radius: 15px;
+  }
+  .selections {
+    display: block;
+  }
+  .section-title {
+    display: block;
+  }
+  .badge {
+    display: inline-block;
+    margin-bottom: 14px;
+  }
+  button {
+    width: 100%;
+  }
+  .actions button {
+    flex: 1;
+  }
+  .sessions li button {
+    width: auto;
+    flex: 1;
+  }
+  h1 {
+    font-size: 1.5rem;
+  }
+}

@@ -128,3 +128,7 @@ typed error shapes and same-origin assets. No live provider is contacted:
 uv run pytest tests/api -q
 uv run pytest tests -q
 ```
+
+T15 adds paired `learner_id` to the pairing response and authenticated
+`GET /api/v1/identity` returning only that ID for the
+[web app](web-app.md). Operator tokens cannot use this client endpoint.

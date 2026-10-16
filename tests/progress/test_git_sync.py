@@ -2,6 +2,7 @@ from copy import deepcopy
 import json
 from pathlib import Path
 import subprocess
+import sys
 import threading
 
 import pytest
@@ -52,8 +53,14 @@ def test_disconnected_practice_push_failure_restart_and_retry(tmp_path, monkeypa
     assert state["last_push_at"] is None and state["error"]
     assert w.store.pending_exports() == []  # local export succeeded; remote job remains pending
     before = w.store.events(LEARNER, "alpha")
+    script = """import json,sys
+from voice_teacher.storage import Store
+from voice_teacher.progress.git_sync import GitSync
+w=GitSync(Store(sys.argv[1]),sys.argv[2],sys.argv[3],private_verified=True,owner_verified=True)
+print(json.dumps(w.run_once()))
+"""
+    status = json.loads(subprocess.check_output([sys.executable, "-c", script, str(w.store.path.parent), str(w.checkout), str(upstream)], text=True))
     restarted = worker(tmp_path, upstream, store=Store(w.store.path.parent))
-    status = restarted.run_once()
     assert {e["state"] for e in status["events"]} == {"pushed"}
     assert status["last_push_at"] and status["error"] is None
     assert git(upstream, "rev-parse", "main") == status["last_push_commit"]

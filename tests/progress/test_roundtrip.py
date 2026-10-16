@@ -263,3 +263,13 @@ def test_unresolved_committed_provenance_is_not_acknowledged_as_exported(tmp_pat
     with pytest.raises(ArchiveError, match="provenance"): a.export(source)
     assert source.pending_exports()
     assert not (a.root / a.NAMESPACE).exists()
+
+
+def test_installed_layout_protects_package_root_without_guessing_parent_depth(tmp_path, monkeypatch):
+    import voice_teacher.progress.archive as implementation
+    installed = tmp_path / "installed/site-packages"
+    package = installed / "voice_teacher/progress"; package.mkdir(parents=True)
+    monkeypatch.setattr(implementation, "__file__", str(package / "archive.py"))
+    with pytest.raises(ArchiveError, match="overlaps"): Archive(installed)
+    data = tmp_path / "installed/private-progress"; data.mkdir()
+    assert Archive(data).root == data

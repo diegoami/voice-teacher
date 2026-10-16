@@ -47,8 +47,11 @@ The initial implementation repeats prefixes for simplicity and correctness;
 storage growth should be measured before introducing incremental compaction.
 
 Export reads one consistent SQLite view, resolves historical source/item and
-learner/session/turn references, then leaves the transaction before filesystem
-work. It writes a 0600 `.pending-*` file, flushes it, publishes by exclusive hard
+learner/session/turn references across the full store, then leaves the transaction
+before filesystem work. An unresolved historical record blocks new export, even
+if that record was previously acknowledged; repair requires an explicit history
+decision, never silently skipping provenance. It writes a 0600 `.pending-*` file,
+flushes it, publishes by exclusive hard
 link and fsyncs the directory. New namespace directories are 0700 and their
 parent entries are synced. Existing batches are never overwritten. Only after
 publication does SQLite acknowledge the exported event IDs. A crash before

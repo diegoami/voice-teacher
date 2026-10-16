@@ -121,7 +121,11 @@ class Archive:
     def __init__(self, destination, *, forbidden_roots=(), max_batch_bytes=16 * 1024 * 1024,
                  max_archive_bytes=256 * 1024 * 1024, max_batches=10000):
         self.root = Path(destination).expanduser().resolve()
-        protected = [Path(__file__).resolve().parents[3], *(Path(p).resolve() for p in forbidden_roots)]
+        package = Path(__file__).resolve().parents[1]
+        # Worktree .git files and checkout .git directories both identify the
+        # code root. Installed wheels instead protect their installation root.
+        code_root = next((p for p in package.parents if (p / ".git").exists()), package.parent)
+        protected = [code_root, *(Path(p).resolve() for p in forbidden_roots)]
         if any(self.root.is_relative_to(p) or p.is_relative_to(self.root) for p in protected):
             raise ArchiveError("progress destination overlaps code/content/runtime storage")
         if not self.root.is_dir(): raise ArchiveError("configured private destination must already exist")

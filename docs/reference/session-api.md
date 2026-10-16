@@ -129,6 +129,10 @@ uv run pytest tests/api -q
 uv run pytest tests -q
 ```
 
+T15 adds paired `learner_id` to the pairing response and authenticated
+`GET /api/v1/identity` returning only that ID for the
+[web app](web-app.md). Operator tokens cannot use this client endpoint.
+
 T10 adds saved first-reply audio recovery through session status, plus owner-only
 recognition read/report endpoints described in [voice-pipeline.md](voice-pipeline.md).
 A recognition report saves a portable annotation and returns the new revision,

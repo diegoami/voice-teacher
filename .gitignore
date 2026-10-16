@@ -17,3 +17,7 @@ pocs/**/fixtures/transcripts/
 *.amr
 *.webm
 *.3gp
+
+apps/web/dist/
+apps/web/test-results/
+apps/web/playwright-report/

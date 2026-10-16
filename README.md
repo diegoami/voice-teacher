@@ -59,3 +59,6 @@ serve owner-bound audio through a runnable local API. The web app remains planne
 
 [Independent repetition](docs/reference/repetition.md) supports phrase-only lessons
 and private weak-item review through the durable API.
+
+The [installable web app shell](docs/reference/web-app.md) lives in `apps/web`;
+serve its production build from the API origin.

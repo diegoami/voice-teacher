@@ -312,3 +312,14 @@ def test_v4_auth_migration_is_atomic_and_preserves_existing_state(tmp_path, monk
         store = Store(directory)
         assert store.learner("preserved") == {}
         with store._connection() as c: assert c.execute("PRAGMA user_version").fetchone()[0] == VERSION
+
+
+def test_browser_pairing_exposes_only_verified_learner_identity(system):
+    s = system; client = s["client"]
+    assert s["alice"]["learner_id"] == "alice"
+    assert client.get("/api/v1/identity", headers=bearer(s["alice"]["token"])).json() == {"learner_id": "alice"}
+    assert client.get("/api/v1/identity", headers=bearer(s["bob"]["token"])).json() == {"learner_id": "bob"}
+    assert client.get("/api/v1/identity").status_code == 401
+    assert client.get("/api/v1/identity", headers=bearer(OPERATOR)).status_code == 403
+    client.delete("/api/v1/operator/clients/" + s["alice"]["client_id"], headers=bearer(OPERATOR))
+    assert client.get("/api/v1/identity", headers=bearer(s["alice"]["token"])).status_code == 401

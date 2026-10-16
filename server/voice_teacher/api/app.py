@@ -102,6 +102,9 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
         if result is None: raise Problem(401, "invalid_pairing", "Pairing code is invalid or expired")
         return result
 
+    @app.get("/api/v1/identity", response_model=m.Identity)
+    def identity(request: Request): return m.Identity(learner_id=learner(request))
+
     @app.put("/api/v1/operator/learners/{learner_id}", status_code=204)
     def configure_learner(learner_id: str, body: m.Learner):
         if not re.fullmatch(m.ID, learner_id): raise Problem(422, "invalid_request", "Invalid learner identity")

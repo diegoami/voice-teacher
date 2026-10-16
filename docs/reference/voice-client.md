@@ -65,7 +65,11 @@ Finish immediately stops capture/playback and aborts the client upload. It saves
 a separate finish intent before sending the server control. A turn may already
 be committing: finish reloads the current revision and permits at most two
 control attempts, assigning a new ID only when its input revision changes.
-A failed finish remains pending; refresh resumes the stored stop intent without
+Finish reads `/sessions/{id}?prepare_audio=false` to inspect saved state without
+requesting speech. If control state commits but closing audio fails, this read
+confirms completion and retains the closing text. Other status reads keep their
+existing audio-preparation default. A failed finish remains pending; refresh
+resumes the stored stop intent without
 uploading the learner recording again. The app says finished only after the
 server confirms it. It cannot revoke provider work already underway on the server.
 Site storage must be available to save these intents; storage/network failures

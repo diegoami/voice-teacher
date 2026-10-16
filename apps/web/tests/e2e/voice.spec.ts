@@ -117,7 +117,8 @@ async function fake(page: Page) {
     mode = "guided_conversation",
     failure = "",
     starts = 0;
-  let multiple = false;
+  let multiple = false,
+    statusDown = false;
   const answer = (id: string) => ({
     ...current,
     request_id: id,
@@ -255,14 +256,30 @@ async function fake(page: Page) {
             audio_ids: [],
           };
           result = current;
+          if (failure === "tts") {
+            status = 502;
+            result = { error: { message: "RAW_PRIVATE_BACKEND_DETAILS" } };
+          }
           if (failure === "finish-after") {
             failure = "";
+            statusDown = true;
             await route.abort("failed");
             return;
           }
         }
-      } else if (path.startsWith("/api/v1/sessions/")) result = current;
-      else status = 404;
+      } else if (path.startsWith("/api/v1/sessions/")) {
+        if (statusDown) {
+          await route.abort("failed");
+          return;
+        }
+        if (
+          failure === "tts" &&
+          url.searchParams.get("prepare_audio") !== "false"
+        ) {
+          status = 502;
+          result = {};
+        } else result = current;
+      } else status = 404;
     }
     await route.fulfill({
       status,
@@ -279,6 +296,9 @@ async function fake(page: Page) {
     },
     setFailure: (v: string) => {
       failure = v;
+    },
+    reconnect: () => {
+      statusDown = false;
     },
     getStarts: () => starts,
     externalAdvance: () => {
@@ -573,6 +593,7 @@ for (const failure of ["finish-before", "finish-after"]) {
     const intent = (await pending(page))[0];
     expect(intent.finish).toBeTruthy();
     expect(intent.containsGrant).toBe(false);
+    f.reconnect();
     await page.reload();
     await page
       .getByRole("button", { name: "Open Tickets", exact: true })
@@ -713,4 +734,22 @@ test("voice: reopening the same saved session loads the current server presentat
   );
   expect(f.getStarts()).toBe(1);
   expect(f.uploads).toHaveLength(0);
+});
+
+test("voice: finish uses durable state and succeeds while teacher speech is unavailable", async ({
+  page,
+}, info) => {
+  await media(page);
+  const f = await fake(page);
+  await open(page);
+  f.setFailure("tts");
+  await press(page, info, "Finish session");
+  await expect(page.getByText("Session finished and saved.")).toBeVisible();
+  expect(f.controls).toHaveLength(1);
+  expect(f.uploads).toHaveLength(0);
+  await expect(
+    page.getByRole("button", { name: "Tap to talk", exact: true }),
+  ).toBeDisabled();
+  await expect.poll(() => pending(page)).toEqual([]);
+  await noOverlap(page);
 });

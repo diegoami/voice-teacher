@@ -83,8 +83,11 @@ export class VoiceController {
       message: error instanceof ApiError ? error.message : fallback,
     });
   }
-  private async status() {
-    return api<Presentation>(this.path(), this.token);
+  private async status(prepareAudio = true) {
+    return api<Presentation>(
+      this.path() + (prepareAudio ? "" : "?prepare_audio=false"),
+      this.token,
+    );
   }
 
   async initialize() {
@@ -570,7 +573,7 @@ export class VoiceController {
       }));
       if (this.disposed || operation !== this.generation) return;
       for (let attempt = 0; attempt < 2; attempt++) {
-        const latest = await this.status();
+        const latest = await this.status(false);
         if (this.disposed || operation !== this.generation) return;
         this.accept(latest);
         if (latest.status === "finished") {
@@ -617,7 +620,25 @@ export class VoiceController {
           });
           return;
         } catch (e) {
-          if (!(e instanceof ApiError) || e.status !== 409) throw e;
+          if (e instanceof ApiError && e.status === 409) continue;
+          // The control can commit before speech preparation fails or its
+          // response disappears. Read durable state without invoking speech.
+          const committed = await this.status(false);
+          if (this.disposed || operation !== this.generation) return;
+          if (committed.status !== "finished") throw e;
+          await journal(this.key, (j) => ({
+            ...j,
+            upload: null,
+            finish: null,
+          }));
+          this.accept(committed);
+          this.update({
+            phase: "ready",
+            pending: false,
+            finishPending: false,
+            message: "Session finished and saved.",
+          });
+          return;
         }
       }
       throw new Error("changed");

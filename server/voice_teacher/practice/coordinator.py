@@ -273,7 +273,8 @@ class Coordinator:
 
     def create_personal_review(self, learner, session, target_ids, *, recall_before_model=False):
         from .personal_review import compile_plan
-        source, plan = compile_plan(self.store,learner,target_ids,recall_before_model=recall_before_model)
+        try: source, plan = compile_plan(self.store,learner,target_ids,recall_before_model=recall_before_model)
+        except ValueError: raise StorageError("personal review selection is unavailable") from None
         template = dict(schema_version=1,kind="session_snapshot",learner_id=learner,session_id=session,revision=0,event_sequence=0,
             mode="repetition",status="created",source=source.source_ref("personal-review","personal-set"),curriculum_snapshot=source.curriculum,
             topic=None,language=plan.language,instruction_language=plan.instruction_language,learner_profile=self.store.learner(learner),engine_state={"format_version":1,"data":{}})

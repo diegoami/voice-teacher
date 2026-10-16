@@ -36,6 +36,7 @@ grows out of the manual Claude-Code ↔ Claude-voice loop in
 - [docs/reference/source-registry.md](docs/reference/source-registry.md) — selectable local sources, validated activation and pinned content revisions.
 - [docs/reference/session-api.md](docs/reference/session-api.md) — pairing, learner-bound access, typed catalogue/session responses and audio transport.
 - [docs/reference/progress-archive.md](docs/reference/progress-archive.md) — immutable private event batches and transactional history/session restore.
+- [docs/reference/progress-sync.md](docs/reference/progress-sync.md) — background Git retry, distinct save/export/push states and verified server handoff.
 - [pocs/README.md](pocs/README.md) — the proofs of concept, in order, each with the question it must answer.
 
 ## Status
@@ -49,6 +50,7 @@ for existing lesson packages and a persistent local-source registry. Source
 updates are validated before activation and cannot change running sessions.
 An authenticated API exposes source selection and durable sessions with
 learner-bound pairing. Private progress exports rebuild history and interrupted
-sessions. The app and remote progress synchronization remain planned.
+sessions. A background Git worker now synchronizes progress with explicit
+save/export/push states. The app and product speech-provider wiring remain planned.
 
 2026-09-26: POC 0 (lesson connector) answered: it delivers a lesson reliably but cannot record or steer one through a general voice chat. See [pocs/00-mcp-connector](pocs/00-mcp-connector/README.md). Session 4A showed that speech recognition decides the runtime. POC 1 answered it: locked to Ukrainian, ElevenLabs Scribe v2 hears the learner's Ukrainian as Ukrainian (4.2% WER, no Russian) and keeps the learner's mistakes, while OpenAI `gpt-transcribe` corrects most of them. STT → Claude → TTS with Scribe stays the default. POC 2 answered the voice question: ElevenLabs Multilingual v2 with stress-marked text got every judged word right. See [pocs/02-tts-stress](pocs/02-tts-stress/README.md). See [pocs/01-stt-ukrainian](pocs/01-stt-ukrainian/README.md).

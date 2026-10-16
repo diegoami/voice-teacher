@@ -31,6 +31,7 @@ grows out of the manual Claude-Code ↔ Claude-voice loop in
 - [docs/reference/data-formats.md](docs/reference/data-formats.md) — version 1 curriculum, private session and progress contracts, with offline validation.
 - [docs/reference/practice-engine.md](docs/reference/practice-engine.md) — install and test the extracted offline practice engine and its provider interfaces.
 - [docs/reference/sqlite-storage.md](docs/reference/sqlite-storage.md) — private transactional sessions, events, projections, export jobs and migrations.
+- [docs/reference/turn-recovery.md](docs/reference/turn-recovery.md) — durable request stages, retryable teacher replies and session controls.
 - [pocs/README.md](pocs/README.md) — the proofs of concept, in order, each with the question it must answer.
 
 ## Status
@@ -38,8 +39,8 @@ grows out of the manual Claude-Code ↔ Claude-voice loop in
 2026-10-16: POC 5 has run real lessons on Android, with spoken task prompts
 and a two-sitting lesson option. Its 53 tests pass locally. The production
 build follows the [production plan](docs/production-plan.md). Version 1
-data contracts, an installable practice engine and transactional SQLite storage
-are implemented. Resumable turn coordination, the server, source selection and
-separate progress synchronization remain planned.
+data contracts, an installable practice engine, transactional SQLite storage
+and resumable guided-turn coordination are implemented. The server, source
+selection and separate progress synchronization remain planned.
 
 2026-09-26: POC 0 (lesson connector) answered: it delivers a lesson reliably but cannot record or steer one through a general voice chat. See [pocs/00-mcp-connector](pocs/00-mcp-connector/README.md). Session 4A showed that speech recognition decides the runtime. POC 1 answered it: locked to Ukrainian, ElevenLabs Scribe v2 hears the learner's Ukrainian as Ukrainian (4.2% WER, no Russian) and keeps the learner's mistakes, while OpenAI `gpt-transcribe` corrects most of them. STT → Claude → TTS with Scribe stays the default. POC 2 answered the voice question: ElevenLabs Multilingual v2 with stress-marked text got every judged word right. See [pocs/02-tts-stress](pocs/02-tts-stress/README.md). See [pocs/01-stt-ukrainian](pocs/01-stt-ukrainian/README.md).

@@ -10,7 +10,7 @@ import threading
 import pytest
 
 from voice_teacher.storage import Store, StorageError, RevisionConflict, EventConflict, SchemaVersionError
-from voice_teacher.storage.migrations import APPLICATION_ID, V1
+from voice_teacher.storage.migrations import APPLICATION_ID, VERSION, V1
 
 
 def snapshot(revision=0, sequence=1):
@@ -246,7 +246,7 @@ def test_new_database_permissions_and_foreign_keys(tmp_path):
     with store._connection() as c:
         assert c.execute("PRAGMA foreign_keys").fetchone()[0] == 1
         assert c.execute("PRAGMA synchronous").fetchone()[0] == 2  # FULL
-        assert c.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert c.execute("PRAGMA user_version").fetchone()[0] == VERSION
         assert c.execute("PRAGMA foreign_key_check").fetchall() == []
 
 
@@ -273,7 +273,7 @@ def test_supported_v1_migration_backfills_projections_and_pending_exports(tmp_pa
     assert len(store.projection("learner", "session")["evidence"]) == 1
     assert len(store.projection("learner", "session")["turns"]) == 2
     with sqlite3.connect(store.path) as c:
-        assert c.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert c.execute("PRAGMA user_version").fetchone()[0] == VERSION
 
 
 def test_failed_migration_rolls_back_all_ddl_and_schema_version(tmp_path, monkeypatch):

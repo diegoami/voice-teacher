@@ -153,12 +153,18 @@ class Session:
             raise RuntimeError("start the lesson before accepting a turn")
         self._log("learner", text=text)
         if wants_to_stop(text, self.profile):
-            self.phase, self.card = "closed", None
-            self._log("stopped")
-            return self._teacher([Say((self.lesson.closing or self.profile.closing), "close")])
+            return self.stop()
         if self.phase == "opening" or (self.phase == "guided" and self.round == 0):
             return self._teacher(self._opening(text))
         return self._teacher(self._answer(text))
+
+    def stop(self) -> list[Say]:
+        """Stop through an app control without inventing a learner transcript."""
+        if self.done:
+            return []
+        self.phase, self.card = "closed", None
+        self._log("stopped")
+        return self._teacher([Say((self.lesson.closing or self.profile.closing), "close")])
 
     # --- opening ----------------------------------------------------------
 

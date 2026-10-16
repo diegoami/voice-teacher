@@ -1,6 +1,6 @@
 """Internal SQLite schema versions; independent of interchange schema versions."""
 APPLICATION_ID = 0x56544348  # VTCH
-VERSION = 2
+VERSION = 3
 
 V1 = (
     "CREATE TABLE learners (learner_id TEXT PRIMARY KEY, profile_json TEXT NOT NULL)",
@@ -34,4 +34,15 @@ V2 = (
         CHECK(status IN ('pending','done')), attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts >= 0))""",
     "CREATE TRIGGER immutable_events_update BEFORE UPDATE ON events BEGIN SELECT RAISE(ABORT, 'events are append-only'); END",
     "CREATE TRIGGER immutable_events_delete BEFORE DELETE ON events BEGIN SELECT RAISE(ABORT, 'events are append-only'); END",
+)
+
+V3 = (
+    """CREATE TABLE requests (
+        learner_id TEXT NOT NULL, session_id TEXT NOT NULL, request_id TEXT NOT NULL,
+        expected_revision INTEGER NOT NULL CHECK(expected_revision >= 0), input_json TEXT NOT NULL,
+        stage TEXT NOT NULL CHECK(stage IN ('accepted','judged','committed','delivered','cancelled')),
+        judgment_json TEXT, result_json TEXT, delivery_json TEXT,
+        PRIMARY KEY(learner_id, session_id, request_id),
+        FOREIGN KEY(learner_id, session_id) REFERENCES sessions(learner_id, session_id))""",
+    "CREATE UNIQUE INDEX requests_active ON requests(learner_id, session_id) WHERE stage IN ('accepted','judged')",
 )

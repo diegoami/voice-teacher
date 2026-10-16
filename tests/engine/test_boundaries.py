@@ -139,6 +139,34 @@ def test_pre_attempt_prompt_does_not_expose_target_to_teacher():
     assert judge.asked[0][0].targets == s.lesson.steps[0].targets
 
 
+def test_recovery_rejects_invalid_new_position_and_inconsistent_help():
+    s = Session(small_lesson(), FakeJudge())
+    assert Session.from_snapshot(small_lesson(), FakeJudge(), s.snapshot()).start() == s.start()
+    s = Session(small_lesson(), FakeJudge())
+    for key, value in [("index", 5), ("round", 2)]:
+        bad = s.snapshot()
+        bad["data"][key] = value
+        with pytest.raises(ValueError, match="phase and position"):
+            Session.from_snapshot(small_lesson(), FakeJudge(), bad)
+    through_opening(s)
+    bad = s.snapshot()
+    bad["data"]["state"]["help"] = "model"
+    with pytest.raises(ValueError, match="inconsistent help"):
+        Session.from_snapshot(small_lesson(), FakeJudge(), bad)
+
+
+@pytest.mark.parametrize("field,value", [("phase", "unknown"), ("label", "invented"), ("round", 2),
+                                        ("number", 50), ("attempts", -1), ("source_id", "other"),
+                                        ("item_id", "other-item")])
+def test_recovery_rejects_corrupt_evidence(field, value):
+    s = Session(small_lesson(), FakeJudge())
+    through_opening(s)
+    bad = s.snapshot()
+    bad["data"]["evidence"][0][field] = value
+    with pytest.raises(ValueError):
+        Session.from_snapshot(small_lesson(), FakeJudge(), bad)
+
+
 def test_session_owns_a_copy_of_prepared_inputs():
     lesson = small_lesson()
     s = Session(lesson, FakeJudge())

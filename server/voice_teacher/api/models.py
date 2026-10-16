@@ -164,6 +164,110 @@ class Reported(BaseModel):
     revision: int
 
 
+class SourceRevision(BaseModel):
+    commit: str | None
+    content_sha256: str
+    dirty: bool
+
+
+class SourceReference(BaseModel):
+    source_id: str
+    course_id: str
+    lesson_id: str
+    revision: SourceRevision
+
+
+class ItemReference(BaseModel):
+    source_id: str
+    course_id: str
+    item_id: str
+    item_revision: int
+
+
+class Provenance(BaseModel):
+    original_source: SourceReference | None
+    original_item: ItemReference | None
+    practice_source: SourceReference | None
+    origin_session_id: str
+    origin_turn_id: str
+
+
+class Assistance(BaseModel):
+    kind: Literal["none", "task_card", "cue", "model", "correction"]
+    help_level: int
+    target_exposed: bool
+
+
+class ItemCoverage(BaseModel):
+    lesson_id: str
+    title: str
+    required_items: int
+    covered_items: int
+    covered: bool
+
+
+class CourseProgress(BaseModel):
+    source_id: str
+    course_id: str
+    content_sha256: str
+    title: str
+    required_items: int
+    covered_items: int
+    next_lesson_id: str | None
+    lessons: list[ItemCoverage]
+
+
+class HistorySession(BaseModel):
+    session_id: str
+    title: str
+    mode: Literal["guided_conversation", "repetition", "free_conversation"]
+    source: SourceReference | None
+    status: Literal["created", "active", "paused", "finished"]
+    updated_at: str
+    accepted_turns: int
+    locally_saved: int
+    exported: int
+    pushed: int
+
+
+class BackupStatus(BaseModel):
+    configured: bool
+    locally_saved: int
+    exported: int
+    pushed: int
+    last_push_at: str | None
+    error: str | None
+
+
+class ProgressView(BaseModel):
+    criterion: str
+    courses: list[CourseProgress]
+    sessions: list[HistorySession]
+    more_sessions: bool
+    sync: BackupStatus
+
+
+class EvidenceView(BaseModel):
+    event_id: str
+    session_id: str
+    turn: TranscriptTurn
+    outcome: Literal["independent", "repeated", "cued", "modelled_repeated", "corrected_repeated", "needs_turn", "skipped", "observed"]
+    attempt: str
+    preferred: str | None
+    reason: str | None
+    recognition_uncertain: bool
+    correction: bool
+    assistance: Assistance
+    provenance: Provenance
+    superseded: bool
+
+
+class EvidencePage(BaseModel):
+    session_id: str
+    rows: list[EvidenceView]
+    next_offset: int | None
+
+
 class Receipt(BaseModel):
     request_id: str
     status: Literal["pending", "ready", "cancelled"]

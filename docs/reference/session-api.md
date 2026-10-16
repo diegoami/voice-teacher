@@ -165,3 +165,14 @@ recognition); a client may recover its original recording with the same ID
 and bytes. It must not manufacture another attempt. A ready receipt confirms
 that original attempt even if later controls changed the latest presentation;
 clients then load the current owned session, rather than replaying old state.
+
+### History and item practice (T18)
+
+`GET /api/v1/progress?limit=50` lists recent owned sessions and separate pinned
+course coverage. `GET /api/v1/sessions/{id}/evidence?offset=0&limit=50` returns
+owned observation details and accepted supporting-turn references. Response
+models are closed field allowlists; no private engine/profile or future answers
+are serialized. The [progress view contract](progress-views.md) defines coverage,
+limits, original/later provenance and saved/exported/pushed states. Optional
+`create_app(..., progress_sync=worker)` reads the configured same-store GitSync
+status without selecting a destination or starting synchronization.

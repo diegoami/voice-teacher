@@ -46,11 +46,13 @@ def _presentation(value):
 
 
 def create_app(store, coordinator, *, operator_token, origin="http://localhost:8000", audio=None,
-               assets=None, clock=None, max_json_bytes=32768, max_audio_bytes=8 * 1024 * 1024):
+               assets=None, clock=None, max_json_bytes=32768, max_audio_bytes=8 * 1024 * 1024, progress_sync=None):
     if coordinator.store.path != store.path: raise ValueError("coordinator must use the API runtime store")
     if any(type(v) is not int or v <= 0 for v in (max_json_bytes, max_audio_bytes)): raise ValueError("body limits must be positive")
     auth = Auth(store, operator_token, **({"clock": clock} if clock else {}))
     from . import feedback_models as fm
+
+    if progress_sync is not None and progress_sync.store.path != store.path: raise ValueError("sync must use the API runtime store")
     registry = SourceRegistry(store)
     app = FastAPI(title="Voice Teacher API", version="1", docs_url=None, redoc_url=None, openapi_url=None,
                   responses={status: {"model": m.Error} for status in (400, 401, 403, 404, 409, 413, 415, 422, 502, 503)})
@@ -179,6 +181,17 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
         owned(request, session_id)
         return call(coordinator.promote_personal, learner(request), session_id, body.request_id,
             expected_revision=body.expected_revision, observation_id=body.observation_id, form=body.form, meaning=body.meaning)
+
+    @app.get("/api/v1/progress", response_model=m.ProgressView)
+    def progress(request: Request, limit: int = Query(default=50, ge=1, le=100)):
+        from ..progress.views import summary
+        return call(summary, store, learner(request), progress_sync=progress_sync, limit=limit)
+
+    @app.get("/api/v1/sessions/{session_id}/evidence", response_model=m.EvidencePage)
+    def session_evidence(request: Request, session_id: str, offset: int = Query(default=0, ge=0), limit: int = Query(default=50, ge=1, le=100)):
+        from ..progress.views import evidence
+        owned(request, session_id)
+        return call(evidence, store, learner(request), session_id, offset=offset, limit=limit)
 
     @app.get("/api/v1/review-items", response_model=list[str])
     def review_items(request: Request): return weak_queue(store, learner(request))

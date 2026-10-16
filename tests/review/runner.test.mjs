@@ -48,6 +48,8 @@ test('invalid pinned commit retains preparation diagnostics and cannot run', () 
   const spec = fixture(); spec.head = 'f'.repeat(40);
   assert.throws(() => prepare(spec));
   assert.equal(readJSON(path.join(spec.artifacts, 'result.json')).status, 'preparation-failed');
+  const diagnostic = readJSON(path.join(spec.artifacts, 'preparation-error.json'));
+  assert.notEqual(diagnostic.status, 0); assert.match(diagnostic.stderr, /fatal|error/i);
 });
 
 test('prepare CLI resolves live PR head and actual base branch before pinning checkout', () => {

@@ -48,7 +48,10 @@ export function prepare(spec) {
     writeJSON(path.join(root, 'result.json'), { status: 'prepared', eligible: false });
     return meta;
   } catch (e) {
-    writeJSON(path.join(root, 'result.json'), { status: 'preparation-failed', eligible: false, error: e.message });
+    const redact = (value) => process.env.MINIMAX_API_KEY ? String(value ?? '').split(process.env.MINIMAX_API_KEY).join('[REDACTED]') : String(value ?? '');
+    writeJSON(path.join(root, 'preparation-error.json'), { error: redact(e.message), status: e.status ?? null,
+      signal: e.signal ?? null, stdout: redact(e.stdout), stderr: redact(e.stderr) });
+    writeJSON(path.join(root, 'result.json'), { status: 'preparation-failed', eligible: false, error: redact(e.message) });
     throw e;
   }
 }

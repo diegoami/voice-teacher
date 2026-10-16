@@ -49,6 +49,13 @@ the executable review tooling. These two tasks may use a supervised direct CLI
 review with verified trusted permissions and a recorded head until the runner
 is independently accepted; do not approve the runner using only its own output.
 
+T01's [supervised adapter](../tools/review/README.md) and
+[compatibility evidence](reference/opencode-compatibility.md) provide the
+verified Linux CLI/policy boundary. Until T02 lands, the main session prepares
+the pinned independent review clone, supervises the job, checks the complete
+result and platform identity, and publishes it separately. The adapter itself
+does not decide approval or write to GitHub. Use a fresh runtime per review.
+
 ## Implementer contract
 
 1. Record task ID, issue, actual implementer/session or subagent, model family,

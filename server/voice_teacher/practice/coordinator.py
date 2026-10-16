@@ -149,12 +149,15 @@ class Coordinator:
 
     def create_repetition(self, template, plan, *, profile=None):
         snapshot = deepcopy(template)
-        validate_session(snapshot)
-        plan.validate()
-        validate_plan(self.store, snapshot, plan)
-        profile = profile or self.profiles.get((plan.language, plan.instruction_language))
-        if profile is None: raise StorageError("no configured profile for repetition language pair")
-        engine = RepetitionSession(plan, self.judge, profile=profile, clock=self.clock)
+        try:
+            validate_session(snapshot)
+            plan.validate()
+            validate_plan(self.store, snapshot, plan)
+            profile = profile or self.profiles.get((plan.language, plan.instruction_language))
+            if profile is None: raise StorageError("no configured profile for repetition language pair")
+            engine = RepetitionSession(plan, self.judge, profile=profile, clock=self.clock)
+        except ValueError:
+            raise StorageError("invalid repetition plan or language profile") from None
         says = engine.start()
         snapshot.update(revision=0, event_sequence=0, status="active")
         events = []

@@ -18,7 +18,7 @@ from voice_teacher.providers import Judgement, Verdict, Recognition
 from voice_teacher.providers.pipeline import VoicePipeline
 from voice_teacher.providers.speech import SpeechConfig, SpeechError
 from voice_teacher.progress.archive import Archive
-from voice_teacher.storage import Store, RevisionConflict
+from voice_teacher.storage import Store
 from voice_teacher.storage.work import RequestConflict
 
 LEARNER = "synthetic-learner"
@@ -243,6 +243,13 @@ def test_api_lists_and_starts_phrase_only_mode_and_keeps_queue_private(tmp_path)
     assert client.get("/api/v1/review-items", headers=headers).json() == []
     assert client.get("/api/v1/review-items").status_code == 401
     assert client.post("/api/v1/sessions", json={**body, "session_id": "bad", "queue_event_ids": ["fake"]}, headers=headers).status_code == 422
+    pinned = store.session(LEARNER, "api")
+    raw = s.curriculum
+    raw["courses"][0]["items"][1].update(item_revision=2, meaning=PRICE)
+    (root / "voice-teacher.json").write_text(canonical_json(raw)); reg.refresh("alpha")
+    assert client.post("/api/v1/sessions", json={**body, "session_id": "leaked", "recall_before_model": True}, headers=headers).status_code == 409
+    with pytest.raises(KeyError): store.session(LEARNER, "leaked")
+    assert store.session(LEARNER, "api") == pinned
 
 
 @pytest.mark.parametrize("phrase", ["Досить, дякую.", "Стоп."])

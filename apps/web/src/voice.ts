@@ -1,7 +1,7 @@
 import { api, ApiError } from "./api";
-import type { Presentation } from "./api";
+import type { Presentation, Receipt } from "./api";
 import { journal, journalKey } from "./voice-journal";
-import type { Upload } from "./voice-journal";
+import type { Upload, Journal, ControlOperation } from "./voice-journal";
 
 export type VoicePhase =
   | "loading"
@@ -12,13 +12,16 @@ export type VoicePhase =
   | "processing"
   | "playing"
   | "error"
-  | "stopping";
+  | "stopping"
+  | "pausing"
+  | "resuming";
 export type VoiceView = {
   phase: VoicePhase;
   message: string;
   presentation: Presentation;
   pending: boolean;
-  finishPending: boolean;
+  controlPending: ControlOperation | null;
+  hasUpload: boolean;
 };
 const formats = [
   "audio/webm;codecs=opus",
@@ -42,6 +45,7 @@ export class VoiceController {
   private captureDiscarded = false;
   private captureEnded: number | null = null;
   private request: AbortController | null = null;
+  private saving: Promise<Journal> | null = null;
   private player: HTMLAudioElement | null = null;
   private playbackURL: string | null = null;
   private cancelPlayback: (() => void) | null = null;
@@ -60,7 +64,8 @@ export class VoiceController {
       message: "Checking saved response…",
       presentation: initial,
       pending: false,
-      finishPending: false,
+      controlPending: null,
+      hasUpload: false,
     };
   }
   private update(patch: Partial<VoiceView>) {
@@ -90,41 +95,95 @@ export class VoiceController {
     );
   }
 
+  private pendingInfo(saved: Journal) {
+    return {
+      pending: Boolean(saved.upload || saved.control),
+      hasUpload: Boolean(saved.upload),
+      controlPending: saved.control?.operation ?? null,
+    };
+  }
+  private async receipt(id: string): Promise<Receipt | null> {
+    try {
+      return await api<Receipt>(
+        this.path() + "/requests/" + encodeURIComponent(id),
+        this.token,
+      );
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) return null;
+      throw e;
+    }
+  }
+  private accepted(
+    receipt: Receipt | null,
+    latest: Presentation,
+    upload: Upload,
+  ) {
+    return (
+      (receipt?.request_id === upload.request_id &&
+        receipt.status === "ready" &&
+        receipt.revision === upload.expected_revision + 1) ||
+      (latest.request_id === upload.request_id &&
+        latest.revision === upload.expected_revision + 1)
+    );
+  }
   async initialize() {
     const operation = this.generation;
     try {
       const saved = await journal(this.key);
       if (this.disposed || operation !== this.generation) return;
-      if (saved.finish) {
-        await this.finish();
+      this.update(this.pendingInfo(saved));
+      if (saved.control) {
+        await this.runControl(saved.control.operation);
         return;
       }
-      if (saved.upload) {
-        const latest = await this.status();
+      if (!saved.upload) {
+        this.update({ phase: "ready", message: "Ready when you are." });
+        return;
+      }
+      const receipt = await this.receipt(saved.upload.request_id);
+      const latest = await this.status(false);
+      if (this.disposed || operation !== this.generation) return;
+      this.accept(latest);
+      if (
+        this.accepted(receipt, latest, saved.upload) ||
+        receipt?.status === "cancelled"
+      ) {
+        const remaining = await this.clearUpload(saved.upload.request_id);
         if (this.disposed || operation !== this.generation) return;
-        this.accept(latest);
-        if (latest.request_id === saved.upload.request_id) {
-          await this.clearUpload(saved.upload.request_id);
-          if (this.disposed || operation !== this.generation) return;
-          this.update({
-            phase: "ready",
-            pending: false,
-            message: "Your last response was saved. Play it when ready.",
-          });
-        } else {
-          this.update({
-            phase: "error",
-            pending: true,
-            message:
-              "An unfinished recording is saved on this device. Recover its response or discard it before recording again.",
-          });
-        }
-      } else this.update({ phase: "ready", message: "Ready when you are." });
+        this.update({
+          ...this.pendingInfo(remaining),
+          phase: "ready",
+          message:
+            receipt?.status === "cancelled"
+              ? "The previous recording was cancelled. Current session loaded."
+              : "Your last response was saved. Play it when ready.",
+        });
+        await this.prepareLatest(operation, this.view.message);
+      } else
+        this.update({
+          phase: "error",
+          message:
+            "An unfinished recording is saved on this device. Recover its response or discard it before recording again.",
+        });
     } catch (e) {
       if (operation === this.generation)
         this.fail(
           e,
-          "Site storage is unavailable. Enable storage and reopen this session.",
+          "Site storage or server unavailable. Reopen this session when connected.",
+        );
+    }
+  }
+  private async prepareLatest(operation: number, message: string) {
+    try {
+      const prepared = await this.status();
+      if (this.disposed || operation !== this.generation) return;
+      this.accept(prepared);
+      this.update({ phase: "ready", message });
+    } catch (e) {
+      if (operation === this.generation)
+        this.fail(
+          e,
+          "Your response is saved. Teacher audio is not ready; read the text or recover again.",
         );
     }
   }
@@ -178,7 +237,8 @@ export class VoiceController {
     this.captureEnded = null;
     this.update({
       phase: "requesting",
-      finishPending: false,
+      controlPending: null,
+      hasUpload: false,
       message: "Allow microphone access to speak. Tap again to cancel.",
     });
     let stream: MediaStream | null = null;
@@ -311,6 +371,8 @@ export class VoiceController {
     }
   }
   cancelRecording() {
+    if (this.disposed || !["recording", "requesting"].includes(this.view.phase))
+      return;
     this.generation++;
     this.cancelCapture();
     this.update({
@@ -319,11 +381,13 @@ export class VoiceController {
     });
   }
   private async saveAndSend(upload: Upload, operation: number) {
+    const saving = journal(this.key, (j) => ({ ...j, upload }));
+    this.saving = saving;
     try {
-      const saved = await journal(this.key, (j) => ({ ...j, upload }));
-      if (this.disposed || operation !== this.generation || saved.finish)
+      const saved = await saving;
+      if (this.disposed || operation !== this.generation || saved.control)
         return;
-      this.update({ pending: true });
+      this.update({ pending: true, hasUpload: true });
       await this.send(upload, operation);
     } catch (e) {
       if (operation === this.generation)
@@ -331,13 +395,27 @@ export class VoiceController {
           e,
           "Recording could not be saved. Free some site storage and record again.",
         );
+    } finally {
+      if (this.saving === saving) this.saving = null;
     }
   }
-  private async send(upload: Upload, operation: number) {
+  private async send(
+    upload: Upload,
+    operation: number,
+    managed = false,
+  ): Promise<Presentation | null> {
     this.update({
-      phase: "processing",
-      message: "Preparing the teacher’s response…",
+      phase:
+        managed && this.view.controlPending === "pause"
+          ? "pausing"
+          : managed && this.view.controlPending === "resume"
+            ? "resuming"
+            : "processing",
+      message: managed
+        ? "Saving the unfinished response…"
+        : "Preparing the teacher’s response…",
       pending: true,
+      hasUpload: true,
     });
     const request = new AbortController();
     this.request = request;
@@ -370,86 +448,126 @@ export class VoiceController {
         result.revision !== upload.expected_revision + 1
       )
         throw new Error("unexpected response identity");
-      if (this.disposed || operation !== this.generation) return;
-      await this.clearUpload(upload.request_id);
-      if (this.disposed || operation !== this.generation) return;
+      if (this.disposed || operation !== this.generation) return null;
+      const remaining = await this.clearUpload(upload.request_id);
+      if (this.disposed || operation !== this.generation) return null;
       this.accept(result);
-      this.update({
-        phase: "ready",
-        pending: false,
-        message: "Response saved. Play the teacher when ready.",
-      });
-      // Autoplay is optional. A visible Play control remains on rejection.
-      await this.play();
+      this.update(this.pendingInfo(remaining));
+      if (!managed) {
+        this.update({
+          phase: "ready",
+          message: "Response saved. Play the teacher when ready.",
+        });
+        // Autoplay is optional. A visible Play control remains on rejection.
+        await this.play();
+      }
+      return result;
     } catch (e) {
+      if (managed) throw e;
       if (!this.disposed && operation === this.generation)
         this.fail(
           e,
           "Response interrupted. Recover the saved response to retry this same recording safely.",
         );
+      return null;
     } finally {
       clearTimeout(timer);
       if (this.request === request) this.request = null;
+    }
+  }
+  private async drainUpload(
+    upload: Upload,
+    operation: number,
+  ): Promise<Presentation | null> {
+    let receipt = await this.receipt(upload.request_id);
+    let latest = await this.status(false);
+    if (this.disposed || operation !== this.generation) return null;
+    if (
+      !this.accepted(receipt, latest, upload) &&
+      receipt?.status !== "cancelled" &&
+      (latest.revision !== upload.expected_revision ||
+        latest.status !== "active")
+    )
+      receipt = await this.receipt(upload.request_id); // It may have committed between the two reads.
+    if (
+      this.accepted(receipt, latest, upload) ||
+      receipt?.status === "cancelled"
+    ) {
+      if (
+        receipt?.revision !== null &&
+        receipt?.revision !== undefined &&
+        latest.revision < receipt.revision
+      )
+        latest = await this.status(false);
+      const remaining = await this.clearUpload(upload.request_id);
+      if (this.disposed || operation !== this.generation) return null;
+      this.accept(latest);
+      this.update(this.pendingInfo(remaining));
+      return latest;
+    }
+    if (
+      latest.revision !== upload.expected_revision ||
+      latest.status !== "active"
+    ) {
+      this.accept(latest);
+      throw new ApiError(409);
+    }
+    try {
+      return await this.send(upload, operation, true);
+    } catch (e) {
+      // A synthesis failure can follow a committed turn; acknowledge its
+      // receipt before any pause, and never re-upload it under a fresh ID.
+      receipt = await this.receipt(upload.request_id);
+      latest = await this.status(false);
+      if (this.disposed || operation !== this.generation) return null;
+      if (!this.accepted(receipt, latest, upload)) throw e;
+      const remaining = await this.clearUpload(upload.request_id);
+      if (this.disposed || operation !== this.generation) return null;
+      this.accept(latest);
+      this.update(this.pendingInfo(remaining));
+      return latest;
     }
   }
   async recover() {
     if (this.disposed || !["ready", "error"].includes(this.view.phase)) return;
     this.stopPlayback();
     const operation = ++this.generation;
-    this.update({
-      phase: "processing",
-      message: "Checking the saved response…",
-    });
+    this.update({ phase: "processing", message: "Checking saved progress…" });
     try {
       const saved = await journal(this.key);
       if (this.disposed || operation !== this.generation) return;
-      if (saved.finish || this.view.finishPending) {
+      this.update(this.pendingInfo(saved));
+      if (saved.control) {
         this.update({ phase: "error" });
-        await this.finish();
+        await this.runControl(saved.control.operation);
         return;
       }
-      const latest = await this.status();
-      if (this.disposed || operation !== this.generation) return;
-      this.accept(latest);
-      if (!saved.upload) {
-        this.update({
-          phase: "ready",
-          pending: false,
-          message: "Current response loaded.",
-        });
-        return;
-      }
-      if (latest.request_id === saved.upload.request_id) {
-        await this.clearUpload(saved.upload.request_id);
+      if (saved.upload) {
+        if (!(await this.drainUpload(saved.upload, operation))) return;
+      } else {
+        const latest = await this.status(false);
         if (this.disposed || operation !== this.generation) return;
-        this.update({
-          phase: "ready",
-          pending: false,
-          message:
-            "Saved response recovered without another submission. Play it when ready.",
-        });
-      } else if (
-        latest.revision === saved.upload.expected_revision &&
-        latest.status === "active"
-      ) {
-        await this.send(saved.upload, operation);
-      } else
-        this.update({
-          phase: "error",
-          pending: true,
-          message:
-            "The session has moved on. Your recording was not resubmitted. Discard the pending recording to continue from the server’s current state.",
-        });
+        this.accept(latest);
+      }
+      await this.prepareLatest(
+        operation,
+        "Current response loaded. Play the teacher when ready.",
+      );
     } catch (e) {
       if (operation === this.generation)
         this.fail(
           e,
-          "Cannot reach the server. Keep the recording and recover when connected.",
+          "Progress is still pending. Recover when connected, or discard only the local recording.",
         );
     }
   }
   async discard() {
-    if (!["ready", "error"].includes(this.view.phase)) return;
+    if (
+      this.disposed ||
+      !["ready", "error"].includes(this.view.phase) ||
+      this.view.controlPending === "finish"
+    )
+      return;
     this.stopPlayback();
     const operation = ++this.generation;
     this.update({
@@ -457,22 +575,13 @@ export class VoiceController {
       message: "Discarding the local recording…",
     });
     try {
-      const saved = await journal(this.key);
-      if (this.disposed || operation !== this.generation) return;
-      if (saved.finish) {
-        this.update({
-          phase: "error",
-          message: "Finish is still pending. Recover it before continuing.",
-        });
-        return;
-      }
-      await journal(this.key, (j) => ({ ...j, upload: null }));
+      const saved = await journal(this.key, (j) => ({ ...j, upload: null }));
       if (this.disposed || operation !== this.generation) return;
       this.update({
+        ...this.pendingInfo(saved),
         phase: "ready",
         pending: true,
-        message:
-          "Pending recording discarded from this device. Reload the server response before another turn.",
+        message: "Local recording discarded. Checking current server progress…",
       });
       await this.recover();
     } catch (e) {
@@ -491,7 +600,8 @@ export class VoiceController {
     const operation = ++this.generation;
     this.update({
       phase: "playing",
-      finishPending: false,
+      controlPending: null,
+      hasUpload: false,
       message: "Playing the teacher…",
     });
     try {
@@ -553,100 +663,153 @@ export class VoiceController {
     }
   }
   async finish() {
-    if (this.disposed || this.view.phase === "stopping") return;
+    await this.runControl("finish");
+  }
+  async pause() {
+    await this.runControl("pause");
+  }
+  async resume() {
+    await this.runControl("resume");
+  }
+  private reached(operation: ControlOperation, p: Presentation) {
+    return (
+      p.status === "finished" ||
+      p.status ===
+        (operation === "pause"
+          ? "paused"
+          : operation === "resume"
+            ? "active"
+            : "finished")
+    );
+  }
+  private async acknowledgeControl(
+    saved: Journal,
+    latest: Presentation,
+    operation: number,
+  ) {
+    const id = saved.control!.request_id;
+    const remaining = await journal(this.key, (j) => ({
+      ...j,
+      control: j.control?.request_id === id ? null : j.control,
+      upload: latest.status === "finished" ? null : j.upload,
+    }));
+    if (this.disposed || operation !== this.generation) return;
+    this.accept(latest);
+    this.update({
+      ...this.pendingInfo(remaining),
+      phase: "ready",
+      message:
+        latest.status === "finished"
+          ? "Session finished and saved."
+          : latest.status === "paused"
+            ? "Session paused and saved. Continue when ready."
+            : "Session continued from saved progress.",
+    });
+  }
+  private async runControl(kind: ControlOperation) {
+    if (
+      this.disposed ||
+      (["stopping", "pausing", "resuming"].includes(this.view.phase) &&
+        kind !== "finish") ||
+      (this.view.phase === "stopping" && kind === "finish")
+    )
+      return;
     this.stopPlayback();
     this.cancelCapture();
     const operation = ++this.generation;
     this.update({
-      phase: "stopping",
-      finishPending: true,
-      message: "Stopping… Your session will stay saved.",
+      phase:
+        kind === "finish"
+          ? "stopping"
+          : kind === "pause"
+            ? "pausing"
+            : "resuming",
+      controlPending: kind,
       pending: true,
+      message:
+        kind === "finish"
+          ? "Stopping… Your session will stay saved."
+          : kind === "pause"
+            ? "Saving the current response before pausing…"
+            : "Continuing your saved activity…",
     });
     try {
-      let saved = await journal(this.key, (j) => ({
-        ...j,
-        finish: j.finish || {
-          request_id: crypto.randomUUID(),
-          expected_revision: this.view.presentation.revision,
-        },
-      }));
+      // A Send may still be writing its Blob. Controls must observe that write
+      // before draining it, or a late write could strand an unsubmitted turn.
+      if (this.saving) await this.saving;
       if (this.disposed || operation !== this.generation) return;
+      let saved = await journal(this.key, (j) =>
+        operation !== this.generation
+          ? j
+          : {
+              ...j,
+              control:
+                j.control?.operation === kind
+                  ? j.control
+                  : {
+                      request_id: crypto.randomUUID(),
+                      expected_revision: this.view.presentation.revision,
+                      operation: kind,
+                    },
+            },
+      );
+      if (this.disposed || operation !== this.generation) return;
+      this.update(this.pendingInfo(saved));
+      if (kind !== "finish" && saved.upload) {
+        if (!(await this.drainUpload(saved.upload, operation))) return;
+        saved = await journal(this.key);
+        if (this.disposed || operation !== this.generation) return;
+      }
       for (let attempt = 0; attempt < 2; attempt++) {
         const latest = await this.status(false);
         if (this.disposed || operation !== this.generation) return;
         this.accept(latest);
-        if (latest.status === "finished") {
-          await journal(this.key, (j) => ({
-            ...j,
-            upload: null,
-            finish: null,
-          }));
-          this.update({
-            phase: "ready",
-            pending: false,
-            finishPending: false,
-            message: "Session finished and saved.",
-          });
+        if (this.reached(kind, latest)) {
+          await this.acknowledgeControl(saved, latest, operation);
           return;
         }
-        if (saved.finish!.expected_revision !== latest.revision) {
-          saved = await journal(this.key, (j) => ({
-            ...j,
-            finish: {
-              request_id: crypto.randomUUID(),
-              expected_revision: latest.revision,
-            },
-          }));
+        if (saved.control!.expected_revision !== latest.revision) {
+          saved = await journal(this.key, (j) =>
+            operation !== this.generation
+              ? j
+              : {
+                  ...j,
+                  control: {
+                    request_id: crypto.randomUUID(),
+                    expected_revision: latest.revision,
+                    operation: kind,
+                  },
+                },
+          );
+          if (this.disposed || operation !== this.generation) return;
         }
         try {
           const result = await api<Presentation>(
             this.path() + "/controls",
             this.token,
-            { ...saved.finish, operation: "finish" },
+            saved.control,
           );
           if (this.disposed || operation !== this.generation) return;
-          await journal(this.key, (j) => ({
-            ...j,
-            upload: null,
-            finish: null,
-          }));
-          this.accept(result);
-          this.update({
-            phase: "ready",
-            pending: false,
-            finishPending: false,
-            message: "Session finished and saved.",
-          });
+          if (!this.reached(kind, result)) throw new ApiError(409);
+          await this.acknowledgeControl(saved, result, operation);
           return;
         } catch (e) {
           if (e instanceof ApiError && e.status === 409) continue;
-          // The control can commit before speech preparation fails or its
-          // response disappears. Read durable state without invoking speech.
           const committed = await this.status(false);
           if (this.disposed || operation !== this.generation) return;
-          if (committed.status !== "finished") throw e;
-          await journal(this.key, (j) => ({
-            ...j,
-            upload: null,
-            finish: null,
-          }));
-          this.accept(committed);
-          this.update({
-            phase: "ready",
-            pending: false,
-            finishPending: false,
-            message: "Session finished and saved.",
-          });
+          if (!this.reached(kind, committed)) throw e;
+          await this.acknowledgeControl(saved, committed, operation);
           return;
         }
       }
-      throw new Error("changed");
+      throw new ApiError(409);
     } catch (e) {
       if (operation === this.generation)
         this.fail(
           e,
-          "Finish is still pending. Recover when connected; the saved stop request will continue without resending your recording.",
+          kind === "finish"
+            ? "Finish is still pending. Recover when connected; your saved stop request will continue without resending the recording."
+            : "Pause or continue is still pending. Your current turn and control are saved. Recover when connected, or finish without waiting.",
         );
     }
   }

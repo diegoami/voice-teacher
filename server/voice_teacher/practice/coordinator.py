@@ -266,6 +266,16 @@ class Coordinator:
             result["delivery"] = self.delivery_context(learner, session, result["request_id"], deepcopy(result["teacher"]))
         return result
 
+    def request_status(self, learner, session, request):
+        """Read only the owned durable receipt, never input/provider payloads."""
+        record = self.work.get(learner, session, request)
+        stage = record["stage"]
+        if stage not in {"accepted", "judged", "committed", "delivered", "cancelled"}:
+            raise StorageError("unsupported request stage")
+        ready = stage in {"committed", "delivered"}
+        return {"request_id": request, "status": "ready" if ready else "cancelled" if stage == "cancelled" else "pending",
+                "revision": record["expected_revision"] + 1 if ready else None}
+
     def report_recognition(self, learner, session, request, *, status, text):
         """Portable learner annotation; no invented correction or engine advance."""
         with _lock(self.store, learner, session):

@@ -185,3 +185,9 @@ export function readSessions(learner: string): SavedSession[] {
       )
     : [];
 }
+
+export type Receipt = {
+  request_id: string;
+  status: "pending" | "ready" | "cancelled";
+  revision: number | null;
+};

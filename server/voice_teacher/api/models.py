@@ -265,3 +265,9 @@ class EvidencePage(BaseModel):
     session_id: str
     rows: list[EvidenceView]
     next_offset: int | None
+
+
+class Receipt(BaseModel):
+    request_id: str
+    status: Literal["pending", "ready", "cancelled"]
+    revision: int | None = Field(default=None, ge=0)

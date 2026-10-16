@@ -20,7 +20,8 @@ export function SessionScreen({
     message: "Checking saved response…",
     presentation: initial,
     pending: false,
-    finishPending: false,
+    controlPending: null,
+    hasUpload: false,
   });
   const [hold, setHold] = useState(false);
   const controller = useRef<VoiceController | null>(null);
@@ -86,8 +87,9 @@ export function SessionScreen({
       </p>
       {p.status === "paused" && (
         <p className="hint">
-          This activity is saved and paused. You can leave this page or finish
-          the session.
+          {p.activity?.complete
+            ? "This activity is complete. Continue to the next activity or finish."
+            : "This activity is paused at your saved step. Continue when ready."}
         </p>
       )}
       <div className="actions">
@@ -149,6 +151,23 @@ export function SessionScreen({
         </button>
         <button
           className="secondary"
+          disabled={
+            p.status === "finished" ||
+            ["loading", "stopping", "pausing", "resuming"].includes(
+              view.phase,
+            ) ||
+            Boolean(view.controlPending)
+          }
+          onClick={() =>
+            void (p.status === "paused"
+              ? controller.current?.resume()
+              : controller.current?.pause())
+          }
+        >
+          {p.status === "paused" ? "Continue session" : "Pause session"}
+        </button>
+        <button
+          className="secondary"
           disabled={p.status === "finished" || view.phase === "stopping"}
           onClick={() => void controller.current?.finish()}
         >
@@ -180,7 +199,7 @@ export function SessionScreen({
           >
             Recover saved response
           </button>
-          {view.pending && !view.finishPending && (
+          {view.hasUpload && view.controlPending !== "finish" && (
             <button
               className="secondary"
               onClick={() => void controller.current?.discard()}

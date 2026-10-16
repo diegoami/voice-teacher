@@ -13,6 +13,7 @@ from ..content.registry import SourceRegistry, SourceSpec, SourceError
 from ..storage import StorageError, RevisionConflict
 from ..practice.repetition import plan_lesson, plan_queue, weak_queue
 from ..practice.guided import plan_guided
+from ..practice.free import plan_free
 from ..storage.work import RequestConflict, WorkBusy
 from .auth import Auth
 from .boundary import Guard, error
@@ -157,21 +158,68 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
                     plan_lesson(snap, course_id, lesson["lesson_id"])
                     available.append("repetition")
                 except ValueError: pass
+            pair = (course(snap, course_id)["language"], course(snap, course_id)["instruction_language"])
+            if "free_conversation" in lesson["modes"] and coordinator.dialogue is not None and pair in coordinator.profiles and pair in coordinator.free_policies:
+                try:
+                    plan_free(snap, course_id, lesson["lesson_id"], topic=None, learner_level="A2",
+                        provider=coordinator.dialogue.identity, policy=coordinator.free_policies[pair])
+                    available.append("free_conversation")
+                except ValueError: pass
             result.append(m.Lesson(lesson_id=lesson["lesson_id"], title=lesson["title"], authored_modes=lesson["modes"], available_modes=available))
         return result
 
     @app.get("/api/v1/review-items", response_model=list[str])
     def review_items(request: Request): return weak_queue(store, learner(request))
 
+    def start_free(request, body):
+        if coordinator.dialogue is None:
+            raise Problem(409, "mode_unavailable", "Free conversation is not configured")
+        if body.item_ids is not None or body.queue_event_ids is not None or body.recall_before_model or body.activity != "combined" or body.routine != "guided" or not body.cards or not body.spoken_tasks or body.max_goals != 3:
+            raise Problem(422, "invalid_request", "Lesson practice options do not apply to free conversation")
+        selected = [body.source_id is not None, body.course_id is not None, body.lesson_id is not None]
+        if any(selected) and not all(selected):
+            raise Problem(422, "invalid_request", "Select a complete lesson reference or a source-free topic")
+        snap = active(body.source_id) if all(selected) else None
+        pair = (body.language, body.instruction_language)
+        if snap is not None:
+            c = course(snap, body.course_id)
+            pair = (c["language"], c["instruction_language"])
+            if any(k in body.model_fields_set and getattr(body, k) != c[k] for k in ["language", "instruction_language"]):
+                raise Problem(422, "invalid_request", "Conversation languages must match the selected course")
+        if pair not in coordinator.profiles or pair not in coordinator.free_policies:
+            raise Problem(409, "mode_unavailable", "Conversation language pair is not configured")
+        if snap is None and (not body.topic or not body.topic.strip()):
+            raise Problem(422, "invalid_request", "Choose a topic for a source-free conversation")
+        profile = store.learner(learner(request))
+        try:
+            plan = plan_free(snap, body.course_id, body.lesson_id, topic=body.topic, learner_level=profile.get("level", "A2"),
+                provider=coordinator.dialogue.identity, policy=coordinator.free_policies[pair], correction_style=body.correction_style)
+        except ValueError:
+            raise Problem(409, "mode_unavailable", "Conversation grounding or policy is unavailable") from None
+        template = dict(schema_version=1, kind="session_snapshot", learner_id=learner(request), session_id=body.session_id,
+            revision=0, event_sequence=0, mode="free_conversation", status="created", source=plan.source,
+            curriculum_snapshot=snap.curriculum if snap else None, topic=plan.topic, language=pair[0], instruction_language=pair[1],
+            learner_profile=profile, engine_state={"format_version": 1, "data": {}})
+        result = call(coordinator.create_free, template, plan)
+        if coordinator.delivery_context: result = call(coordinator.presentation, learner(request), body.session_id)
+        return _presentation(result)
+
     @app.post("/api/v1/sessions", response_model=m.Presentation, status_code=201)
     def start(request: Request, body: m.Start):
-        if body.mode not in {"guided_conversation", "repetition"}: raise Problem(409, "mode_unavailable", "This mode is not available yet")
+        if body.mode == "free_conversation":
+            return start_free(request, body)
+        if body.source_id is None or body.course_id is None or body.lesson_id is None:
+            raise Problem(422, "invalid_request", "Choose a source, course and lesson for this mode")
+        if body.topic is not None or body.correction_style != "light_immediate":
+            raise Problem(422, "invalid_request", "Conversation options require free conversation")
         if body.mode != "repetition" and (body.item_ids is not None or body.queue_event_ids is not None or body.recall_before_model):
             raise Problem(422, "invalid_request", "Repetition options require repetition mode")
         if body.item_ids is not None and body.queue_event_ids is not None:
             raise Problem(422, "invalid_request", "Select lesson items or queued items")
         snap = active(body.source_id)
         c = course(snap, body.course_id)
+        if any(k in body.model_fields_set and getattr(body, k) != c[k] for k in ["language", "instruction_language"]):
+            raise Problem(422, "invalid_request", "Languages must match the selected course")
         try: lesson = snap.lesson(body.course_id, body.lesson_id)
         except SourceError: raise Problem(404, "not_found", "Lesson not found") from None
         if body.mode not in lesson["modes"] or (c["language"], c["instruction_language"]) not in coordinator.profiles:

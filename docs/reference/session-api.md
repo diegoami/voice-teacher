@@ -84,7 +84,8 @@ Current planners support [guided activities](guided-activities.md) and
 configured language profiles. Guided practice defaults to no opening repetition;
 `routine=combined` adds authored review and modelling. `activity` selects both
 sittings or `first_sitting` / `second_sitting`. Cards, spoken tasks and block size
-are independently configurable. Free conversation remains unavailable until T20.
+are independently configurable. [Free conversation](free-dialogue.md) is available when explicitly configured,
+with an optional complete lesson reference or a source-free topic.
 Source selection does not apply historical personal introduction/settings.
 Source updates cannot alter an existing pinned session.
 
@@ -142,3 +143,7 @@ while preserving the original evidence and native lesson state.
 
 T13 adds [independent repetition](repetition.md), optional pre-model recall,
 authenticated review candidate IDs, and bounded lesson/queue item selection.
+
+T20 adds optional `topic`, target/instruction language and `correction_style` for
+free conversation. Source-free starts omit the lesson triple; other modes still
+require it. The confirmed correction default is `light_immediate`.

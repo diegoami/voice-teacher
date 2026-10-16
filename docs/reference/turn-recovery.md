@@ -96,3 +96,7 @@ recovery, and replays the current item on resume without another evidence result
 [Guided activities](guided-activities.md) use coordinator capsule v4, preserve
 legacy and repetition readers, and pause automatically at saved block boundaries.
 Native engine v2 retains unknown/non-first attribution while reading old v1 history.
+
+[Free conversation](free-dialogue.md) uses coordinator capsule v5 and the same
+request journal for durable dialogue replies. Saved replies survive provider removal
+and fresh-process recovery; generated text cannot change controls or course evidence.

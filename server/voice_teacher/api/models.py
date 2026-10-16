@@ -35,9 +35,9 @@ class SourceConfig(Input):
 
 class Start(Input):
     session_id: str = Field(pattern=ID)
-    source_id: str = Field(pattern=ID)
-    course_id: str = Field(pattern=ID)
-    lesson_id: str = Field(pattern=ID)
+    source_id: str | None = Field(default=None, pattern=ID)
+    course_id: str | None = Field(default=None, pattern=ID)
+    lesson_id: str | None = Field(default=None, pattern=ID)
     mode: Literal["guided_conversation", "repetition", "free_conversation"] = "guided_conversation"
     activity: Literal["combined", "first_sitting", "second_sitting"] = "combined"
     item_ids: list[str] | None = Field(default=None, min_length=1, max_length=6)
@@ -47,6 +47,10 @@ class Start(Input):
     cards: bool = True
     spoken_tasks: bool = True
     max_goals: int = Field(default=3, ge=1, le=6)
+    topic: str | None = Field(default=None, min_length=1, max_length=500)
+    correction_style: Literal["light_immediate", "end_of_session"] = "light_immediate"
+    language: str = Field(default="uk", pattern=r"^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
+    instruction_language: str = Field(default="en", pattern=r"^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$")
 
 
 class Revision(Input):

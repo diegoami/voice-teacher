@@ -66,3 +66,7 @@ serve its production build from the API origin.
 
 [Guided activities](docs/reference/guided-activities.md) support independent scenarios,
 optional combined review, saved short blocks and pinned restart recovery.
+
+[Bounded free dialogue](docs/reference/free-dialogue.md) is an explicitly configured
+server capability, with source-free topics and durable reply recovery. Full feedback
+and the three-mode client/live checks remain subsequent tasks.

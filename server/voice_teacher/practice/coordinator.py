@@ -16,6 +16,8 @@ from .profiles import LanguageProfile, UKRAINIAN
 from .session import Session
 from .repetition import RepetitionPlan, RepetitionSession, validate_plan
 from .guided import GuidedPlan, GuidedSession, plan_guided, ACTIVITY_END_EN
+from .free import FreePlan, FreeSession, FreePolicy, plan_free
+from ..providers.dialogue import DialogueReply, provider_identity
 
 _locks_guard = threading.Lock()
 _locks = weakref.WeakValueDictionary()
@@ -37,12 +39,18 @@ def _judgement(value):
 
 
 class Coordinator:
-    def __init__(self, store, judge, *, delivery=None, delivery_context=None, clock=None, profiles=None, guided_activity_endings=None):
+    def __init__(self, store, judge, *, delivery=None, delivery_context=None, clock=None, profiles=None, guided_activity_endings=None, dialogue=None, free_policies=None):
         self.store, self.work, self.judge = store, WorkStore(store), judge
         # Delivery creates replayable audio refs/metadata; it does not own state.
         self.delivery = delivery or (lambda says: {})
         self.delivery_context = delivery_context
         self.clock = clock
+        self.dialogue = dialogue
+        if dialogue is not None: provider_identity(dialogue.identity)
+        self.free_policies = dict(free_policies) if free_policies is not None else {("uk", "en"): FreePolicy()}
+        for pair, policy in self.free_policies.items():
+            policy.validate()
+            if pair != (policy.language, policy.instruction_language): raise ValueError("free policy language mismatch")
         self.guided_activity_endings = dict(guided_activity_endings) if guided_activity_endings is not None else {"en": ACTIVITY_END_EN}
         self.profiles = dict(profiles) if profiles is not None else {("uk", "en"): UKRAINIAN}
         if any(not isinstance(p, LanguageProfile) or pair != (p.language, p.instruction_language) for pair, p in self.profiles.items()):
@@ -50,11 +58,14 @@ class Coordinator:
 
     def _engine(self, snapshot, judge):
         data = snapshot["engine_state"]["data"]
-        if data.get("coordinator_version") not in {1, 2, 3, 4}:
+        if data.get("coordinator_version") not in {1, 2, 3, 4, 5}:
             raise StorageError("unsupported coordinator capsule")
         profile_data = dict(data["profile"])
         profile_data["stop_words"] = tuple(profile_data["stop_words"])
         options = {"clock": self.clock} if self.clock else {}
+        if data["coordinator_version"] == 5:
+            if snapshot["mode"] != "free_conversation" or data.get("engine_kind") != "free": raise StorageError("unsupported mode capsule")
+            return FreeSession.from_snapshot(FreePlan.from_dict(data["lesson"]), judge, data["engine"], profile=LanguageProfile(**profile_data), **options)
         if data["coordinator_version"] == 4:
             if snapshot["mode"] != "guided_conversation" or data.get("engine_kind") != "guided": raise StorageError("unsupported mode capsule")
             return GuidedSession.from_snapshot(GuidedPlan.from_dict(data["lesson"]), judge, data["engine"], profile=LanguageProfile(**profile_data), **options)
@@ -66,9 +77,9 @@ class Coordinator:
 
     @staticmethod
     def _capsule(engine, presentation):
-        if isinstance(engine, (RepetitionSession, GuidedSession)):
-            return {"format_version": 1, "data": {"coordinator_version": 3 if isinstance(engine, RepetitionSession) else 4,
-                "engine_kind": "repetition" if isinstance(engine, RepetitionSession) else "guided",
+        if isinstance(engine, (RepetitionSession, GuidedSession, FreeSession)):
+            return {"format_version": 1, "data": {"coordinator_version": 3 if isinstance(engine, RepetitionSession) else 4 if isinstance(engine, GuidedSession) else 5,
+                "engine_kind": "repetition" if isinstance(engine, RepetitionSession) else "guided" if isinstance(engine, GuidedSession) else "free",
                 "lesson": engine.lesson.to_dict(), "profile": {**asdict(engine.profile), "stop_words": list(engine.profile.stop_words)},
                 "engine": engine.snapshot(), "presentation": presentation}}
         return {"format_version": 1, "data": {"coordinator_version": 2,
@@ -154,6 +165,37 @@ class Coordinator:
                           activities=[{"activity_id": "combined", "position": 0, "data": {"part": part}}])
         return presentation
 
+    def create_free(self, template, plan, *, profile=None):
+        snapshot = deepcopy(template)
+        try:
+            from ..content.registry import SourceSnapshot
+            validate_session(snapshot)
+            if snapshot["mode"] != "free_conversation" or snapshot["source"] != plan.source or snapshot["topic"] != plan.topic:
+                raise ValueError("free conversation source/topic mismatch")
+            pair = (snapshot["language"], snapshot["instruction_language"])
+            policy = self.free_policies.get(pair)
+            if policy is None or self.dialogue is None or provider_identity(self.dialogue.identity) != plan.provider:
+                raise ValueError("free conversation provider/policy unavailable")
+            source = SourceSnapshot("pinned", canonical_json({"curriculum": snapshot["curriculum_snapshot"],
+                "provenance": snapshot["source"]["revision"]})) if snapshot["source"] else None
+            expected = plan_free(source, plan.course_id, plan.lesson_id, topic=plan.topic,
+                learner_level=snapshot["learner_profile"].get("level", "A2"), provider=self.dialogue.identity,
+                policy=policy, correction_style=plan.correction_style)
+            if expected.to_dict() != plan.to_dict(): raise ValueError("free conversation plan mismatch")
+            profile = profile or self.profiles.get(pair)
+            if profile is None: raise ValueError("free conversation language unavailable")
+            engine = FreeSession(plan, self.dialogue, profile=profile)
+        except ValueError:
+            raise StorageError("invalid free conversation plan or provider") from None
+        says = engine.start()
+        snapshot.update(revision=0, event_sequence=0, status="active")
+        events = []
+        presentation = self._finish_events(snapshot, None, engine, says, events, 0)
+        self.store.commit(snapshot["learner_id"], snapshot["session_id"], events, expected_revision=None,
+            activities=[{"activity_id": "conversation", "position": 0,
+                "data": {"topic": plan.topic, "correction_style": plan.correction_style, "turn_limit": policy.max_turns}}])
+        return presentation
+
     def create_guided(self, template, plan, *, profile=None):
         snapshot = deepcopy(template)
         try:
@@ -217,7 +259,7 @@ class Coordinator:
     def presentation(self, learner, session):
         """Materialize saved speech, including creation, without a new transition."""
         snapshot = self.store.session(learner, session)
-        if snapshot["engine_state"]["data"].get("coordinator_version") not in {1, 2, 3, 4}:
+        if snapshot["engine_state"]["data"].get("coordinator_version") not in {1, 2, 3, 4, 5}:
             raise StorageError("unsupported coordinator capsule")
         result = deepcopy(snapshot["engine_state"]["data"]["presentation"])
         if self.delivery_context:
@@ -229,7 +271,7 @@ class Coordinator:
         with _lock(self.store, learner, session):
             snapshot = self.store.session(learner, session)
             data = snapshot["engine_state"]["data"]
-            if data.get("coordinator_version") not in {1, 2, 3, 4}: raise StorageError("unsupported coordinator capsule")
+            if data.get("coordinator_version") not in {1, 2, 3, 4, 5}: raise StorageError("unsupported coordinator capsule")
             reports = data.setdefault("recognition_reports", {})
             if request in reports: return
             report_request = _identity(learner, session, request, "recognition-report")
@@ -256,7 +298,7 @@ class Coordinator:
 
     @staticmethod
     def _assistance(engine):
-        if isinstance(engine, (RepetitionSession, GuidedSession)): return engine.assistance
+        if isinstance(engine, (RepetitionSession, GuidedSession, FreeSession)): return engine.assistance
         model = engine.phase == "opening" or (engine.phase == "guided" and engine.round == 0)
         kind = "model" if model else engine.state.help or ("task_card" if engine.phase == "guided" and engine.round == 1 else "none")
         return {"kind": kind, "help_level": 2 if kind == "model" else int(kind in {"cue", "correction"}),
@@ -270,12 +312,21 @@ class Coordinator:
             if record["stage"] in {"committed", "delivered"}:
                 return self._deliver(learner, session, request)
             snapshot = self.store.session(learner, session)
-            def judge(item, heard):
+            def judge(item, heard=None):
                 saved = self.work.get(learner, session, request)
                 if saved["stage"] == "cancelled":
                     raise RequestConflict("request was cancelled before judging")
+                free = snapshot["mode"] == "free_conversation"
                 if saved["judgment_json"] is not None:
-                    return _judgement(json.loads(saved["judgment_json"]))
+                    data = json.loads(saved["judgment_json"])
+                    return DialogueReply(**data) if free else _judgement(data)
+                if free:
+                    pinned = snapshot["engine_state"]["data"]["lesson"]["provider"]
+                    if self.dialogue is None or provider_identity(self.dialogue.identity) != pinned:
+                        raise StorageError("pinned dialogue provider is unavailable")
+                    value = self.dialogue(item)
+                    if not isinstance(value, DialogueReply): raise ValueError("invalid dialogue response")
+                    return DialogueReply(**self.work.judgment(learner, session, request, asdict(value)))
                 value = self.judge(item, heard)  # no DB transaction or write lock
                 return _judgement(self.work.judgment(learner, session, request, asdict(value)))
             engine = self._engine(snapshot, judge)
@@ -284,14 +335,15 @@ class Coordinator:
             says = engine.hear(text)
             snapshot["revision"] = expected_revision + 1
             if engine.done: snapshot["status"] = "finished"
-            elif isinstance(engine, GuidedSession) and engine.boundary: snapshot["status"] = "paused"
+            elif (isinstance(engine, GuidedSession) and engine.boundary) or (isinstance(engine, FreeSession) and engine.paused): snapshot["status"] = "paused"
             index = len(self.store.projection(learner, session)["turns"])
             turn = {"turn_id": _identity(learner, session, request, "learner"), "index": index,
                     "role": "learner", "text": text}
             events = [self._event(snapshot, request, snapshot["event_sequence"] + 1, "turn.accepted", turn=turn, assistance=assistance)]
-            items = next(c for c in snapshot["curriculum_snapshot"]["courses"] if c["course_id"] == engine.lesson.course_id)["items"]
+            new_evidence = engine.evidence[before:]
+            items = next(c for c in snapshot["curriculum_snapshot"]["courses"] if c["course_id"] == engine.lesson.course_id)["items"] if new_evidence else []
             revisions = {i["item_id"]: i["item_revision"] for i in items}
-            for e in engine.evidence[before:]:
+            for e in new_evidence:
                 target = engine.lesson.targets[e.number - 1] if isinstance(engine, RepetitionSession) else None
                 item = target["item"] if target else None if not e.item_id else {"source_id": e.source_id, "course_id": e.course_id, "item_id": e.item_id,
                         "item_revision": revisions[e.item_id]}
@@ -321,8 +373,12 @@ class Coordinator:
             snapshot = self.store.session(learner, session)
             engine = self._engine(snapshot, self.judge)
             if operation == "stop": says = engine.stop()
+            elif operation == "resume" and isinstance(engine, FreeSession):
+                try: says = engine.resume()
+                except ValueError: raise StorageError("conversation has reached its stable limit") from None
             elif operation == "resume" and isinstance(engine, GuidedSession): says = engine.resume()
             elif operation == "resume" and isinstance(engine, RepetitionSession): says = engine.present()
+            elif operation == "pause" and isinstance(engine, FreeSession): says = engine.pause()
             else: says = []
             snapshot["status"] = {"pause": "paused", "resume": "active", "stop": "finished"}[operation]
             snapshot["revision"] = expected_revision + 1

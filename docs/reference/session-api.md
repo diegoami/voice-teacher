@@ -84,7 +84,8 @@ Current planners support [guided activities](guided-activities.md) and
 configured language profiles. Guided practice defaults to no opening repetition;
 `routine=combined` adds authored review and modelling. `activity` selects both
 sittings or `first_sitting` / `second_sitting`. Cards, spoken tasks and block size
-are independently configurable. Free conversation remains unavailable until T20.
+are independently configurable. [Free conversation](free-dialogue.md) is available when explicitly configured,
+with an optional complete lesson reference or a source-free topic.
 Source selection does not apply historical personal introduction/settings.
 Source updates cannot alter an existing pinned session.
 
@@ -147,3 +148,7 @@ T16 adds owner-only `GET /sessions/{id}?prepare_audio=false` to read the saved
 presentation without preparing speech. The default stays `true`. Finish recovery
 uses this path so a speech outage cannot prevent confirming committed state;
 all ownership, revision and response-field protections still apply.
+
+T20 adds optional `topic`, target/instruction language and `correction_style` for
+free conversation. Source-free starts omit the lesson triple; other modes still
+require it. The confirmed correction default is `light_immediate`.

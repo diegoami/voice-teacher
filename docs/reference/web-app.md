@@ -74,7 +74,7 @@ and free conversation become available through their own server tasks.
 The browser remembers selection and session links by verified learner ID and
 browser origin. Selection changes do not modify an existing session. A start
 receives a fresh client-generated session ID; its original request and source
-revision label are saved locally before POST. If creation saved state but delivery
+revision metadata are saved locally before POST. If creation saved state but delivery
 failed, opening/recovering the link reads the session by that ID. A recovery GET
 404 permits retrying the same start body/ID; other errors do not create a second
 session. The authoritative content snapshot and access checks stay on the server.
@@ -97,7 +97,9 @@ navigation, keyboard selection, responsive layout, control sizing and installabi
 They run the production build for desktop and emulated Android Chromium.
 Playwright is pinned to 1.63.0 for reproducibility. Native host rendering was
 unreliable in both Chromium 153 and 156: even a minimal native animation-frame
-probe stalled intermittently, including under a virtual display. Preserve normal
+probe stalled intermittently, including under a virtual display. The isolated official Playwright container
+ran all 14 desktop/Android-sized scenarios successfully after correcting an
+exact-label test selector to the control’s accessible combobox role. Preserve normal
 actionability checks; do not use forced clicks or substitute animation timers.
 These are
 not real Android microphone, headset, locked-screen or network measurements.

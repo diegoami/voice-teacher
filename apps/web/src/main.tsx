@@ -162,12 +162,17 @@ function App() {
   );
   async function openSession(s: SavedSession) {
     if (!grant) return;
-    setCurrent(
-      await api<Presentation>(
-        "/sessions/" + encodeURIComponent(s.start.session_id),
-        grant.token,
-      ),
-    );
+    try {
+      setCurrent(
+        await api<Presentation>(
+          "/sessions/" + encodeURIComponent(s.start.session_id),
+          grant.token,
+        ),
+      );
+    } catch (e) {
+      if (!(e instanceof ApiError) || e.status !== 404) throw e;
+      setCurrent(await api<Presentation>("/sessions", grant.token, s.start));
+    }
   }
   async function start() {
     if (!grant || !available || !lesson) return;
@@ -426,8 +431,7 @@ function App() {
                       <strong>{s.title}</strong>
                       <small>
                         {s.sourceName} ·{" "}
-                        {modes.find(([m]) => m === s.start.mode)?.[1]} ·
-                        revision {s.version?.slice(0, 12) || "saved"}
+                        {modes.find(([m]) => m === s.start.mode)?.[1]}
                       </small>
                     </div>
                     <button
@@ -436,30 +440,6 @@ function App() {
                       onClick={() => void action(() => openSession(s))}
                     >
                       Open {s.title}
-                    </button>
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      onClick={() =>
-                        void action(async () => {
-                          if (!grant) return;
-                          try {
-                            await openSession(s);
-                          } catch (e) {
-                            if (!(e instanceof ApiError) || e.status !== 404)
-                              throw e;
-                            setCurrent(
-                              await api<Presentation>(
-                                "/sessions",
-                                grant.token,
-                                s.start,
-                              ),
-                            );
-                          }
-                        })
-                      }
-                    >
-                      Recover start
                     </button>
                   </li>
                 ))}
@@ -470,9 +450,6 @@ function App() {
             <section aria-labelledby="session">
               <p className="eyebrow">{current.status}</p>
               <h2 id="session">Session ready</h2>
-              <p>
-                Session {current.session_id} · revision {current.revision}
-              </p>
               {current.card && <p className="card">{current.card}</p>}
               {current.teacher.map((t, i) => (
                 <p key={i} className="teacher">

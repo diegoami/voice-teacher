@@ -202,7 +202,7 @@ test("catalogue: saved first response recovers after a failed start without anot
   await expect(page.getByRole("alert")).toBeVisible();
   await page.reload();
   await page
-    .getByRole("button", { name: "Recover start", exact: true })
+    .getByRole("button", { name: "Open At the station", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Session ready" }),

@@ -144,6 +144,11 @@ while preserving the original evidence and native lesson state.
 T13 adds [independent repetition](repetition.md), optional pre-model recall,
 authenticated review candidate IDs, and bounded lesson/queue item selection.
 
+T16 adds owner-only `GET /sessions/{id}?prepare_audio=false` to read the saved
+presentation without preparing speech. The default stays `true`. Finish recovery
+uses this path so a speech outage cannot prevent confirming committed state;
+all ownership, revision and response-field protections still apply.
+
 T20 adds optional `topic`, target/instruction language and `correction_style` for
 free conversation. Source-free starts omit the lesson triple; other modes still
 require it. The confirmed correction default is `light_immediate`.

@@ -240,9 +240,9 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
         return _presentation(result)
 
     @app.get("/api/v1/sessions/{session_id}", response_model=m.Presentation)
-    def status(request: Request, session_id: str, revision: int | None = Query(default=None, ge=0)):
+    def status(request: Request, session_id: str, revision: int | None = Query(default=None, ge=0), prepare_audio: bool = Query(default=True)):
         snapshot = owned(request, session_id, revision)
-        result = call(coordinator.presentation, learner(request), session_id) if coordinator.delivery_context else snapshot["engine_state"]["data"]["presentation"]
+        result = call(coordinator.presentation, learner(request), session_id) if coordinator.delivery_context and prepare_audio else snapshot["engine_state"]["data"]["presentation"]
         if revision is not None and result["revision"] != revision: raise Problem(409, "session_conflict", "Session changed; reload its status")
         return _presentation(result)
 

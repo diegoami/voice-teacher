@@ -34,6 +34,7 @@ grows out of the manual Claude-Code ↔ Claude-voice loop in
 - [docs/reference/turn-recovery.md](docs/reference/turn-recovery.md) — durable request stages, retryable teacher replies and session controls.
 - [docs/reference/legacy-adapter.md](docs/reference/legacy-adapter.md) — read-only existing lesson packages, reviewed preparation and private context separation.
 - [docs/reference/source-registry.md](docs/reference/source-registry.md) — selectable local sources, validated activation and pinned content revisions.
+- [docs/reference/git-sources.md](docs/reference/git-sources.md) — allowlisted server-managed Git lesson sources, validation and recovery.
 - [docs/reference/session-api.md](docs/reference/session-api.md) — pairing, learner-bound access, typed catalogue/session responses and audio transport.
 - [docs/reference/progress-archive.md](docs/reference/progress-archive.md) — immutable private event batches and transactional history/session restore.
 - [docs/reference/progress-sync.md](docs/reference/progress-sync.md) — background Git retry, distinct save/export/push states and verified server handoff.

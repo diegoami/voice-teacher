@@ -272,3 +272,14 @@ class Receipt(BaseModel):
     request_id: str
     status: Literal["pending", "ready", "cancelled"]
     revision: int | None = Field(default=None, ge=0)
+
+
+class GitSourceConfig(Input):
+    name: str = Field(min_length=1,max_length=100)
+    remote: str = Field(min_length=1,max_length=4096)
+    ref_kind: Literal["branch","tag"] = "branch"
+    ref_name: str = Field(default="main",min_length=1,max_length=200)
+    subdirectory: str = "."
+    adapter: Literal["canonical_json","legacy"] = "canonical_json"
+    manifest: str = "voice-teacher.json"
+    mapping: dict | None = None

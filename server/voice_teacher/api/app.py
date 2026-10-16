@@ -46,7 +46,7 @@ def _presentation(value):
 
 
 def create_app(store, coordinator, *, operator_token, origin="http://localhost:8000", audio=None,
-               assets=None, clock=None, max_json_bytes=32768, max_audio_bytes=8 * 1024 * 1024, progress_sync=None):
+               assets=None, clock=None, max_json_bytes=32768, max_audio_bytes=8 * 1024 * 1024, progress_sync=None, git_sources=None):
     if coordinator.store.path != store.path: raise ValueError("coordinator must use the API runtime store")
     if any(type(v) is not int or v <= 0 for v in (max_json_bytes, max_audio_bytes)): raise ValueError("body limits must be positive")
     auth = Auth(store, operator_token, **({"clock": clock} if clock else {}))
@@ -56,6 +56,8 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
     registry = SourceRegistry(store)
     app = FastAPI(title="Voice Teacher API", version="1", docs_url=None, redoc_url=None, openapi_url=None,
                   responses={status: {"model": m.Error} for status in (400, 401, 403, 404, 409, 413, 415, 422, 502, 503)})
+    if git_sources is not None and git_sources.store.path != store.path: raise ValueError("Git source manager must use the API runtime store")
+    app.state.git_sources = git_sources
     app.state.auth = auth
     app.add_middleware(Guard, auth=auth, origin=origin, max_json_bytes=max_json_bytes, max_audio_bytes=max_audio_bytes)
 
@@ -136,6 +138,28 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
         except Exception:
             raise Problem(422, "invalid_source", "Source configuration or content is invalid; previous active catalogue retained") from None
         return next(m.Source(source_id=s["source_id"], name=s["name"], version_id=s["version_id"], available=s["version_id"] is not None) for s in registry.list_sources() if s["source_id"] == source_id)
+
+    def git_source_operation(source_id, spec=None):
+        manager = app.state.git_sources
+        if manager is None: raise Problem(503,"source_manager_unavailable","Git sources are not configured on this server")
+        try:
+            if spec is None: manager.refresh(source_id)
+            else: manager.register(spec)
+        except (ValueError,OSError):
+            raise Problem(409,"source_refresh_failed","Source update failed; any prior validated catalogue remains available") from None
+        return next(m.Source(source_id=s["source_id"],name=s["name"],version_id=s["version_id"],available=s["version_id"] is not None) for s in registry.list_sources() if s["source_id"]==source_id)
+
+    @app.put("/api/v1/operator/git-sources/{source_id}", response_model=m.Source)
+    def configure_git_source(source_id: str, body: m.GitSourceConfig):
+        if not re.fullmatch(m.ID,source_id): raise Problem(422,"invalid_request","Invalid source identity")
+        if app.state.git_sources is None: return git_source_operation(source_id)
+        from ..content.git_sources import GitSourceSpec
+        return git_source_operation(source_id,GitSourceSpec(source_id=source_id,**body.model_dump()))
+
+    @app.post("/api/v1/operator/git-sources/{source_id}/refresh", response_model=m.Source)
+    def refresh_git_source(source_id: str):
+        if not re.fullmatch(m.ID,source_id): raise Problem(422,"invalid_request","Invalid source identity")
+        return git_source_operation(source_id)
 
     @app.get("/api/v1/sources", response_model=list[m.Source])
     def sources():

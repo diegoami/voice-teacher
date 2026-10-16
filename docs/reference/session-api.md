@@ -48,7 +48,7 @@ allowed for authenticated non-browser clients. Pair exchange receives the same
 Host/origin/body protections. No permissive CORS middleware is enabled. API and
 audio responses have `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`.
 Tokens and pairing responses must stay out of telemetry and exported progress;
-T18 owns the client token lifecycle and T26 broader privacy verification.
+T15 owns the client token lifecycle and T26 broader privacy verification.
 
 ## Endpoints
 

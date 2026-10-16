@@ -328,3 +328,19 @@ def test_browser_pairing_exposes_only_verified_learner_identity(system):
     assert client.get("/api/v1/identity", headers=bearer(OPERATOR)).status_code == 403
     client.delete("/api/v1/operator/clients/" + s["alice"]["client_id"], headers=bearer(OPERATOR))
     assert client.get("/api/v1/identity", headers=bearer(s["alice"]["token"])).status_code == 401
+
+
+def test_saved_status_can_be_read_without_speech_for_control_recovery(system):
+    s = system; client = s["client"]; headers = bearer(s["alice"]["token"])
+    assert start(s).status_code == 201
+    def unavailable(*args): raise RuntimeError("SYNTHETIC_SECRET speech unavailable")
+    s["coordinator"].delivery_context = unavailable
+    assert client.get("/api/v1/sessions/one", headers=headers).status_code == 502
+    state = client.get("/api/v1/sessions/one?prepare_audio=false", headers=headers)
+    assert state.status_code == 200 and state.json()["revision"] == 0 and state.json()["audio_ids"] == []
+    stopped = post(s, "/api/v1/sessions/one/controls", dict(request_id="finish", expected_revision=0, operation="finish"))
+    assert stopped.status_code == 502  # State committed before delivery failed.
+    saved = client.get("/api/v1/sessions/one?prepare_audio=false", headers=headers)
+    assert saved.status_code == 200 and saved.json()["status"] == "finished" and saved.json()["done"]
+    assert "SYNTHETIC_SECRET" not in saved.text and "SYNTHETIC_PRIVATE" not in saved.text
+    assert client.get("/api/v1/sessions/one?prepare_audio=false", headers=bearer(s["bob"]["token"])).status_code == 404

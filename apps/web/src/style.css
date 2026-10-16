@@ -76,7 +76,7 @@ button {
   font: inherit;
   min-height: 48px;
 }
-input:not([type="radio"]),
+input:not([type="radio"]):not([type="checkbox"]),
 select {
   display: block;
   width: 100%;
@@ -236,4 +236,25 @@ p {
   h1 {
     font-size: 1.5rem;
   }
+}
+
+.hold-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 500;
+}
+.hold-option input {
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  accent-color: #205c4b;
+}
+.talk {
+  touch-action: none;
+  user-select: none;
+}
+.talk[aria-pressed="true"] {
+  background: #99492f;
+  border-color: #99492f;
 }

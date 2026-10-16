@@ -21,6 +21,7 @@ import type {
   Presentation,
 } from "./api";
 import "./style.css";
+import { SessionScreen } from "./session";
 
 function App() {
   const [grant, setGrant] = useState<Grant | null>(() => readGrant());
@@ -41,6 +42,7 @@ function App() {
   const [sessions, setSessions] = useState<SavedSession[]>([]),
     [current, setCurrent] = useState<Presentation | null>(null);
   const [reload, setReload] = useState(0);
+  const [sessionOpen, setSessionOpen] = useState(0);
   const epoch = useRef(0);
   function failure(e: unknown) {
     setError(
@@ -173,6 +175,10 @@ function App() {
       if (!(e instanceof ApiError) || e.status !== 404) throw e;
       setCurrent(await api<Presentation>("/sessions", grant.token, s.start));
     }
+    // An explicit Open replaces the local media controller even for the same
+    // session ID. Its old capture/playback ends; the new server state and any
+    // durable pending intent are loaded together. Turn replies keep it mounted.
+    setSessionOpen((n) => n + 1);
   }
   async function start() {
     if (!grant || !available || !lesson) return;
@@ -446,18 +452,16 @@ function App() {
               </ul>
             )}
           </section>
-          {current && (
-            <section aria-labelledby="session">
-              <p className="eyebrow">{current.status}</p>
-              <h2 id="session">Session ready</h2>
-              {current.card && <p className="card">{current.card}</p>}
-              {current.teacher.map((t, i) => (
-                <p key={i} className="teacher">
-                  {t.text}
-                </p>
-              ))}
-              <p className="hint">Your session is saved on the server.</p>
-            </section>
+          {current && grant && (
+            <SessionScreen
+              key={
+                grant.client_id + ":" + current.session_id + ":" + sessionOpen
+              }
+              initial={current}
+              grant={grant}
+              received={setCurrent}
+              unauthorized={failure}
+            />
           )}
         </>
       )}

@@ -1,6 +1,6 @@
 """Internal SQLite schema versions; independent of interchange schema versions."""
 APPLICATION_ID = 0x56544348  # VTCH
-VERSION = 3
+VERSION = 4
 
 V1 = (
     "CREATE TABLE learners (learner_id TEXT PRIMARY KEY, profile_json TEXT NOT NULL)",
@@ -45,4 +45,18 @@ V3 = (
         PRIMARY KEY(learner_id, session_id, request_id),
         FOREIGN KEY(learner_id, session_id) REFERENCES sessions(learner_id, session_id))""",
     "CREATE UNIQUE INDEX requests_active ON requests(learner_id, session_id) WHERE stage IN ('accepted','judged')",
+)
+
+V4 = (
+    "CREATE TABLE sources (source_id TEXT PRIMARY KEY, config_json TEXT NOT NULL, last_error TEXT)",
+    """CREATE TABLE source_versions (
+        version_id TEXT PRIMARY KEY, source_id TEXT NOT NULL REFERENCES sources(source_id),
+        payload_json TEXT NOT NULL, UNIQUE(source_id, version_id))""",
+    """CREATE TABLE source_active (
+        source_id TEXT PRIMARY KEY REFERENCES sources(source_id), version_id TEXT NOT NULL,
+        FOREIGN KEY(source_id, version_id) REFERENCES source_versions(source_id, version_id))""",
+    """CREATE TABLE source_items (
+        source_id TEXT NOT NULL REFERENCES sources(source_id), course_id TEXT NOT NULL, item_id TEXT NOT NULL,
+        item_revision INTEGER NOT NULL CHECK(item_revision >= 1), definition_hash TEXT NOT NULL,
+        PRIMARY KEY(source_id, course_id, item_id, item_revision))""",
 )

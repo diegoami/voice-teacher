@@ -14,6 +14,7 @@ from voice_teacher.practice.coordinator import Coordinator
 from voice_teacher.providers import Judgement, Verdict
 from voice_teacher.storage import Store, RevisionConflict
 from voice_teacher.storage.work import RequestConflict, WorkBusy
+from voice_teacher.storage.migrations import APPLICATION_ID, V1, V2
 
 LEARNER, SESSION = "synthetic-learner", "synthetic-session"
 
@@ -276,13 +277,26 @@ print(json.dumps(c.submit('synthetic-learner','synthetic-session','r1',expected_
     assert store.session(LEARNER, SESSION)["revision"] == 1
 
 
+def legacy_v2_copy(store):
+    """Build the actual frozen v2 schema, independent of newer feature tables."""
+    directory = store.path.parent.parent / "legacy-v2"
+    directory.mkdir(mode=0o700)
+    with sqlite3.connect(store.path) as source, sqlite3.connect(directory / "voice-teacher.sqlite") as target:
+        for sql in (*V1, *V2): target.execute(sql)
+        target.execute(f"PRAGMA application_id={APPLICATION_ID}")
+        target.execute("PRAGMA user_version=2")
+        for table in ("learners", "sessions", "events", "activities", "turns", "observations", "evidence", "outbox"):
+            rows = source.execute(f"SELECT * FROM {table}").fetchall()
+            if rows:
+                placeholders = ",".join("?" for _ in rows[0])
+                target.executemany(f"INSERT INTO {table} VALUES ({placeholders})", rows)
+    return directory
+
+
 def test_v2_migration_adds_work_stages_without_changing_history(tmp_path):
     store, c, _ = setup(tmp_path)
     before = store.events(LEARNER, SESSION)
-    with sqlite3.connect(store.path) as db:
-        db.execute("DROP TABLE requests")
-        db.execute("PRAGMA user_version=2")
-    restarted = Store(store.path.parent)
+    restarted = Store(legacy_v2_copy(store))
     assert restarted.events(LEARNER, SESSION) == before
     submit(Coordinator(restarted, Judge(), clock=lambda: 0))
     assert event_counts(restarted)["evidence.recorded"] == 1
@@ -292,15 +306,13 @@ def test_failed_v3_migration_leaves_v2_database_unchanged(tmp_path, monkeypatch)
     import voice_teacher.storage.sqlite as implementation
     store, _, _ = setup(tmp_path)
     before = store.events(LEARNER, SESSION)
-    with sqlite3.connect(store.path) as db:
-        db.execute("DROP TABLE requests")
-        db.execute("PRAGMA user_version=2")
+    directory = legacy_v2_copy(store)
     monkeypatch.setattr(implementation, "V3", (*implementation.V3, "SELECT invalid_migration_function()"))
-    with pytest.raises(sqlite3.OperationalError): Store(store.path.parent)
-    with sqlite3.connect(store.path) as db:
+    with pytest.raises(sqlite3.OperationalError): Store(directory)
+    with sqlite3.connect(directory / "voice-teacher.sqlite") as db:
         assert db.execute("PRAGMA user_version").fetchone()[0] == 2
         assert db.execute("SELECT name FROM sqlite_master WHERE name='requests'").fetchall() == []
-    assert store.events(LEARNER, SESSION) == before
+        assert [json.loads(r[0]) for r in db.execute("SELECT body_json FROM events ORDER BY sequence")] == before
 
 
 def test_control_snapshots_preserve_resolvable_origin_turns(tmp_path):

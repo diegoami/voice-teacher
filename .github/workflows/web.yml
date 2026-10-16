@@ -1,10 +1,10 @@
 name: Web app
 on:
   pull_request:
-    paths: ['apps/web/**', '.github/workflows/web.yml']
+    paths: ['apps/web/**', 'server/**', 'schemas/**', 'tests/integration/browser_server.py', 'tests/contracts/fixtures/**', 'pyproject.toml', 'uv.lock', '.github/workflows/web.yml']
   push:
     branches: [main]
-    paths: ['apps/web/**', '.github/workflows/web.yml']
+    paths: ['apps/web/**', 'server/**', 'schemas/**', 'tests/integration/browser_server.py', 'tests/contracts/fixtures/**', 'pyproject.toml', 'uv.lock', '.github/workflows/web.yml']
 permissions:
   contents: read
 jobs:
@@ -23,6 +23,13 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
+      - name: Install locked synthetic browser-server dependencies
+        working-directory: .
+        run: |
+          python3 -m venv /tmp/voice-teacher-web-tools
+          /tmp/voice-teacher-web-tools/bin/pip install uv==0.12.18
+          /tmp/voice-teacher-web-tools/bin/uv sync --locked --python 3.14
+          echo "VOICE_TEACHER_TEST_PYTHON=$GITHUB_WORKSPACE/.venv/bin/python" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run build
       - run: npm test -- --run

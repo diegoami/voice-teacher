@@ -51,10 +51,12 @@ is independently accepted; do not approve the runner using only its own output.
 
 T01's [supervised adapter](../tools/review/README.md) and
 [compatibility evidence](reference/opencode-compatibility.md) provide the
-verified Linux CLI/policy boundary. Until T02 lands, the main session prepares
-the pinned independent review clone, supervises the job, checks the complete
-result and platform identity, and publishes it separately. The adapter itself
-does not decide approval or write to GitHub. Use a fresh runtime per review.
+verified Linux CLI/policy boundary. T02's [runner and separate publisher](../tools/review/README.md#runner-and-publisher)
+prepare a pinned independent clone, supervise bounded execution, validate the
+complete report/native identity and publish a SHA-bound comment. The main session
+reconciles the report and limitations before invoking publication. Bootstrap
+review of T02 itself uses the independent supervised T01 path, rather than relying
+only on the candidate runner. Use a fresh runtime per review.
 
 ## Implementer contract
 
@@ -120,8 +122,9 @@ or a separate trusted publisher posts their returned output.
 Close stdin, retain session/log artifacts, impose startup/idle/total deadlines,
 and watch the actual process/session. Do not consider a run successful merely
 because its process exits zero. A failed or incomplete review remains visible
-and never becomes approval. These requirements are planned until T01/T02 land;
-the bootstrap documents do not claim technical enforcement already exists.
+and never becomes approval. The runner's structured report checks and separate
+publisher enforce these gates; the main session still assesses substantive
+evidence and explicitly reconciles any limitations.
 
 ## Reviewer contract
 

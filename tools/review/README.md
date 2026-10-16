@@ -89,8 +89,8 @@ for direct/subprocess writes and GitHub-auth checks. See the
 [compatibility evidence](../../docs/reference/opencode-compatibility.md).
 
 Retain stdout JSONL, unique failure diagnostics and runtime session records
-in the private run directory. Inspect/redact before publishing. Failure
-diagnostics replace the selected key with `[REDACTED]`; this is not a general
+in the private run directory. Inspect/redact before publishing. Successful
+output and failure diagnostics replace the selected key with `[REDACTED]`; this is not a general
 secret scanner. Stop only the broker process belonging to this run afterward;
 preserve review evidence. An exit of zero is not an approving review.
 

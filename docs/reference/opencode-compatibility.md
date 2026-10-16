@@ -29,7 +29,7 @@ the [model catalogue](https://models.dev/api.json).
 
 ## Tests and enforced denials
 
-`node --test tests/review/cli.test.mjs`: 7 passed.
+`node --test tests/review/cli.test.mjs`: 8 passed.
 `python3 tests/review/egress.test.py`: 4 passed.
 Removing the same-family guard caused two tests to fail with missing expected
 exceptions; restoring it returned the suite to green. The executable fake-CLI
@@ -81,6 +81,17 @@ to exist. Adding that directory resolved it. The next attempt collided with a
 host service's default port; isolating the network namespace removed both the
 collision and access to host services. Those failed runs were not accepted as
 successful smoke tests. Later failures retain distinct diagnostic files.
+
+The first PR-review job at `72ce17c2458669a912c7802a624d02377d939600`
+(session `ses_ebb34f52affeZ0PC3f5mzdT7O0`) exited zero with an empty final
+assistant message after tool use. It is incomplete and supplies no approval.
+That run also exposed the absence of Node under `/usr`: this host installs
+Node under NVM. The adapter now mounts only the selected Node executable at
+`/opt/node`, without granting access to the host home. Successful output now
+redacts the selected provider key as well as failure diagnostics; a dedicated
+test covers both paths. Raw platform records remain private and require
+inspection before publication. The corrected offline suites were also run
+inside the actual namespace, not just on the host.
 
 The [adapter runbook](../../tools/review/README.md) records setup, enforced
 boundaries and resource/provider-credential limitations. This version does

@@ -17,7 +17,8 @@ export function sandboxArgs({ workspace, runtime, policy, binary, brief, proxySo
   policy = fs.realpathSync(policy);
   binary = fs.realpathSync(binary);
   brief = fs.realpathSync(brief);
-  for (const p of [policy, binary, brief]) {
+  const nodeBinary = fs.realpathSync(process.execPath);
+  for (const p of [policy, binary, brief, nodeBinary]) {
     if (p.startsWith(workspace + '/')) throw new Error('Trusted inputs must be outside candidate checkout');
     if (p.startsWith(runtime + '/')) throw new Error('Trusted inputs must be outside writable runtime');
   }
@@ -35,7 +36,7 @@ export function sandboxArgs({ workspace, runtime, policy, binary, brief, proxySo
   }
   args.push('--proc', '/proc', '--dev', '/dev', '--tmpfs', '/tmp', '--dir', '/home',
     '--bind', runtime, '/runtime', '--dir', '/runtime/home', '--ro-bind', workspace, '/workspace',
-    '--ro-bind', binary, '/opt/opencode', '--ro-bind', brief, '/brief.md',
+    '--ro-bind', binary, '/opt/opencode', '--ro-bind', nodeBinary, '/opt/node', '--ro-bind', brief, '/brief.md',
     '--ro-bind', policy, '/etc/opencode/opencode.json',
     '--dir', '/scratch', '--tmpfs', '/scratch');
   if (proxySocket) {
@@ -56,7 +57,7 @@ export function sandboxArgs({ workspace, runtime, policy, binary, brief, proxySo
   const env = {
     HOME: '/runtime/home', XDG_CONFIG_HOME: '/runtime/config', XDG_DATA_HOME: '/runtime/data',
     XDG_CACHE_HOME: '/runtime/cache', XDG_STATE_HOME: '/runtime/state',
-    TMPDIR: '/scratch', PATH: '/usr/bin:/bin', LANG: 'C.UTF-8',
+    TMPDIR: '/scratch', PATH: '/opt:/usr/bin:/bin', LANG: 'C.UTF-8',
     GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_TERMINAL_PROMPT: '0',
     OPENCODE_DISABLE_PROJECT_CONFIG: '1',
     HTTP_PROXY: 'http://127.0.0.1:18080', HTTPS_PROXY: 'http://127.0.0.1:18080',

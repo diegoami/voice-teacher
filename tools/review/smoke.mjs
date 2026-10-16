@@ -6,9 +6,10 @@ import { randomUUID } from 'node:crypto';
 import { checked, preflight } from './cli.mjs';
 import { sandboxArgs, sandboxEnvironment, policyHash } from './sandbox.mjs';
 
-export function adapter({ workspace, runtime, binary, brief, policy, proxySocket, apiKey }) {
+export function adapter({ workspace, runtime, binary, brief, policy, proxySocket, apiKey }, execute = checked) {
   const prefix = sandboxArgs({ workspace, runtime, binary, brief, policy, proxySocket });
   const env = sandboxEnvironment(apiKey);
+  const redact = (value) => apiKey ? String(value ?? '').split(apiKey).join('[REDACTED]') : value;
   // No shell interpolation, inherited credentials, or stdin; bwrap's PID namespace
   // terminates descendants when its init process is killed. No unsandboxed fallback.
   const invoke = (args, timeout = 30_000) => {
@@ -16,9 +17,8 @@ export function adapter({ workspace, runtime, binary, brief, policy, proxySocket
       const command = proxySocket ? ['/bin/sh', '-c',
         'socat TCP-LISTEN:18080,bind=127.0.0.1,reuseaddr,fork UNIX-CONNECT:/egress.sock & exec /opt/opencode "$@"',
         'review-cli', ...args] : ['/opt/opencode', ...args];
-      return checked('/usr/bin/bwrap', [...prefix, ...command], { env, timeout });
+      return redact(execute('/usr/bin/bwrap', [...prefix, ...command], { env, timeout }));
     } catch (error) {
-      const redact = (value) => apiKey ? String(value ?? '').split(apiKey).join('[REDACTED]') : value;
       const diagnostic = runtime + '-failure-' + randomUUID() + '.json';
       fs.writeFileSync(diagnostic, JSON.stringify({ args, status: error.status, signal: error.signal,
         stdout: redact(error.stdout), stderr: redact(error.stderr) }, null, 2), { mode: 0o600 });

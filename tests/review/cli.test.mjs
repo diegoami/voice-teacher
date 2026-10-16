@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { checked, preflight, reviewArgs, modelFamily } from '../../tools/review/cli.mjs';
 import { sandboxArgs, sandboxEnvironment } from '../../tools/review/sandbox.mjs';
+import { adapter } from '../../tools/review/smoke.mjs';
 
 const options = { model: 'minimax-coding-plan/MiniMax-M3', implementerFamily: 'openai' };
 function fake({ version = 'opencode v2.0.28', help = '--standalone --model --agent --file --format', models = options.model } = {}) {
@@ -93,4 +94,30 @@ else if(a[1]==='--help')console.log('--model --agent --file --format');
 else { console.error('BILLED RUN');process.exit(9); }`);
   assert.throws(() => preflight(options, (a) => checked(process.execPath, [script, ...a])), /Unsupported CLI flag/);
   assert.deepEqual(fs.readFileSync(calls, 'utf8').trim().split('\n').map(JSON.parse), [['--version'], ['run', '--help']]);
+});
+
+test('adapter redacts selected credential on success/failure and retains unique failure artifacts', () => {
+  const top = fs.mkdtempSync(path.join(os.tmpdir(), 'vt-artifacts-'));
+  const workspace = path.join(top, 'candidate'), runtime = path.join(top, 'runtime');
+  fs.mkdirSync(workspace); fs.mkdirSync(runtime);
+  const policy = path.join(top, 'policy.json'), brief = path.join(top, 'brief.md');
+  fs.writeFileSync(policy, '{}'); fs.writeFileSync(brief, 'review');
+  const spec = { workspace, runtime, policy, brief, binary: process.execPath, apiKey: 'synthetic-test-secret' };
+  const success = adapter(spec, (exe, args, opts) => {
+    assert.equal(exe, '/usr/bin/bwrap');
+    assert.ok(!args.join(' ').includes(spec.apiKey));
+    assert.deepEqual(Object.keys(opts.env).sort(), ['MINIMAX_API_KEY', 'PATH']);
+    return 'output synthetic-test-secret repeated synthetic-test-secret';
+  });
+  assert.equal(success.invoke(['--version']), 'output [REDACTED] repeated [REDACTED]');
+  const failure = adapter(spec, () => { throw Object.assign(new Error('failure'),
+    { stdout: spec.apiKey, stderr: spec.apiKey, status: 1 }); });
+  assert.throws(() => failure.invoke(['--version']), /Incomplete/);
+  assert.throws(() => failure.invoke(['--version']), /Incomplete/);
+  const files = fs.readdirSync(top).filter((f) => f.startsWith('runtime-failure-'));
+  assert.equal(files.length, 2);
+  for (const f of files) {
+    assert.ok(!fs.readFileSync(path.join(top, f), 'utf8').includes(spec.apiKey));
+    assert.equal(fs.statSync(path.join(top, f)).mode & 0o777, 0o600);
+  }
 });

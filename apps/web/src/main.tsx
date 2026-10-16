@@ -1,3 +1,4 @@
+import { ProgressPanel } from "./progress";
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -460,6 +461,13 @@ function App() {
               initial={current}
               grant={grant}
               received={setCurrent}
+              unauthorized={failure}
+            />
+          )}
+          {grant && (
+            <ProgressPanel
+              key={grant.client_id}
+              token={grant.token}
               unauthorized={failure}
             />
           )}

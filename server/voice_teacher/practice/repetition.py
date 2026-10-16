@@ -254,7 +254,12 @@ def validate_plan(store, template, plan):
     if template["mode"] != "repetition" or source is None: raise ValueError("repetition needs a pinned source")
     frozen = SourceSnapshot("pinned", canonical_json({"curriculum": template["curriculum_snapshot"], "provenance": source["revision"]}))
     queued = [t["queue_event_id"] for t in plan.targets]
-    if any(queued):
+    from .personal_review import source_id, compile_plan
+    if any(queued) and source["source_id"] == source_id(template["learner_id"]):
+        private_source, expected = compile_plan(store, template["learner_id"], queued, recall_before_model=plan.recall_before_model)
+        if private_source.source_ref("personal-review","personal-set") != source or private_source.curriculum != template["curriculum_snapshot"]:
+            raise ValueError("personal review snapshot changed")
+    elif any(queued):
         if not all(queued): raise ValueError("select a lesson set or a queued set")
         expected = plan_queue(store, template["learner_id"], frozen, source["course_id"], source["lesson_id"], queued, recall_before_model=plan.recall_before_model)
     else:

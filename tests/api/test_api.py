@@ -279,6 +279,19 @@ def test_audio_unconfigured_invalid_responses_and_planned_model_exposure(system)
     assert r.status_code == 502 and "bad" not in r.text
 
 
+def test_authentication_material_is_excluded_from_progress_archive(system, tmp_path):
+    from voice_teacher.progress import Archive
+    from voice_teacher.api.auth import digest
+    s = system; start(s)
+    destination = tmp_path / "progress"; destination.mkdir()
+    archive = Archive(destination)
+    archive.export(s["store"])
+    data = b"".join(p.read_bytes() for p in (destination / archive.NAMESPACE).glob("*.json"))
+    for token in [OPERATOR, s["alice"]["token"], s["bob"]["token"]]:
+        assert token.encode() not in data and digest(token).encode() not in data
+    assert b"pairing_codes" not in data and b"token_hash" not in data
+
+
 @pytest.mark.parametrize("failure", [False, True])
 def test_v4_auth_migration_is_atomic_and_preserves_existing_state(tmp_path, monkeypatch, failure):
     import voice_teacher.storage.sqlite as implementation

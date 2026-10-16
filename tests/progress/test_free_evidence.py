@@ -152,6 +152,8 @@ def test_explicit_personal_review_survives_archive_and_can_be_practised_without_
     assert repeated["evidence"]["outcome"]=="repeated"
     assert repeated["provenance"]["origin_session_id"]=="free" and repeated["provenance"]["origin_turn_id"]==target["origin_turn_id"]
     assert repeated["provenance"]["original_source"]["source_id"].startswith("private-review-")
+    from voice_teacher.progress.views import summary
+    assert summary(store,LEARNER)["courses"]==[]
     assert len(feedback.calls)==1 and dialogue.calls==1
     root=tmp_path/"archive";root.mkdir();a=Archive(root);a.export(store)
     restored=Store(tmp_path/"restored");a.restore(restored)
@@ -205,7 +207,7 @@ def test_known_item_observations_keep_identity_without_preattempt_answer_disclos
     raw["source_id"]="alpha"
     item=raw["courses"][0]["items"][0]
     item["text"]={"display":"Я їду потягом.","speech":"Я їду потягом."};item["meaning"]="I travel by train"
-    lesson=raw["courses"][0]["lessons"][0];lesson["modes"].append("free_conversation");lesson["topic"]="Travel"
+    lesson=raw["courses"][0]["lessons"][0];lesson["modes"].append("free_conversation");lesson["topic"]="Travel";lesson["guided_steps"][0]["goal"]="Discuss a train journey"
     source=SourceSnapshot("synthetic",canonical_json({"curriculum":raw,"provenance":{"commit":None,"dirty":True}}))
     store,c,dialogue,feedback=setup(tmp_path,source=source)
     class Known(Feedback):
@@ -217,6 +219,8 @@ def test_known_item_observations_keep_identity_without_preattempt_answer_disclos
     observation=store.projection(LEARNER,"free")["evidence"][0]
     assert observation["evidence"]["outcome"]=="observed" and observation["provenance"]["original_item"]["item_id"]=="hello"
     assert "Я їду потягом." not in canonical_json(dialogue.contexts)
+    from voice_teacher.progress.views import summary
+    assert all(c["covered_items"]==0 for c in summary(store,LEARNER)["courses"])
     meaning="I travel by train" if authored_meaning else "My explicitly chosen private meaning"
     target=c.promote_personal(LEARNER,"free","promote",expected_revision=1,observation_id=observation["event_id"],form="preferred",meaning=meaning)["target"]
     c.create_personal_review(LEARNER,"review",[target["target_id"]])
@@ -224,6 +228,9 @@ def test_known_item_observations_keep_identity_without_preattempt_answer_disclos
     practiced=store.projection(LEARNER,"review")["evidence"][0]
     original=practiced["provenance"]["original_source"]
     assert (original["source_id"]=="alpha") is authored_meaning
+    courses=summary(store,LEARNER)["courses"]
+    assert len(courses)==1 and courses[0]["source_id"]=="alpha"
+    assert courses[0]["covered_items"]==int(authored_meaning)
     assert practiced["provenance"]["origin_turn_id"]==observation["turn"]["turn_id"]
     assert store.session(LEARNER,"free")["curriculum_snapshot"]==pinned
 
@@ -265,3 +272,63 @@ def test_api_promotes_and_practises_only_owned_explicit_targets_with_safe_respon
     assert client.post("/api/v1/sessions",headers=headers,json={**start,"session_id":"conflicting","source_id":"alpha"}).status_code==422
     assert client.post("/api/v1/sessions",headers=headers,json={**start,"session_id":"wrong-mode","mode":"free_conversation"}).status_code==422
     assert client.post("/api/v1/sessions/free/review-targets",headers=headers,json={**body,"mastery":100}).status_code==422
+
+
+def test_late_recognition_report_changes_the_view_without_rewriting_the_observation(tmp_path):
+    from voice_teacher.progress.views import evidence
+    store,c,_,_=setup(tmp_path)
+    c.submit(LEARNER,"free","one",expected_revision=0,text="Я їду потяг.")
+    original=deepcopy(store.projection(LEARNER,"free")["evidence"])
+    assert evidence(store,LEARNER,"free")["rows"][0]["correction"]
+    c.report_recognition(LEARNER,"free","one",status="recognized",text="Я їду потяг.")
+    row=evidence(store,LEARNER,"free")["rows"][0]
+    assert row["recognition_uncertain"] and not row["correction"]
+    assert store.projection(LEARNER,"free")["evidence"]==original
+
+
+def test_held_feedback_can_finish_after_archive_restore_without_any_provider(tmp_path):
+    store,c,dialogue,feedback=setup(tmp_path,"end_of_session")
+    c.submit(LEARNER,"free","one",expected_revision=0,text="Я їду потяг.")
+    root=tmp_path/"archive";root.mkdir();a=Archive(root);a.export(store)
+    restored=Store(tmp_path/"restored");a.restore(restored)
+    fresh=Coordinator(restored,lambda *a:(_ for _ in ()).throw(AssertionError("must not call a provider")))
+    finished=fresh.control(LEARNER,"free","finish",expected_revision=1,operation="stop")
+    assert [t["kind"] for t in finished["teacher"]]==["feedback","close"]
+    rows=restored.projection(LEARNER,"free")["evidence"]
+    assert len(rows)==1 and rows[0]["turn"]["text"]=="Я їду потяг."
+    assert dialogue.calls==1 and len(feedback.calls)==1
+
+
+def test_version_seven_migration_rolls_back_failure_without_losing_old_progress(tmp_path,monkeypatch):
+    import sqlite3
+    import voice_teacher.storage.sqlite as implementation
+    from test_roundtrip import session as legacy_session
+    store=Store(tmp_path/"data");legacy_session(store)
+    original=store.events(LEARNER,"alpha")
+    with sqlite3.connect(store.path) as db:
+        db.execute("DROP TABLE feedback_decisions");db.execute("PRAGMA user_version=6")
+    migration=implementation.V7
+    monkeypatch.setattr(implementation,"V7",(*migration,"SELECT synthetic_failed_feedback_migration()"))
+    with pytest.raises(sqlite3.OperationalError):Store(store.path.parent)
+    with sqlite3.connect(store.path) as db:
+        assert db.execute("PRAGMA user_version").fetchone()[0]==6
+        assert db.execute("SELECT name FROM sqlite_master WHERE name='feedback_decisions'").fetchone() is None
+    monkeypatch.setattr(implementation,"V7",migration)
+    upgraded=Store(store.path.parent)
+    assert upgraded.events(LEARNER,"alpha")==original
+    with upgraded._connection() as db:
+        assert db.execute("PRAGMA user_version").fetchone()[0]==7
+        assert db.execute("SELECT count(*) FROM feedback_decisions").fetchone()[0]==0
+
+
+@pytest.mark.parametrize("mutation",["wording","published_id"])
+def test_saved_published_feedback_must_match_actual_committed_evidence(tmp_path,mutation):
+    from voice_teacher.practice.free_feedback import checked_state
+    store,c,_,_=setup(tmp_path)
+    c.submit(LEARNER,"free","one",expected_revision=0,text="Я їду потяг.")
+    snapshot=store.session(LEARNER,"free");state=snapshot["engine_state"]["data"]["feedback"]
+    projection=store.projection(LEARNER,"free")
+    assert checked_state(state,snapshot,projection["turns"],projection["evidence"])==state
+    if mutation=="wording":state["observations"][0]["claim"]["preferred"]="Invented saved wording"
+    else:state["observations"][0]["event_id"]="nonexistent-observation";state["published"]=["nonexistent-observation"]
+    with pytest.raises(ValueError):checked_state(state,snapshot,projection["turns"],projection["evidence"])

@@ -83,7 +83,7 @@ def context_for(snapshot,turn):
     validate_context(value);return value
 
 
-def checked_state(value,snapshot,turns):
+def checked_state(value,snapshot,turns,published_evidence=()):
     if not isinstance(value,dict) or set(value)!={"format_version","provider","observations","published","review_targets"} or type(value["format_version"]) is not int or value["format_version"]!=1:
         raise ValueError("unsupported free feedback state")
     provider_identity(value["provider"])
@@ -97,6 +97,23 @@ def checked_state(value,snapshot,turns):
         validate_response(context_for(snapshot,row["turn"]),{"observations":[row["claim"]]})
         seen.add(row["event_id"])
     if not isinstance(value["published"],list) or any(not isinstance(k,str) or k not in seen for k in value["published"]) or len(set(value["published"]))!=len(value["published"]):raise ValueError("invalid published feedback IDs")
+    published = {e["event_id"]:e for e in published_evidence if e["event_type"] == "evidence.recorded"}
+    for row in value["observations"]:
+        if row["event_id"] not in value["published"]: continue
+        event = published.get(row["event_id"])
+        claim = row["claim"]
+        expected = {"outcome":"observed","attempt":claim["original"],"preferred":claim["preferred"],"reason":claim["reason"],"recognition_uncertain":row["uncertain"]}
+        if event is None or event["session_id"] != snapshot["session_id"] or event["source"] != snapshot["source"] or event["turn"] != row["turn"] or event["assistance"] != row["assistance"] or event["evidence"] != expected:
+            raise ValueError("published feedback does not match its committed evidence")
+        source,item = None,None
+        if claim["item_id"] is not None:
+            source = snapshot["source"]
+            course = next(c for c in snapshot["curriculum_snapshot"]["courses"] if c["course_id"] == source["course_id"])
+            authored = next(i for i in course["items"] if i["item_id"] == claim["item_id"])
+            item = {"source_id":source["source_id"],"course_id":source["course_id"],"item_id":authored["item_id"],"item_revision":authored["item_revision"]}
+        provenance = event["provenance"]
+        if provenance["original_source"] != source or provenance["original_item"] != item or provenance["practice_source"] != snapshot["source"] or provenance["origin_session_id"] != snapshot["session_id"] or provenance["origin_turn_id"] != row["turn"]["turn_id"]:
+            raise ValueError("published feedback provenance changed")
     if not isinstance(value["review_targets"],list) or len(value["review_targets"])>90:raise ValueError("invalid personal review queue")
     from .personal_review import validate_targets
     validate_targets(value,snapshot)

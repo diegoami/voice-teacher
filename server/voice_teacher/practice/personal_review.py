@@ -14,6 +14,7 @@ def target_id(learner,session,observation,form):
 
 
 def validate_targets(state,snapshot):
+    if not isinstance(state["review_targets"],list) or len(state["review_targets"])>90: raise ValueError("personal review queue budget exceeded")
     observations={r["event_id"]:r for r in state["observations"]}
     seen=set()
     for row in state["review_targets"]:
@@ -58,7 +59,8 @@ def queue(store,learner):
         data=snapshot["engine_state"]["data"]
         if data.get("coordinator_version")!=6:continue
         turns=[e["turn"] for e in events if e["session_id"]==snapshot["session_id"] and e["event_type"]=="turn.accepted"]
-        state=checked_state(data["feedback"],snapshot,turns)
+        evidence=[e for e in events if e["session_id"]==snapshot["session_id"] and e["event_type"]=="evidence.recorded"]
+        state=checked_state(data["feedback"],snapshot,turns,evidence)
         for row in state["review_targets"]:
             if row["observation_id"] in superseded or (row["origin_session_id"],row["origin_turn_id"]) in disputed:continue
             result.append(deepcopy(row))

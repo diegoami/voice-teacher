@@ -1,27 +1,7 @@
 """Public personal-review allowlists; private engine/provider state stays private."""
 from typing import Literal
 from pydantic import BaseModel, Field
-from .models import Revision, ID
-
-
-class SourceRevision(BaseModel):
-    commit: str | None
-    content_sha256: str
-    dirty: bool
-
-
-class SourceReference(BaseModel):
-    source_id: str
-    course_id: str
-    lesson_id: str
-    revision: SourceRevision
-
-
-class ItemReference(BaseModel):
-    source_id: str
-    course_id: str
-    item_id: str
-    item_revision: int
+from .models import Revision, ID, SourceReference, ItemReference
 
 
 class PersonalTarget(BaseModel):

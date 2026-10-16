@@ -70,7 +70,8 @@ class Coordinator:
             engine = FreeSession.from_snapshot(FreePlan.from_dict(data["lesson"]), judge, data["engine"], profile=LanguageProfile(**profile_data), **options)
             if data["coordinator_version"] == 6:
                 from .free_feedback import checked_state
-                engine.feedback_state = checked_state(data["feedback"], snapshot, self.store.projection(snapshot["learner_id"],snapshot["session_id"])["turns"])
+                projection = self.store.projection(snapshot["learner_id"],snapshot["session_id"])
+                engine.feedback_state = checked_state(data["feedback"], snapshot, projection["turns"], projection["evidence"])
             return engine
         if data["coordinator_version"] == 4:
             if snapshot["mode"] != "guided_conversation" or data.get("engine_kind") != "guided": raise StorageError("unsupported mode capsule")
@@ -249,6 +250,7 @@ class Coordinator:
             if existing is not None:
                 if existing["meaning"] != meaning: raise RequestConflict("saved review meaning cannot be overwritten")
                 return {"target":deepcopy(existing),"revision":snapshot["revision"]}
+            if len(state["review_targets"]) >= 90: raise StorageError("this conversation has reached its personal review limit")
             self.work.accept(learner,session,request,expected_revision,value,statuses={"active","paused","finished"})
             original_source,item = None,None
             if claim["item_id"] is not None:

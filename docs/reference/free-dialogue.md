@@ -117,3 +117,9 @@ include real fresh-process reply recovery, archive restore, privacy allowlists,
 context/token/HTTP bounds, explicit controls, source-free/source-grounded turns,
 changed-provider refusal and instruction-language policy. No live model quality,
 real phone behavior or private remote writes are claimed by these checks.
+
+T21 adds the separate [post-attempt feedback boundary](free-feedback.md), private
+observations and deliberate personal review. New configured conversations use
+coordinator capsule 6; older capsule 5 histories retain their original behavior.
+The dialogue generator still receives no hidden target renderings. Structural
+observation checks do not substitute for T22's linguistic-quality evaluation.

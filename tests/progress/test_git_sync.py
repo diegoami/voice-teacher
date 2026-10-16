@@ -1,4 +1,6 @@
 from copy import deepcopy
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 import json
 from pathlib import Path
 import subprocess
@@ -294,3 +296,29 @@ def test_changed_local_branch_is_not_pushed_to_the_bound_destination(tmp_path):
     git(w.checkout, "switch", "-qc", "foreign")
     with pytest.raises(SyncError, match="branch changed"): w.run_once()
     assert git(upstream, "rev-parse", "main") == before
+
+
+def test_concurrent_initialization_cannot_overwrite_destination_binding(tmp_path, monkeypatch):
+    upstream = remote(tmp_path); store = Store(tmp_path / "data")
+    second_at_lock, first_done = threading.Event(), threading.Event()
+    original = GitSync._locked
+    @contextmanager
+    def ordered(self):
+        first = self.checkout.name == "one-checkout"
+        if first: assert second_at_lock.wait(5)
+        else:
+            second_at_lock.set(); assert first_done.wait(5)
+        try:
+            with original(self): yield
+        finally:
+            if first: first_done.set()
+    monkeypatch.setattr(GitSync, "_locked", ordered)
+    def construct(name):
+        try: return worker(tmp_path, upstream, name=name, store=store)
+        except SyncError as error: return error
+    with ThreadPoolExecutor(2) as pool: results = list(pool.map(construct, ["one", "two"]))
+    assert isinstance(results[0], GitSync)
+    assert isinstance(results[1], SyncError)
+    assert "destination changed" in str(results[1])
+    assert json.loads(results[0].state_path.read_text())["destination"] == results[0].fingerprint
+    assert not (tmp_path / "two-checkout").exists()

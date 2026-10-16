@@ -74,22 +74,24 @@ class GitSync:
             self.askpass = str(helper)
         self.state_path = store.path.parent / "progress-sync.json"
         self.fingerprint = hashlib.sha256(canonical_json([str(self.checkout), remote, branch, str(Archive.NAMESPACE)]).encode()).hexdigest()
-        state = _read(self.state_path)
-        if state is not None and state.get("destination") != self.fingerprint:
-            raise SyncError("destination changed; use the verified handoff procedure and a fresh runtime")
-        self.state = state or {"version": 1, "destination": self.fingerprint, "writer_id": str(uuid4()),
-                              "last_push_at": None, "last_push_commit": None, "pushed_ids": [], "error": None}
-        if self.state.get("version") != 1: raise SyncError("unsupported sync metadata")
-        self.checkout.mkdir(parents=True, mode=0o700, exist_ok=True)
-        self.archive = Archive(self.checkout, forbidden_roots=forbidden_roots)
         self.git_dir = self.checkout / ".git"
-        if self.git_dir.is_symlink() or (self.git_dir.exists() and not self.git_dir.is_dir()):
-            raise SyncError("managed checkout requires its own Git directory")
-        if state is None and self.git_dir.exists():
-            raise SyncError("refuse adoption of an existing checkout; use a new app-managed directory")
-        if not self.git_dir.exists() and list(self.checkout.iterdir()):
-            raise SyncError("new managed checkout must be empty")
         with self._locked():
+            # Binding reads/checks and every initialization write share the lock.
+            # A stale pre-lock read must never replace another constructor's state.
+            state = _read(self.state_path)
+            if state is not None and state.get("destination") != self.fingerprint:
+                raise SyncError("destination changed; use the verified handoff procedure and a fresh runtime")
+            self.state = state or {"version": 1, "destination": self.fingerprint, "writer_id": str(uuid4()),
+                                  "last_push_at": None, "last_push_commit": None, "pushed_ids": [], "error": None}
+            if self.state.get("version") != 1: raise SyncError("unsupported sync metadata")
+            self.checkout.mkdir(parents=True, mode=0o700, exist_ok=True)
+            self.archive = Archive(self.checkout, forbidden_roots=forbidden_roots)
+            if self.git_dir.is_symlink() or (self.git_dir.exists() and not self.git_dir.is_dir()):
+                raise SyncError("managed checkout requires its own Git directory")
+            if state is None and self.git_dir.exists():
+                raise SyncError("refuse adoption of an existing checkout; use a new app-managed directory")
+            if not self.git_dir.exists() and list(self.checkout.iterdir()):
+                raise SyncError("new managed checkout must be empty")
             # Persist binding before initialization; interrupted setup can resume.
             _write(self.state_path, self.state)
             if not self.git_dir.exists():

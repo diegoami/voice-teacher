@@ -1,5 +1,12 @@
 # 3. Target architecture and roadmap
 
+The [production plan](production-plan.md) proposes the next application build
+as of 2026-10-16, including selectable lesson repositories, three independent
+practice modes, private progress synchronization and restart recovery. The
+roadmap below records the earlier POC-era direction; use the production plan
+for the proposed delivery sequence. Existing runtime behaviour is documented
+in the [POC 5 README](../pocs/05-session-engine/README.md).
+
 This describes Option C from file 02 with Claude Code (or a scheduled agent)
 as the authoring and evaluation back end. It is deliberately concrete so it
 can be argued with.

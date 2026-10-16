@@ -266,3 +266,21 @@ def test_package_at_registered_root_and_crlf_input_are_supported(tmp_path):
     lesson.update(package=".", prepared="prepared.json", package_sha256=digest(package.read_bytes()))
     result = load(package_root, mapping)
     assert result.prepared_lesson("basics", "4B").opening == [TICKET, PRICE]
+
+
+def test_reviewed_open_answer_policy_survives_compilation_into_guided_plan(tmp_path):
+    from voice_teacher.content.registry import SourceSnapshot
+    from voice_teacher.practice.guided import GuidedSession, plan_guided
+    root, mapping, prepared = fixture(tmp_path)
+    prepared["lesson"]["steps"][1]["open_answer"] = True
+    write_prepared(root, prepared, mapping)
+    result = load(root, mapping)
+    assert result.curriculum["courses"][0]["lessons"][0]["guided_steps"][1]["open_answer"] is True
+    source = SourceSnapshot("legacy", canonical_json({"curriculum": result.curriculum, "provenance": {"commit": None, "dirty": True}}))
+    plan = plan_guided(source, "basics", "4B")
+    from voice_teacher.providers import Judgement, Verdict
+    from voice_teacher.practice.profiles import UKRAINIAN
+    engine = GuidedSession(plan, lambda *a: Judgement(Verdict("accept", True, "", "", 0, ""), 0, {}))
+    engine.start(); engine.hear(TICKET)
+    assert engine.current._item().open_answer is True
+    assert UKRAINIAN.open_answer_card in engine.card

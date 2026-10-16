@@ -43,6 +43,10 @@ class Start(Input):
     item_ids: list[str] | None = Field(default=None, min_length=1, max_length=6)
     queue_event_ids: list[str] | None = Field(default=None, min_length=1, max_length=2)
     recall_before_model: bool = False
+    routine: Literal["guided", "combined"] = "guided"
+    cards: bool = True
+    spoken_tasks: bool = True
+    max_goals: int = Field(default=3, ge=1, le=6)
 
 
 class Revision(Input):
@@ -69,6 +73,13 @@ class Teacher(BaseModel):
     kind: str
 
 
+class Activity(BaseModel):
+    activity_id: str
+    position: int
+    total: int
+    complete: bool
+
+
 class Presentation(BaseModel):
     session_id: str
     request_id: str | None
@@ -78,6 +89,7 @@ class Presentation(BaseModel):
     card: str | None
     teacher: list[Teacher]
     audio_ids: list[str]
+    activity: Activity | None = None
 
 
 class Source(BaseModel):

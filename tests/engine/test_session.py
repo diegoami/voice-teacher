@@ -257,3 +257,20 @@ def test_part_two_starts_at_round_two_and_ends_with_recall():
 def test_unknown_part_is_refused():
     with pytest.raises(ValueError, match="part must be one of"):
         Session(small_lesson(), FakeJudge(), part="3")
+
+
+@pytest.mark.parametrize("targets,ids,heard,expected", [
+    (["Скі́льки це ко́штує?", "Яка́ ціна́?"], ["price", "price-alternative"], "Яка ціна?", "price-alternative"),
+    (["Скі́льки це ко́штує?", "Скі́льки це ко́штує?"], ["price", "price-twin"], "Скільки це коштує?", ""),
+    (["Скі́льки це ко́штує?", "Яка́ ціна́?"], ["price", "price-alternative"], "Яка загальна сума?", ""),
+])
+def test_accepted_offered_variants_never_overcredit_an_ambiguous_first_item(targets, ids, heard, expected):
+    lesson = small_lesson()
+    lesson.steps[1].targets, lesson.steps[1].target_item_ids = targets, ids
+    s = Session(lesson, FakeJudge(("accept",), ("accept",)), part="2")
+    s.start(); s.hear("Один квиток, будь ласка."); s.hear(heard)
+    evidence = s.evidence[-1]
+    assert evidence.label == "independent" and evidence.item_id == expected
+    assert (evidence.target is None) == (expected == "")
+    restored = Session.from_snapshot(lesson, FakeJudge(), s.snapshot())
+    assert restored.evidence == s.evidence

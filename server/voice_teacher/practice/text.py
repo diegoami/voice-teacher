@@ -14,3 +14,8 @@ def normalise(text: str, profile: LanguageProfile = UKRAINIAN) -> str:
     for mark in "’ʼ'`":
         text = text.replace(mark, "")
     return " ".join(re.sub(r"[^\w\s]", " ", text).split())
+
+
+def contains_answer(text: str, target: str, profile: LanguageProfile = UKRAINIAN) -> bool:
+    answer = normalise(target, profile)
+    return bool(answer) and (" " + answer + " ") in (" " + normalise(text, profile) + " ")

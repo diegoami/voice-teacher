@@ -105,11 +105,11 @@ def test_fake_session_lifecycle_retry_and_hidden_response_fields(system):
     assert accepted.status_code == 200
     assert post(s, "/api/v1/sessions/one/turns", request).json() == accepted.json()
     assert s["judge"].calls == 1
-    for operation, revision, status in [("pause", 1, "paused"), ("resume", 2, "active"), ("finish", 3, "finished")]:
-        result = post(s, "/api/v1/sessions/one/controls", dict(request_id=operation, expected_revision=revision, operation=operation))
+    for operation, revision, status in [("resume", 1, "active"), ("pause", 2, "paused"), ("resume", 3, "active"), ("finish", 4, "finished")]:
+        result = post(s, "/api/v1/sessions/one/controls", dict(request_id=f"{operation}-{revision}", expected_revision=revision, operation=operation))
         assert result.status_code == 200, result.text
         assert result.json()["status"] == status
-    assert post(s, "/api/v1/sessions/one/turns", dict(request_id="after-finish", expected_revision=4, text="late")).status_code == 409
+    assert post(s, "/api/v1/sessions/one/turns", dict(request_id="after-finish", expected_revision=5, text="late")).status_code == 409
     transcript = client.get("/api/v1/sessions/one/transcript", headers=headers)
     assert transcript.status_code == 200
     assert "Synthetic answer" in transcript.text
@@ -266,7 +266,12 @@ def test_pairing_race_consumes_code_once_and_header_ambiguity_is_rejected(system
 
 def test_audio_unconfigured_invalid_responses_and_planned_model_exposure(system):
     s = system
-    r = start(s, activity="combined")
+    path = s["root"] / "voice-teacher.json"
+    value = json.loads(path.read_text())
+    value["courses"][0]["lessons"][0]["modes"].append("repetition")
+    path.write_text(json.dumps(value))
+    SourceRegistry(s["store"]).refresh("synthetic-alpha")
+    r = start(s, activity="combined", routine="combined")
     assert r.status_code == 201
     assert "HIDDEN TARGET" in r.text  # A deliberately spoken model is visible.
     assert "\u0301" not in r.text and "curriculum_snapshot" not in r.text

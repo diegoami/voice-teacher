@@ -79,15 +79,17 @@ Progress-destination configuration is not exposed yet. Future administrative
 routes must remain in the operator namespace; no learner request can configure
 an implicit destination or change learner ownership.
 
-Current available practice is the extracted uk/en guided coordinator, including
-the optional combined routine. Activity values are `combined`, `first_sitting`
-and `second_sitting`. Other authored modes/languages and partial lessons are
-reported as unavailable until T13/T14/T20 supply their planners. Source selection
-does not apply historical personal introduction/settings to the learner. Source
-updates cannot alter an existing pinned session.
+Current planners support [guided activities](guided-activities.md) and
+[independent repetition](repetition.md), including partial lessons and explicitly
+configured language profiles. Guided practice defaults to no opening repetition;
+`routine=combined` adds authored review and modelling. `activity` selects both
+sittings or `first_sitting` / `second_sitting`. Cards, spoken tasks and block size
+are independently configurable. Free conversation remains unavailable until T20.
+Source selection does not apply historical personal introduction/settings.
+Source updates cannot alter an existing pinned session.
 
 A presentation contains `session_id`, `request_id`, `revision`, `status`, `done`,
-`card`, `teacher: [{text,kind}]` and `audio_ids`. Catalogue responses omit curriculum
+`card`, `teacher: [{text,kind}]`, `audio_ids` and nullable guided `activity` metadata. Catalogue responses omit curriculum
 items, targets, goals, private context and internal paths. Presentations expose
 only actually planned teacher speech, with plain display text rather than stress
 notation; deliberately spoken models/corrections are visible when offered.

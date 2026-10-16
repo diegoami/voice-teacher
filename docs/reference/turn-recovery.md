@@ -92,3 +92,7 @@ reject it instead of silently dropping reports. See [voice-pipeline.md](voice-pi
 
 [Repetition](repetition.md) uses a v3 mode capsule while retaining guided v1/v2
 recovery, and replays the current item on resume without another evidence result.
+
+[Guided activities](guided-activities.md) use coordinator capsule v4, preserve
+legacy and repetition readers, and pause automatically at saved block boundaries.
+Native engine v2 retains unknown/non-first attribution while reading old v1 history.

@@ -63,3 +63,6 @@ and private weak-item review through the durable API.
 
 The [installable web app shell](docs/reference/web-app.md) lives in `apps/web`;
 serve its production build from the API origin.
+
+[Guided activities](docs/reference/guided-activities.md) support independent scenarios,
+optional combined review, saved short blocks and pinned restart recovery.

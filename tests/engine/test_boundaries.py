@@ -119,7 +119,7 @@ def test_persistence_interface_and_pinned_input_guards():
     changed.steps[0].targets[0] = "changed"
     with pytest.raises(ValueError, match="pinned"):
         Session.from_snapshot(changed, FakeJudge(), state)
-    for path, value in [("format_version", 2), ("index", 100), ("round", True)]:
+    for path, value in [("format_version", 99), ("index", 100), ("round", True)]:
         bad = deepcopy(state)
         if path == "format_version":
             bad[path] = value
@@ -187,3 +187,17 @@ def test_speech_interfaces_accept_fake_providers_without_sdk():
     line = s.start()[1]
     assert speech.transcribe(speech.synthesize(line.text, language="uk"), language="uk") == line.text
     s.hear(speech.transcribe(b"stop", language="uk"))
+
+
+def test_version_one_engine_history_remains_readable_without_rewriting_item_credit():
+    # The old producer recorded first-item credit even for an accepted paraphrase.
+    # Keep that archived observation unchanged; only new attempts use v2 attribution.
+    lesson = small_lesson()
+    s = Session(lesson, FakeJudge(("accept",)), part="2")
+    s.start(); s.hear("Один квиток будь ласка")
+    old = s.snapshot(); old["format_version"] = 1
+    old["data"]["evidence"][0]["learner"] = "historically accepted paraphrase"
+    restored = Session.from_snapshot(lesson, FakeJudge(), old)
+    assert restored.snapshot()["format_version"] == 2
+    assert restored.snapshot()["data"] == old["data"]
+    assert restored.evidence[0].item_id == "ticket"

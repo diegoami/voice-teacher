@@ -22,7 +22,7 @@ from dataclasses import asdict, dataclass, field
 from ..providers import Item, Judgement, Judge
 from .profiles import UKRAINIAN, LanguageProfile
 from .models import Lesson
-from .text import normalise, plain
+from .text import normalise, plain, contains_answer
 
 PARTS = ("all", "1", "2")
 LISTEN = UKRAINIAN.listen
@@ -57,7 +57,7 @@ class Evidence:
     label: str  # repeated | independent | cued | corrected_repeated | modelled_repeated | needs_turn | skipped
     attempts: int  # judged attempts that failed before the result
     learner: str  # the turn the label rests on
-    target: str
+    target: str | None
     source_id: str = ""
     course_id: str = ""
     lesson_id: str = ""
@@ -152,7 +152,9 @@ class Session:
         if self.phase == "new":
             raise RuntimeError("start the lesson before accepting a turn")
         self._log("learner", text=text)
-        if wants_to_stop(text, self.profile):
+        offered = (self.lesson.opening[self.index:self.index + 1] if self.phase == "opening" else
+                   [self.model_items[self.index][0]] if self.phase == "guided" and self.round == 0 else self._item().targets)
+        if wants_to_stop(text, self.profile) and not any(normalise(text, self.profile) == normalise(target, self.profile) for target in offered):
             return self.stop()
         if self.phase == "opening" or (self.phase == "guided" and self.round == 0):
             return self._teacher(self._opening(text))
@@ -181,6 +183,9 @@ class Session:
         self.resaid = False
         if self.index < len(lines):
             return self._repeat_line(self.index)
+        if self.phase == "opening" and not self.model_items:
+            self.phase, self.card = "closed", None
+            return [Say((self.lesson.closing or self.profile.closing), "close")]
         if self.phase == "opening":
             self.phase, self.round, self.index = "guided", 0, 0
             return [Say(self.profile.new_sentences, "transition")] + self._repeat_line(0)
@@ -237,6 +242,9 @@ class Session:
         self._log("judge", verdict=asdict(v), seconds=judgement.seconds, usage=judgement.usage)
 
         if v.verdict == "question":
+            if any(contains_answer(v.reply, t, self.profile) for t in item.targets):
+                st.help, st.awaiting_repeat = "model", True
+                return self._reply(text, [Say(target, "model"), Say(self.profile.repeat_please, "repeat")])
             return self._reply(text, [Say(v.reply, "reply"), Say(item.teacher_said, "repeat")])
         if v.verdict == "social":
             return self._reply(text, [Say(self.profile.listening, "reply")])
@@ -245,7 +253,7 @@ class Session:
         if v.verdict == "unclear" and st.unclear == 0:
             st.unclear = 1
             return self._reply(text, [Say(self.profile.repeat_please, "repeat")])
-        if v.verdict == "accept":
+        if v.verdict == "accept" and v.on_task:
             label = {"": "independent", "cue": "cued", "correction": "corrected_repeated"}[st.help]
             return self._finish(text, label)
 
@@ -257,8 +265,12 @@ class Session:
                     overlap(target, chunk, self.profile) < 0.75:  # a "chunk" that is the whole sentence is a model, not a correction
                 st.help = "correction"
                 return self._reply(text, [Say(self.profile.correction.format(chunk=chunk.rstrip(".!?")), "correction")])
+            cue = cue_for(target)
+            if contains_answer(cue, target, self.profile):
+                st.help, st.awaiting_repeat = "model", True
+                return self._reply(text, [Say(target, "model"), Say(self.profile.repeat_please, "repeat")])
             st.help = "cue"
-            return self._reply(text, [Say(cue_for(target), "cue")])
+            return self._reply(text, [Say(cue, "cue")])
         st.help, st.awaiting_repeat = "model", True
         return self._reply(text, [Say(target, "model"), Say(self.profile.repeat_please, "repeat")])
 
@@ -268,8 +280,11 @@ class Session:
             step = self.lesson.steps[skipped]
             self._record_evidence(Evidence("guided", self.round, step.number, "skipped", 0, "", step.targets[0]))
         self.index = number - 1
+        # Assistance belongs to this accepted turn. A later goal cannot erase
+        # help already offered, even though it skips the current goal.
+        label = {"": "independent", "cue": "cued", "correction": "corrected_repeated"}[self.state.help]
         self.state = ItemState()
-        return self._finish(learner, "independent")
+        return self._finish(learner, label)
 
     def _reply(self, learner: str, says: list[Say]) -> list[Say]:
         self.state.history.append((learner, " ".join(s.text for s in says)))
@@ -277,8 +292,20 @@ class Session:
 
     def _finish(self, learner: str, label: str) -> list[Say]:
         item = self._item()
+        rows = self.lesson.steps if self.phase == "guided" else self.lesson.recall
+        row = rows[self.index]
+        # A judge accepts a communicative goal. It does not identify an authored
+        # item. Attribute only an explicit, unambiguous offered rendering.
+        matches = [(identity, target) for identity, target in zip(row.target_item_ids, item.targets)
+                   if normalise(target, self.profile) == normalise(learner, self.profile)]
+        if self.state.awaiting_repeat:
+            identity, target = row.target_item_ids[0], item.targets[0]
+        elif len({identity for identity, _ in matches}) == 1:
+            identity, target = matches[0]
+        else:
+            identity, target = "", None
         self._record_evidence(Evidence(self.phase, self.round if self.phase == "guided" else 0,
-                                      self.index + 1, label, self.state.attempts, learner, item.targets[0]))
+                                      self.index + 1, label, self.state.attempts, learner, target), item_id=identity)
         self.index += 1
         if self.phase == "guided" and self.index < len(self.lesson.steps):
             return self._begin_item()
@@ -288,7 +315,7 @@ class Session:
         if self.phase == "guided" and self.round == 1:
             self.round, self.index = 2, 0
             return [Say(self.profile.round_two, "transition")] + self._begin_item()
-        if self.phase == "guided":
+        if self.phase == "guided" and self.lesson.recall:
             self.phase, self.round, self.index = "recall", 0, 0
             return [Say(self.profile.recall, "transition")] + self._begin_item()
         if self.index < len(self.lesson.recall):
@@ -309,12 +336,14 @@ class Session:
         from .state import restore
         return restore(cls, lesson, judge, saved, profile=profile, clock=clock)
 
-    def _record_evidence(self, evidence: Evidence) -> None:
+    def _record_evidence(self, evidence: Evidence, *, item_id: str | None = None) -> None:
         evidence.source_id = self.lesson.source_id
         evidence.course_id = self.lesson.course_id
         evidence.lesson_id = self.lesson.lesson_id
         n = evidence.number - 1
-        if evidence.phase == "opening":
+        if item_id is not None:
+            evidence.item_id = item_id
+        elif evidence.phase == "opening":
             evidence.item_id = self.lesson.opening_item_ids[n]
         elif evidence.phase == "guided" and evidence.round == 0:
             ids = list(dict.fromkeys(s.target_item_ids[0] for s in self.lesson.steps))

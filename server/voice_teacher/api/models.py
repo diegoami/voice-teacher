@@ -40,6 +40,9 @@ class Start(Input):
     lesson_id: str = Field(pattern=ID)
     mode: Literal["guided_conversation", "repetition", "free_conversation"] = "guided_conversation"
     activity: Literal["combined", "first_sitting", "second_sitting"] = "combined"
+    item_ids: list[str] | None = Field(default=None, min_length=1, max_length=6)
+    queue_event_ids: list[str] | None = Field(default=None, min_length=1, max_length=2)
+    recall_before_model: bool = False
 
 
 class Revision(Input):

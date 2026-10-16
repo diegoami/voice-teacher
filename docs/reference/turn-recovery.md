@@ -89,3 +89,6 @@ real learner records or client playback are required for these checks.
 T10 writes coordinator capsule v2 and still reads v1. Version 2 preserves portable
 learner-reported recognition annotations through subsequent turns; older readers
 reject it instead of silently dropping reports. See [voice-pipeline.md](voice-pipeline.md).
+
+[Repetition](repetition.md) uses a v3 mode capsule while retaining guided v1/v2
+recovery, and replays the current item on resume without another evidence result.

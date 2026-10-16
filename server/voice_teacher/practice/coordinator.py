@@ -14,6 +14,7 @@ from ..storage.work import WorkStore, RequestConflict, WorkBusy
 from .models import Lesson
 from .profiles import LanguageProfile, UKRAINIAN
 from .session import Session
+from .repetition import RepetitionPlan, RepetitionSession, validate_plan
 
 _locks_guard = threading.Lock()
 _locks = weakref.WeakValueDictionary()
@@ -35,25 +36,35 @@ def _judgement(value):
 
 
 class Coordinator:
-    def __init__(self, store, judge, *, delivery=None, delivery_context=None, clock=None):
+    def __init__(self, store, judge, *, delivery=None, delivery_context=None, clock=None, profiles=None):
         self.store, self.work, self.judge = store, WorkStore(store), judge
         # Delivery creates replayable audio refs/metadata; it does not own state.
         self.delivery = delivery or (lambda says: {})
         self.delivery_context = delivery_context
         self.clock = clock
+        self.profiles = dict(profiles) if profiles is not None else {("uk", "en"): UKRAINIAN}
+        if any(not isinstance(p, LanguageProfile) or pair != (p.language, p.instruction_language) for pair, p in self.profiles.items()):
+            raise ValueError("profile mapping must match language pairs")
 
     def _engine(self, snapshot, judge):
         data = snapshot["engine_state"]["data"]
-        if data.get("coordinator_version") not in {1, 2}:
+        if data.get("coordinator_version") not in {1, 2, 3}:
             raise StorageError("unsupported coordinator capsule")
         profile_data = dict(data["profile"])
         profile_data["stop_words"] = tuple(profile_data["stop_words"])
         options = {"clock": self.clock} if self.clock else {}
+        if data["coordinator_version"] == 3:
+            if snapshot["mode"] != "repetition" or data.get("engine_kind") != "repetition": raise StorageError("unsupported mode capsule")
+            return RepetitionSession.from_snapshot(RepetitionPlan.from_dict(data["lesson"]), judge, data["engine"], profile=LanguageProfile(**profile_data), **options)
         return Session.from_snapshot(Lesson.from_dict(data["lesson"]), judge, data["engine"],
                                      profile=LanguageProfile(**profile_data), **options)
 
     @staticmethod
     def _capsule(engine, presentation):
+        if isinstance(engine, RepetitionSession):
+            return {"format_version": 1, "data": {"coordinator_version": 3, "engine_kind": "repetition",
+                "lesson": engine.lesson.to_dict(), "profile": {**asdict(engine.profile), "stop_words": list(engine.profile.stop_words)},
+                "engine": engine.snapshot(), "presentation": presentation}}
         return {"format_version": 1, "data": {"coordinator_version": 2,
             "lesson": engine.lesson.to_dict(), "profile": {**asdict(engine.profile), "stop_words": list(engine.profile.stop_words)},
             "engine": engine.snapshot(), "presentation": presentation}}
@@ -136,6 +147,22 @@ class Coordinator:
                           activities=[{"activity_id": "combined", "position": 0, "data": {"part": part}}])
         return presentation
 
+    def create_repetition(self, template, plan, *, profile=None):
+        snapshot = deepcopy(template)
+        validate_session(snapshot)
+        plan.validate()
+        validate_plan(self.store, snapshot, plan)
+        profile = profile or self.profiles.get((plan.language, plan.instruction_language))
+        if profile is None: raise StorageError("no configured profile for repetition language pair")
+        engine = RepetitionSession(plan, self.judge, profile=profile, clock=self.clock)
+        says = engine.start()
+        snapshot.update(revision=0, event_sequence=0, status="active")
+        events = []
+        presentation = self._finish_events(snapshot, None, engine, says, events, 0)
+        self.store.commit(snapshot["learner_id"], snapshot["session_id"], events, expected_revision=None,
+            activities=[{"activity_id": "repetition", "position": 0, "data": {"item_count": len(plan.targets), "recall_before_model": plan.recall_before_model}}])
+        return presentation
+
     def _deliver(self, learner, session, request):
         record = self.work.get(learner, session, request)
         if record["stage"] not in {"committed", "delivered"}:
@@ -151,7 +178,7 @@ class Coordinator:
     def presentation(self, learner, session):
         """Materialize saved speech, including creation, without a new transition."""
         snapshot = self.store.session(learner, session)
-        if snapshot["engine_state"]["data"].get("coordinator_version") not in {1, 2}:
+        if snapshot["engine_state"]["data"].get("coordinator_version") not in {1, 2, 3}:
             raise StorageError("unsupported coordinator capsule")
         result = deepcopy(snapshot["engine_state"]["data"]["presentation"])
         if self.delivery_context:
@@ -163,7 +190,7 @@ class Coordinator:
         with _lock(self.store, learner, session):
             snapshot = self.store.session(learner, session)
             data = snapshot["engine_state"]["data"]
-            if data.get("coordinator_version") not in {1, 2}: raise StorageError("unsupported coordinator capsule")
+            if data.get("coordinator_version") not in {1, 2, 3}: raise StorageError("unsupported coordinator capsule")
             reports = data.setdefault("recognition_reports", {})
             if request in reports: return
             report_request = _identity(learner, session, request, "recognition-report")
@@ -177,7 +204,7 @@ class Coordinator:
             origin = _identity(learner, session, request, "learner")
             reports[request] = {"request_id": request, "status": status, "text": text, "reported_problem": True,
                                 "origin_turn_id": origin if any(t["turn_id"] == origin for t in turns) else None}
-            data["coordinator_version"] = 2
+            data["coordinator_version"] = max(2, data["coordinator_version"])
             revision = snapshot["revision"]
             snapshot["revision"] += 1
             snapshot["event_sequence"] += 1
@@ -190,6 +217,7 @@ class Coordinator:
 
     @staticmethod
     def _assistance(engine):
+        if isinstance(engine, RepetitionSession): return engine.assistance
         model = engine.phase == "opening" or (engine.phase == "guided" and engine.round == 0)
         kind = "model" if model else engine.state.help or ("task_card" if engine.phase == "guided" and engine.round == 1 else "none")
         return {"kind": kind, "help_level": 2 if kind == "model" else int(kind in {"cue", "correction"}),
@@ -224,13 +252,19 @@ class Coordinator:
             items = next(c for c in snapshot["curriculum_snapshot"]["courses"] if c["course_id"] == engine.lesson.course_id)["items"]
             revisions = {i["item_id"]: i["item_revision"] for i in items}
             for e in engine.evidence[before:]:
-                item = {"source_id": e.source_id, "course_id": e.course_id, "item_id": e.item_id,
+                target = engine.lesson.targets[e.number - 1] if isinstance(engine, RepetitionSession) else None
+                item = target["item"] if target else {"source_id": e.source_id, "course_id": e.course_id, "item_id": e.item_id,
                         "item_revision": revisions[e.item_id]}
                 evidence = {"outcome": e.label, "attempt": text, "preferred": e.target,
                             "reason": "goal skipped by a later-step response" if e.label == "skipped" else None,
                             "recognition_uncertain": False}
-                events.append(self._event(snapshot, request, snapshot["event_sequence"] + len(events) + 1,
-                    "evidence.recorded", turn=turn, assistance=assistance, evidence=evidence, item=item))
+                event = self._event(snapshot, request, snapshot["event_sequence"] + len(events) + 1,
+                    "evidence.recorded", turn=turn, assistance=assistance, evidence=evidence, item=item)
+                if target:
+                    event["provenance"]["original_source"] = deepcopy(target["source"])
+                    if target["origin_session_id"]:
+                        event["provenance"].update(origin_session_id=target["origin_session_id"], origin_turn_id=target["origin_turn_id"])
+                events.append(event)
             presentation = self._finish_events(snapshot, request, engine, says, events, index + 1)
             self.store.commit(learner, session, events, expected_revision=expected_revision, _completion=(request, presentation))
             return self._deliver(learner, session, request)
@@ -246,7 +280,7 @@ class Coordinator:
                 return self._deliver(learner, session, request)
             snapshot = self.store.session(learner, session)
             engine = self._engine(snapshot, self.judge)
-            says = engine.stop() if operation == "stop" else []
+            says = engine.stop() if operation == "stop" else (engine.present() if operation == "resume" and isinstance(engine, RepetitionSession) else [])
             snapshot["status"] = {"pause": "paused", "resume": "active", "stop": "finished"}[operation]
             snapshot["revision"] = expected_revision + 1
             events = []

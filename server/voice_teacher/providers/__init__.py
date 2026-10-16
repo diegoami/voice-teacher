@@ -2,6 +2,7 @@
 from dataclasses import dataclass, field
 from typing import Protocol, Literal
 import json
+import math
 
 
 @dataclass(frozen=True)
@@ -44,12 +45,35 @@ class Judge(Protocol):
     def __call__(self, item: Item, learner: str) -> Judgement: ...
 
 
+@dataclass(frozen=True)
+class Recognition:
+    text: str
+    audio_seconds: float | None = None
+
+    def __post_init__(self):
+        if not isinstance(self.text, str) or len(self.text) > 8000: raise ValueError("invalid recognition text")
+        if self.audio_seconds is not None and (type(self.audio_seconds) not in {int, float} or not math.isfinite(self.audio_seconds) or self.audio_seconds < 0):
+            raise ValueError("invalid recognition duration")
+
+
 class SpeechRecognizer(Protocol):
-    def transcribe(self, audio: bytes, *, language: str) -> str: ...
+    def transcribe(self, audio: bytes, *, language: str, media_type: str = "audio/webm") -> Recognition: ...
+
+
+class SpeechSettings(Protocol):
+    def definition(self) -> dict: ...
+    def cache_key(self, text: str, language: str) -> str: ...
 
 
 class SpeechSynthesizer(Protocol):
+    config: SpeechSettings
     def synthesize(self, text: str, *, language: str) -> bytes: ...
+
+
+@dataclass(frozen=True)
+class Audio:
+    data: bytes
+    media_type: str
 
 
 class SessionStore(Protocol):

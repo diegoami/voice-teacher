@@ -8,7 +8,7 @@ import re
 import sqlite3
 
 from schemas.validate import canonical_json, validate_event_stream
-from .migrations import APPLICATION_ID, VERSION, V1, V2, V3, V4, V5
+from .migrations import APPLICATION_ID, VERSION, V1, V2, V3, V4, V5, V6
 
 
 class StorageError(ValueError):
@@ -131,6 +131,11 @@ class Store:
                 for sql in V5:
                     c.execute(sql)
                 c.execute("PRAGMA user_version=5")
+                version = 5
+            if version == 5:
+                for sql in V6:
+                    c.execute(sql)
+                c.execute("PRAGMA user_version=6")
 
     @contextmanager
     def _connection(self):

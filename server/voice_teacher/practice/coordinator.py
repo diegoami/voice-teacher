@@ -10,7 +10,7 @@ from uuid import uuid5, NAMESPACE_URL
 from schemas.validate import canonical_json, validate_session
 from ..providers import Judgement, Verdict
 from ..storage import RevisionConflict, StorageError
-from ..storage.work import WorkStore, RequestConflict
+from ..storage.work import WorkStore, RequestConflict, WorkBusy
 from .models import Lesson
 from .profiles import LanguageProfile, UKRAINIAN
 from .session import Session
@@ -35,15 +35,16 @@ def _judgement(value):
 
 
 class Coordinator:
-    def __init__(self, store, judge, *, delivery=None, clock=None):
+    def __init__(self, store, judge, *, delivery=None, delivery_context=None, clock=None):
         self.store, self.work, self.judge = store, WorkStore(store), judge
         # Delivery creates replayable audio refs/metadata; it does not own state.
         self.delivery = delivery or (lambda says: {})
+        self.delivery_context = delivery_context
         self.clock = clock
 
     def _engine(self, snapshot, judge):
         data = snapshot["engine_state"]["data"]
-        if data.get("coordinator_version") != 1:
+        if data.get("coordinator_version") not in {1, 2}:
             raise StorageError("unsupported coordinator capsule")
         profile_data = dict(data["profile"])
         profile_data["stop_words"] = tuple(profile_data["stop_words"])
@@ -53,7 +54,7 @@ class Coordinator:
 
     @staticmethod
     def _capsule(engine, presentation):
-        return {"format_version": 1, "data": {"coordinator_version": 1,
+        return {"format_version": 1, "data": {"coordinator_version": 2,
             "lesson": engine.lesson.to_dict(), "profile": {**asdict(engine.profile), "stop_words": list(engine.profile.stop_words)},
             "engine": engine.snapshot(), "presentation": presentation}}
 
@@ -85,7 +86,9 @@ class Coordinator:
                     "index": turn_index + i, "role": "teacher", "text": say["text"]}
             events.append(self._event(snapshot, request, base + len(events) + 1, "teacher.reply_planned", turn=turn))
         snapshot["event_sequence"] = base + len(events) + 1
+        reports = deepcopy(snapshot["engine_state"]["data"].get("recognition_reports", {}))
         snapshot["engine_state"] = self._capsule(engine, presentation)
+        if reports: snapshot["engine_state"]["data"]["recognition_reports"] = reports
         state_event = self._event(snapshot, request, snapshot["event_sequence"], "state.saved", state=deepcopy(snapshot))
         origin = next((e["turn"] for e in reversed(events) if e["turn"] is not None), None)
         if origin is None:
@@ -139,11 +142,51 @@ class Coordinator:
             raise RequestConflict("request has no committed presentation")
         if record["stage"] == "committed":
             result = json.loads(record["result_json"])
-            delivered = self.delivery(deepcopy(result["teacher"]))
+            delivered = self.delivery_context(learner, session, request, deepcopy(result["teacher"])) if self.delivery_context else self.delivery(deepcopy(result["teacher"]))
             if not isinstance(delivered, dict):
                 raise StorageError("delivery must return JSON-object metadata")
             record = self.work.delivered(learner, session, request, delivered)
         return {**json.loads(record["result_json"]), "delivery": json.loads(record["delivery_json"])}
+
+    def presentation(self, learner, session):
+        """Materialize saved speech, including creation, without a new transition."""
+        snapshot = self.store.session(learner, session)
+        if snapshot["engine_state"]["data"].get("coordinator_version") not in {1, 2}:
+            raise StorageError("unsupported coordinator capsule")
+        result = deepcopy(snapshot["engine_state"]["data"]["presentation"])
+        if self.delivery_context:
+            result["delivery"] = self.delivery_context(learner, session, result["request_id"], deepcopy(result["teacher"]))
+        return result
+
+    def report_recognition(self, learner, session, request, *, status, text):
+        """Portable learner annotation; no invented correction or engine advance."""
+        with _lock(self.store, learner, session):
+            snapshot = self.store.session(learner, session)
+            data = snapshot["engine_state"]["data"]
+            if data.get("coordinator_version") not in {1, 2}: raise StorageError("unsupported coordinator capsule")
+            reports = data.setdefault("recognition_reports", {})
+            if request in reports: return
+            report_request = _identity(learner, session, request, "recognition-report")
+            with self.store._connection() as connection:
+                active = connection.execute("SELECT request_id FROM requests WHERE learner_id=? AND session_id=? AND stage IN ('accepted','judged')", (learner, session)).fetchone()
+            if active is not None and active[0] not in {request, report_request}:
+                raise WorkBusy("another turn must finish before reporting an older recording")
+            self.work.accept(learner, session, report_request, snapshot["revision"], {"recognition_report": request},
+                             statuses={snapshot["status"]}, cancel_pending=True)
+            turns = self.store.projection(learner, session)["turns"]
+            origin = _identity(learner, session, request, "learner")
+            reports[request] = {"request_id": request, "status": status, "text": text, "reported_problem": True,
+                                "origin_turn_id": origin if any(t["turn_id"] == origin for t in turns) else None}
+            data["coordinator_version"] = 2
+            revision = snapshot["revision"]
+            snapshot["revision"] += 1
+            snapshot["event_sequence"] += 1
+            data["presentation"]["revision"] = snapshot["revision"]
+            event = self._event(snapshot, "@recognition-report:" + request, snapshot["event_sequence"], "state.saved", state=deepcopy(snapshot))
+            if not turns: raise StorageError("recognition report requires an existing session plan")
+            event["provenance"]["origin_turn_id"] = turns[-1]["turn_id"]
+            self.store.commit(learner, session, [event], expected_revision=revision,
+                              _completion=(report_request, {"status": "reported", "revision": snapshot["revision"]}))
 
     @staticmethod
     def _assistance(engine):

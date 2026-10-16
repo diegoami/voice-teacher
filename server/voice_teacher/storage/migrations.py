@@ -1,6 +1,6 @@
 """Internal SQLite schema versions; independent of interchange schema versions."""
 APPLICATION_ID = 0x56544348  # VTCH
-VERSION = 5
+VERSION = 6
 
 V1 = (
     "CREATE TABLE learners (learner_id TEXT PRIMARY KEY, profile_json TEXT NOT NULL)",
@@ -69,4 +69,21 @@ V5 = (
         token_hash TEXT PRIMARY KEY, client_id TEXT NOT NULL UNIQUE,
         learner_id TEXT NOT NULL REFERENCES learners(learner_id), label TEXT NOT NULL,
         expires REAL NOT NULL, revoked INTEGER NOT NULL DEFAULT 0 CHECK(revoked IN (0,1)))""",
+)
+
+V6 = (
+    """CREATE TABLE speech_requests (
+        learner_id TEXT NOT NULL, session_id TEXT NOT NULL, request_id TEXT NOT NULL,
+        input_json TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('accepted','recognized','empty','failed')),
+        transcript_json TEXT, reported_problem INTEGER NOT NULL DEFAULT 0 CHECK(reported_problem IN (0,1)),
+        PRIMARY KEY(learner_id,session_id,request_id),
+        FOREIGN KEY(learner_id,session_id) REFERENCES sessions(learner_id,session_id))""",
+    """CREATE TABLE speech_cache (
+        audio_id TEXT PRIMARY KEY, text TEXT NOT NULL, language TEXT NOT NULL, config_json TEXT NOT NULL,
+        sha256 TEXT NOT NULL, size INTEGER NOT NULL CHECK(size>0))""",
+    """CREATE TABLE speech_attachments (
+        learner_id TEXT NOT NULL, session_id TEXT NOT NULL, plan_id TEXT NOT NULL,
+        position INTEGER NOT NULL CHECK(position>=0), audio_id TEXT NOT NULL REFERENCES speech_cache(audio_id),
+        PRIMARY KEY(learner_id,session_id,plan_id,position),
+        FOREIGN KEY(learner_id,session_id) REFERENCES sessions(learner_id,session_id))""",
 )

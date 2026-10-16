@@ -165,12 +165,16 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
             revision=0, event_sequence=0, mode=body.mode, status="created", source=snap.source_ref(body.course_id, body.lesson_id),
             curriculum_snapshot=snap.curriculum, topic=None, language=c["language"], instruction_language=c["instruction_language"],
             learner_profile=store.learner(learner(request)), engine_state={"format_version": 1, "data": {}})
-        return _presentation(call(coordinator.create, template, prepared, part={"combined": "all", "first_sitting": "1", "second_sitting": "2"}[body.activity]))
+        result = call(coordinator.create, template, prepared, part={"combined": "all", "first_sitting": "1", "second_sitting": "2"}[body.activity])
+        if coordinator.delivery_context: result = call(coordinator.presentation, learner(request), body.session_id)
+        return _presentation(result)
 
     @app.get("/api/v1/sessions/{session_id}", response_model=m.Presentation)
     def status(request: Request, session_id: str, revision: int | None = Query(default=None, ge=0)):
         snapshot = owned(request, session_id, revision)
-        return _presentation(snapshot["engine_state"]["data"]["presentation"])
+        result = call(coordinator.presentation, learner(request), session_id) if coordinator.delivery_context else snapshot["engine_state"]["data"]["presentation"]
+        if revision is not None and result["revision"] != revision: raise Problem(409, "session_conflict", "Session changed; reload its status")
+        return _presentation(result)
 
     @app.get("/api/v1/sessions/{session_id}/transcript", response_model=list[m.TranscriptTurn])
     def transcript(request: Request, session_id: str, revision: int | None = Query(default=None, ge=0)):
@@ -215,6 +219,23 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
         if getattr(result, "media_type", None) not in {"audio/mpeg", "audio/ogg", "audio/wav", "audio/webm", "audio/mp4"} or not isinstance(getattr(result, "data", None), bytes):
             raise Problem(502, "provider_failed", "Audio preparation failed")
         return Response(result.data, media_type=result.media_type, headers={"Content-Disposition": "inline"})
+
+    @app.get("/api/v1/sessions/{session_id}/recognition/{request_id}", response_model=m.RecognitionView)
+    def recognition(request: Request, session_id: str, request_id: str):
+        owned(request, session_id)
+        if not re.fullmatch(m.ID, request_id): raise Problem(404, "not_found", "Recognition not found")
+        if not callable(getattr(audio, "recognition", None)): raise Problem(503, "audio_unavailable", "Recognition records are unavailable")
+        result = call(audio.recognition, learner(request), session_id, request_id)
+        if result is None: raise Problem(404, "not_found", "Recognition not found")
+        return m.RecognitionView(request_id=result["request_id"], status=result["status"], text=_plain(result["text"]), reported_problem=result["reported_problem"])
+
+    @app.post("/api/v1/sessions/{session_id}/recognition/{request_id}/report", response_model=m.Reported)
+    def recognition_report(request: Request, session_id: str, request_id: str, body: m.Report):
+        owned(request, session_id)
+        if not re.fullmatch(m.ID, request_id): raise Problem(404, "not_found", "Recognition not found")
+        if not callable(getattr(audio, "report_problem", None)): raise Problem(503, "audio_unavailable", "Recognition records are unavailable")
+        if not call(audio.report_problem, learner(request), session_id, request_id): raise Problem(404, "not_found", "Recognition not found")
+        return {"status": "reported", "revision": store.session(learner(request), session_id)["revision"]}
 
     # Built assets are operator-configured; API routes always take precedence.
     if assets is not None:

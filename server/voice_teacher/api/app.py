@@ -64,10 +64,13 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
 
     def learner(request): return request.state.principal.learner_id
 
-    def owned(request, session_id):
+    def owned(request, session_id, revision=None):
         if not re.fullmatch(m.ID, session_id): raise Problem(404, "not_found", "Session not found")
-        try: return store.session(learner(request), session_id)
+        try: snapshot = store.session(learner(request), session_id)
         except KeyError: raise Problem(404, "not_found", "Session not found") from None
+        if revision is not None and snapshot["revision"] != revision:
+            raise Problem(409, "session_conflict", "Session changed; reload its status")
+        return snapshot
 
     def call(function, *args, **kwargs):
         try: return function(*args, **kwargs)
@@ -165,13 +168,13 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
         return _presentation(call(coordinator.create, template, prepared, part={"combined": "all", "first_sitting": "1", "second_sitting": "2"}[body.activity]))
 
     @app.get("/api/v1/sessions/{session_id}", response_model=m.Presentation)
-    def status(request: Request, session_id: str):
-        snapshot = owned(request, session_id)
+    def status(request: Request, session_id: str, revision: int | None = Query(default=None, ge=0)):
+        snapshot = owned(request, session_id, revision)
         return _presentation(snapshot["engine_state"]["data"]["presentation"])
 
     @app.get("/api/v1/sessions/{session_id}/transcript", response_model=list[m.TranscriptTurn])
-    def transcript(request: Request, session_id: str):
-        owned(request, session_id)
+    def transcript(request: Request, session_id: str, revision: int | None = Query(default=None, ge=0)):
+        owned(request, session_id, revision)
         return [m.TranscriptTurn(turn_id=t["turn_id"], role=t["role"], text=_plain(t["text"])) for t in store.projection(learner(request), session_id)["turns"]]
 
     @app.post("/api/v1/sessions/{session_id}/turns", response_model=m.Presentation)

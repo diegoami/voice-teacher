@@ -128,6 +128,8 @@ def test_unauthenticated_wrong_learner_and_stale_requests(system):
     body = dict(request_id="r1", expected_revision=0, text="answer")
     assert post(s, "/api/v1/sessions/one/turns", body, "bob").status_code == 404
     assert post(s, "/api/v1/sessions/one/turns", body).status_code == 200
+    for path in ["/api/v1/sessions/one?revision=0", "/api/v1/sessions/one/transcript?revision=0"]:
+        assert s["client"].get(path, headers=bearer(s["alice"]["token"])).status_code == 409
     assert post(s, "/api/v1/sessions/one/turns", {**body, "request_id": "stale"}).status_code == 409
     assert post(s, "/api/v1/sessions/one/controls", dict(request_id="stale-control", expected_revision=0, operation="finish")).status_code == 409
     assert s["judge"].calls == 1

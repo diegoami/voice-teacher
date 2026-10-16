@@ -94,7 +94,10 @@ notation; deliberately spoken models/corrections are visible when offered.
 Private snapshots, target alternatives, provider metadata and keys never become
 generic response dictionaries. Retrying the same completed turn/control request
 returns its original saved result, even after later revisions; a different request
-at a stale revision returns 409. Finish maps to the coordinator's durable stop.
+at a stale revision returns 409. Status/transcript reads optionally accept
+`?revision=N` and reject stale versions with 409; omitting it explicitly fetches
+the latest owned state for resume/history. Audio reads require the current
+revision. Finish maps to the coordinator's durable stop.
 
 ## Audio and errors
 

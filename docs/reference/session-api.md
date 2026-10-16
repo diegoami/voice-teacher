@@ -64,6 +64,8 @@ routes are disabled. `/healthz` exposes only `{"status":"ok"}` without identity.
 | `POST /operator/pairing-codes` | Operator | Issue code for `{learner_id,label}` |
 | `DELETE /operator/clients/{id}` | Operator | Revoke a grant |
 | `PUT /operator/sources/{id}` | Operator | Register typed SourceSpec fields and refresh; return safe metadata |
+| `PUT /operator/git-sources/{id}` | Operator | Configure and validate an allowlisted managed Git source; [policy/runbook](git-sources.md) |
+| `POST /operator/git-sources/{id}/refresh` | Operator | Fetch configured branch/tag; retain prior catalogue on failure |
 | `GET /sources` | Learner | Names, IDs, active versions and availability |
 | `GET /sources/{source}/courses` | Learner | Course IDs, titles and languages |
 | `GET /sources/{source}/courses/{course}/lessons` | Learner | Lesson metadata and authored/available modes |

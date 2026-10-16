@@ -113,7 +113,11 @@ class Error(BaseModel):
     error: ErrorBody
 
 
-class Paired(BaseModel):
+class Identity(BaseModel):
+    learner_id: str
+
+
+class Paired(Identity):
     token: str
     client_id: str
     expires_at: float

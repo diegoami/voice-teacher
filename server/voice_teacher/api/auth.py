@@ -52,7 +52,7 @@ class Auth:
             row = c.execute("DELETE FROM pairing_codes WHERE code_hash=? AND expires>? RETURNING learner_id,label", (digest(code), self.clock())).fetchone()
             if row is None: return None
             c.execute("INSERT INTO clients(token_hash,client_id,learner_id,label,expires) VALUES (?,?,?,?,?)", (digest(token), client, row[0], row[1], expires))
-        return {"token": token, "client_id": client, "expires_at": expires}
+        return {"token": token, "client_id": client, "expires_at": expires, "learner_id": row[0]}
 
     def revoke(self, client):
         with self.store._transaction() as c:

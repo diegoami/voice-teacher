@@ -94,6 +94,14 @@ course/lesson IDs. They exercise pairing, both sources, mode selection, unsuppor
 modes, remembered selection, original-session recovery after source change,
 failed delivery/start, server errors, revocation, learner separation, foreign-server
 navigation, keyboard selection, responsive layout, control sizing and installability.
-They run the production build for desktop and emulated Android Chromium. These are
+They run the production build for desktop and emulated Android Chromium.
+Playwright is pinned to 1.63.0 for reproducibility. Native host rendering was
+unreliable in both Chromium 153 and 156: even a minimal native animation-frame
+probe stalled intermittently, including under a virtual display. Preserve normal
+actionability checks; do not use forced clicks or substitute animation timers.
+These are
 not real Android microphone, headset, locked-screen or network measurements.
 Python API tests independently check identity ownership, revocation and role gates.
+The Web app GitHub workflow runs the same build/unit/browser commands on a fresh
+Ubuntu runner, with read-only repository permissions, no deployment credentials,
+immutable action pins and retained synthetic screenshots/failure traces.

@@ -41,10 +41,13 @@ from voice_teacher.progress.views import summary, evidence
 from test_roundtrip import Judge
 
 
-def repetition(store, name, source_id, *, recall=False, revision=1):
+def repetition(store, name, source_id, *, recall=False, revision=1, extra_course=False, selected_course="basics"):
     raw = json.loads((Path(__file__).parents[1] / "contracts/fixtures/repetition.json").read_text())
     raw["source_id"] = source_id
-    course = raw["courses"][0]
+    if extra_course:
+        second = deepcopy(raw["courses"][0]);second["course_id"]="advanced";second["title"]="Advanced"
+        raw["courses"].append(second)
+    course = next(c for c in raw["courses"] if c["course_id"]==selected_course)
     course["items"][0]["item_revision"] = revision
     source = SourceSnapshot("synthetic", canonical_json({"curriculum":raw,"provenance":{"commit":None,"dirty":True}}))
     lesson = course["lessons"][0]
@@ -195,3 +198,15 @@ def test_free_observations_and_unanswered_models_do_not_claim_course_coverage(tm
     row=evidence(store,LEARNER,"free")["rows"][0]
     assert row["outcome"]=="observed" and row["correction"] is (not uncertain)
     assert row["recognition_uncertain"] is uncertain and row["turn"]["text"]=="Привіт"
+
+
+def test_two_courses_in_the_same_source_revision_keep_independent_positions(tmp_path):
+    store=Store(tmp_path/"data")
+    first,plan=repetition(store,"basics","alpha",extra_course=True)
+    second,_=repetition(store,"advanced","alpha",extra_course=True,selected_course="advanced")
+    turn(first,"basics",plan.targets[0]["display"])
+    courses=summary(store,LEARNER)["courses"]
+    assert len(courses)==2 and len({c["content_sha256"] for c in courses})==1
+    assert next(c for c in courses if c["course_id"]=="basics")["next_lesson_id"] is None
+    assert next(c for c in courses if c["course_id"]=="advanced")["covered_items"]==0
+    assert next(c for c in courses if c["course_id"]=="advanced")["next_lesson_id"]=="lesson-1"

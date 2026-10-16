@@ -244,8 +244,14 @@ export function ProgressPanel({
                 <div>
                   <strong>{s.title}</strong>
                   <small>
+                    <time dateTime={s.updated_at}>
+                      {new Date(s.updated_at).toLocaleString()}
+                    </time>
+                  </small>
+                  <small>
                     {s.status} · {s.mode.replaceAll("_", " ")} ·{" "}
-                    {s.accepted_turns} accepted turns
+                    {s.accepted_turns} saved{" "}
+                    {s.accepted_turns === 1 ? "response" : "responses"}
                   </small>
                   <small>{sourceName(s.source)}</small>
                   <small>
@@ -257,7 +263,7 @@ export function ProgressPanel({
                   disabled={busy}
                   onClick={() => void action(() => show(s.session_id))}
                 >
-                  Evidence for {s.title} ({s.session_id})
+                  Evidence for {s.title}
                 </button>
               </li>
             ))}
@@ -281,7 +287,11 @@ export function ProgressPanel({
       )}
       {detail && (
         <article aria-label="Session evidence">
-          <h3>Evidence for session {detail.session_id}</h3>
+          <h3>
+            Evidence for{" "}
+            {view?.sessions.find((s) => s.session_id === detail.session_id)
+              ?.title ?? "saved session"}
+          </h3>
           {!detail.rows.length && (
             <p>
               No item observations recorded. Saved turns below remain available.
@@ -327,7 +337,7 @@ export function ProgressPanel({
                       void action(() => show(e.provenance.origin_session_id))
                     }
                   >
-                    Original session {e.provenance.origin_session_id}
+                    View original session
                   </button>
                 )}
               </li>

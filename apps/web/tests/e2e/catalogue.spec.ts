@@ -119,7 +119,7 @@ async function pair(page: Page) {
 async function choose(page: Page, source: string) {
   await page.getByLabel("Lesson source").selectOption(source);
   await page
-    .getByLabel("Course", { exact: true })
+    .getByRole("combobox", { name: "Course", exact: true })
     .selectOption("shared-course");
   await page.getByLabel("Lesson or topic").selectOption("shared-lesson");
 }
@@ -285,7 +285,7 @@ test("catalogue: keyboard selection, touch-sized controls and no horizontal over
   await page.keyboard.press("Enter");
   await expect(source).toHaveValue("alpha");
   await page
-    .getByLabel("Course", { exact: true })
+    .getByRole("combobox", { name: "Course", exact: true })
     .selectOption("shared-course");
   await page.getByLabel("Lesson or topic").selectOption("shared-lesson");
   await page

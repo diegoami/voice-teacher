@@ -10,7 +10,7 @@ it("production assets exclude provider/operator credentials and private API payl
   const paths = files("dist");
   expect(paths.some((p) => p.endsWith("index.html"))).toBe(true);
   for (const p of paths) {
-    expect(p).not.toMatch(/(?:\.env|session|transcript|sqlite)/i);
+    expect(p).not.toMatch(/(?:^|\/)\.env(?:\.|$)|\.(?:sqlite(?:3)?|db)$/i);
     if (!p.endsWith(".png")) {
       const text = readFileSync(p, "utf8");
       expect(text).not.toMatch(

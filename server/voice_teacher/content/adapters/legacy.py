@@ -244,7 +244,7 @@ class LegacyAdapter:
                             if type(row.get("open_answer")) is not bool: _fail("steps.open_answer", "explicit boolean required")
                             entry["open_answer"] = row["open_answer"]
                             public[public_key].append({"step_id": identity, "teacher": {"speech": authored["teacher_line"], "display": plain(authored["teacher_line"])},
-                                "goal": authored["expected"], "target_item_ids": slot["target_item_ids"]})
+                                "goal": authored["expected"], "target_item_ids": slot["target_item_ids"], "open_answer": row["open_answer"]})
                             for item in slot["target_item_ids"]:
                                 if item not in public["repetition_item_ids"]: public["repetition_item_ids"].append(item)
                         else:

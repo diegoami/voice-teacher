@@ -14,7 +14,7 @@ def _hash(value):
 
 
 def snapshot(session):
-    return _copy({"format_version": 1, "data": {
+    return _copy({"format_version": 2, "data": {
         "lesson_hash": _hash(session.lesson.to_dict()), "profile_hash": _hash(asdict(session.profile)),
         "part": session.part, "phase": session.phase, "round": session.round, "index": session.index,
         "resaid": session.resaid, "state": asdict(session.state), "card": session.card,
@@ -25,7 +25,7 @@ def snapshot(session):
 def restore(cls, lesson, judge, saved, *, profile, clock):
     from .session import ItemState, Evidence
     saved = _copy(saved)
-    if not isinstance(saved, dict) or set(saved) != {"format_version", "data"} or type(saved["format_version"]) is not int or saved["format_version"] != 1:
+    if not isinstance(saved, dict) or set(saved) != {"format_version", "data"} or type(saved["format_version"]) is not int or saved["format_version"] not in {1, 2}:
         raise ValueError("unsupported engine snapshot version")
     d = saved["data"]
     fields = {"lesson_hash", "profile_hash", "part", "phase", "round", "index", "resaid", "state", "card", "evidence", "log"}
@@ -72,7 +72,7 @@ def restore(cls, lesson, judge, saved, *, profile, clock):
         rows = {"opening": lesson.opening, "guided": session.model_items if e.round == 0 else lesson.steps, "recall": lesson.recall}
         if type(e.number) is not int or not 1 <= e.number <= len(rows[e.phase]):
             raise ValueError("invalid evidence position")
-        if type(e.attempts) is not int or e.attempts < 0 or not isinstance(e.learner, str) or not isinstance(e.target, str):
+        if type(e.attempts) is not int or e.attempts < 0 or not isinstance(e.learner, str) or (e.target is not None and not isinstance(e.target, str)):
             raise ValueError("invalid evidence result")
         if (e.source_id, e.course_id, e.lesson_id) != (lesson.source_id, lesson.course_id, lesson.lesson_id):
             raise ValueError("evidence does not match pinned lesson")
@@ -80,7 +80,22 @@ def restore(cls, lesson, judge, saved, *, profile, clock):
         expected = lesson.opening_item_ids[n] if e.phase == "opening" else (
             list(dict.fromkeys(s.target_item_ids[0] for s in lesson.steps))[n] if e.phase == "guided" and e.round == 0
             else (lesson.steps if e.phase == "guided" else lesson.recall)[n].target_item_ids[0])
-        if e.item_id != expected:
-            raise ValueError("evidence does not match pinned item")
+        if saved["format_version"] == 1:
+            if e.item_id != expected or not isinstance(e.target, str):
+                raise ValueError("evidence does not match pinned item")
+        else:
+            if e.phase == "opening":
+                offered = [(lesson.opening_item_ids[n], lesson.opening[n])]
+            elif e.phase == "guided" and e.round == 0:
+                offered = [(expected, session.model_items[n][0])]
+            else:
+                row = (lesson.steps if e.phase == "guided" else lesson.recall)[n]
+                offered = list(zip(row.target_item_ids, row.targets))
+            unknown = (e.item_id == "" and e.target is None and
+                       e.phase in {"guided", "recall"} and
+                       (e.phase != "guided" or e.round != 0) and
+                       e.label in {"independent", "cued", "corrected_repeated"})
+            if not unknown and (e.item_id, e.target) not in offered:
+                raise ValueError("evidence does not match pinned item")
     session.log = d["log"]
     return session

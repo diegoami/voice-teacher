@@ -50,10 +50,10 @@ class Lesson:
         lesson.validate()
         return lesson
 
-    def validate(self) -> None:
+    def validate(self, *, require_combined=True) -> None:
         if not all([self.source_id, self.course_id, self.lesson_id, self.language, self.instruction_language]):
             raise ValueError("lesson identities and languages are required")
-        if not self.opening or not self.steps or not self.recall:
+        if require_combined and (not self.opening or not self.steps or not self.recall):
             raise ValueError("the extracted combined routine requires opening, guided steps and recall")
         known = {}
         for section, rows, key in [("steps", self.steps, "step_id"), ("recall", self.recall, "goal_id")]:

@@ -109,6 +109,9 @@
                         },
                         "minItems": 1,
                         "uniqueItems": true
+                      },
+                      "open_answer": {
+                        "type": "boolean"
                       }
                     },
                     "required": [

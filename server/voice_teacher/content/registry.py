@@ -139,7 +139,7 @@ def _canonical(root, spec):
                 "opening_item_ids": lesson["repetition_item_ids"], "steps": [], "recall": []}
             for number, step in enumerate(lesson["guided_steps"], 1):
                 native["steps"].append({"number": number, "step_id": step["step_id"], "teacher_line": step["teacher"]["speech"],
-                    "expected": step["goal"], "targets": [items[i]["text"]["speech"] for i in step["target_item_ids"]], "target_item_ids": step["target_item_ids"]})
+                    "expected": step["goal"], "open_answer": step.get("open_answer", False), "targets": [items[i]["text"]["speech"] for i in step["target_item_ids"]], "target_item_ids": step["target_item_ids"]})
             for number, goal in enumerate(lesson["recall_goals"], 1):
                 native["recall"].append({"number": number, "goal_id": goal["goal_id"], "prompt": goal["prompt"]["speech"],
                     "targets": [items[i]["text"]["speech"] for i in goal["target_item_ids"]], "target_item_ids": goal["target_item_ids"]})

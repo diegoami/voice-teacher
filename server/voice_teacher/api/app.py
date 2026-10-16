@@ -12,6 +12,7 @@ from starlette.staticfiles import StaticFiles
 from ..content.registry import SourceRegistry, SourceSpec, SourceError
 from ..storage import StorageError, RevisionConflict
 from ..practice.repetition import plan_lesson, plan_queue, weak_queue
+from ..practice.guided import plan_guided
 from ..storage.work import RequestConflict, WorkBusy
 from .auth import Auth
 from .boundary import Guard, error
@@ -33,7 +34,7 @@ def _format_presentation(value):
         raise Problem(502, "provider_failed", "Audio preparation failed; retry the same request")
     return m.Presentation(session_id=value["session_id"], request_id=value["request_id"], revision=value["revision"],
         status=value["status"], done=value["done"], card=_plain(value["card"]),
-        teacher=[m.Teacher(text=_plain(s["display"]), kind=s["kind"]) for s in value["teacher"]], audio_ids=ids)
+        teacher=[m.Teacher(text=_plain(s["display"]), kind=s["kind"]) for s in value["teacher"]], audio_ids=ids, activity=value.get("activity"))
 
 
 def _presentation(value):
@@ -147,10 +148,10 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
         for lesson in course(snap, course_id)["lessons"]:
             available = []
             try:
-                prepared = snap.prepared_lesson(course_id, lesson["lesson_id"])
-                if "guided_conversation" in lesson["modes"] and (prepared.language, prepared.instruction_language) == ("uk", "en"):
+                prepared = plan_guided(snap, course_id, lesson["lesson_id"], activity_end=coordinator.guided_activity_endings.get(course(snap, course_id)["instruction_language"]))
+                if "guided_conversation" in lesson["modes"] and (prepared.language, prepared.instruction_language) in coordinator.profiles:
                     available = ["guided_conversation"]
-            except SourceError: pass
+            except ValueError: pass
             if "repetition" in lesson["modes"] and (course(snap, course_id)["language"], course(snap, course_id)["instruction_language"]) in coordinator.profiles:
                 try:
                     plan_lesson(snap, course_id, lesson["lesson_id"])
@@ -173,20 +174,20 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
         c = course(snap, body.course_id)
         try: lesson = snap.lesson(body.course_id, body.lesson_id)
         except SourceError: raise Problem(404, "not_found", "Lesson not found") from None
-        if body.mode not in lesson["modes"] or (body.mode == "guided_conversation" and (c["language"], c["instruction_language"]) != ("uk", "en")) or (body.mode == "repetition" and (c["language"], c["instruction_language"]) not in coordinator.profiles):
+        if body.mode not in lesson["modes"] or (c["language"], c["instruction_language"]) not in coordinator.profiles:
             raise Problem(409, "mode_unavailable", "This lesson/language mode is not available yet")
-        if body.mode == "repetition" and body.activity != "combined":
+        if body.mode == "repetition" and (body.activity != "combined" or body.routine != "guided" or not body.cards or not body.spoken_tasks or body.max_goals != 3):
             raise Problem(422, "invalid_request", "Repetition uses its own short activity")
         try:
             if body.mode == "repetition":
                 prepared = plan_queue(store, learner(request), snap, body.course_id, body.lesson_id, body.queue_event_ids, recall_before_model=body.recall_before_model) if body.queue_event_ids is not None else plan_lesson(snap, body.course_id, body.lesson_id, item_ids=body.item_ids, recall_before_model=body.recall_before_model)
-            else: prepared = snap.prepared_lesson(body.course_id, body.lesson_id)
+            else: prepared = plan_guided(snap, body.course_id, body.lesson_id, routine=body.routine, cards=body.cards, spoken_tasks=body.spoken_tasks, max_goals=body.max_goals, sitting=body.activity, activity_end=coordinator.guided_activity_endings.get(c["instruction_language"]))
         except ValueError: raise Problem(409, "mode_unavailable", "Selected lesson items or private queue are unavailable") from None
         template = dict(schema_version=1, kind="session_snapshot", learner_id=learner(request), session_id=body.session_id,
             revision=0, event_sequence=0, mode=body.mode, status="created", source=snap.source_ref(body.course_id, body.lesson_id),
             curriculum_snapshot=snap.curriculum, topic=None, language=c["language"], instruction_language=c["instruction_language"],
             learner_profile=store.learner(learner(request)), engine_state={"format_version": 1, "data": {}})
-        result = call(coordinator.create_repetition, template, prepared) if body.mode == "repetition" else call(coordinator.create, template, prepared, part={"combined": "all", "first_sitting": "1", "second_sitting": "2"}[body.activity])
+        result = call(coordinator.create_repetition, template, prepared) if body.mode == "repetition" else call(coordinator.create_guided, template, prepared)
         if coordinator.delivery_context: result = call(coordinator.presentation, learner(request), body.session_id)
         return _presentation(result)
 

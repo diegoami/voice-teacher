@@ -3,6 +3,10 @@
 Architecture and proofs of concept for a spoken-lesson engine. Read
 `README.md` and `docs/architecture.md` first.
 
+Product tasks follow `AGENTS.md`, `docs/process.md` and their contract under
+`docs/tasks/`. The main session or its native same-family subagent implements;
+an independently chosen OpenCode model reviews the resulting GitHub PR.
+
 - Each POC lives in `pocs/NN-name/` with its own `README.md` stating the
   question, the method, and the answer with evidence. Do not start a POC
   without writing its question down.

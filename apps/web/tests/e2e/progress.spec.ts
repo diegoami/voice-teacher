@@ -141,7 +141,13 @@ async function history(page: Page) {
     });
     const rows =
       sid === "free"
-        ? [row("observed", "observed")]
+        ? [
+            {
+              ...row("observed", "observed"),
+              preferred: "Unconfirmed suggested expression",
+              reason: "Recognition may have omitted a word",
+            },
+          ]
         : [
             row("repeat", "repeated"),
             row("independent", "independent"),
@@ -270,6 +276,12 @@ test("progress: stopped and partial sessions remain visible and free observation
   await expect(
     evidence.getByText("Supported correction:", { exact: false }),
   ).toHaveCount(0);
+  await expect(
+    evidence.getByText(
+      "Unconfirmed suggested form: Unconfirmed suggested expression",
+      { exact: true },
+    ),
+  ).toBeVisible();
   await expect(
     evidence.getByRole("link", {
       name: "Supporting learner turn",

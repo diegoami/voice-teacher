@@ -176,3 +176,15 @@ are serialized. The [progress view contract](progress-views.md) defines coverage
 limits, original/later provenance and saved/exported/pushed states. Optional
 `create_app(..., progress_sync=worker)` reads the configured same-store GitSync
 status without selecting a destination or starting synchronization.
+
+### Personal observations and review (T21)
+
+Feedback-enabled free conversations retain structured post-attempt observations
+with actual learner-turn references; correction preference controls their delivery.
+`GET /review-targets` lists owned explicit personal choices. `POST
+/sessions/{id}/review-targets` promotes an owned observation under a revision and
+stable request ID. `POST /sessions` supports repetition with
+`personal_target_ids: [id]` (one or two) and optional `recall_before_model`, without
+repository references. These paths compile private snapshots and never change a
+lesson repository. See the [feedback contract](free-feedback.md) for bounds,
+held feedback, recognition disputes, durable replay and provenance.

@@ -79,6 +79,7 @@ const labels: Record<string, string> = {
   observed: "Observed use",
 };
 function sourceName(source: SourceRef | null) {
+  if (source?.source_id.startsWith("private-review-")) return "Personal review";
   return source
     ? `${source.source_id} / ${source.course_id} / ${source.lesson_id} · revision ${source.revision.content_sha256.slice(0, 8)}`
     : "Source-free conversation";
@@ -199,7 +200,7 @@ export function ProgressPanel({
           )}
           <h3>Course item practice</h3>
           <p className="hint">{view.criterion}</p>
-          {!view.courses.length && <p>No source-backed practice yet.</p>}
+          {!view.courses.length && <p>No lesson course history yet.</p>}
           {view.courses.map((course) => (
             <article
               key={[
@@ -308,9 +309,19 @@ export function ProgressPanel({
                 <p>Recorded attempt: {e.attempt}</p>
                 {e.correction && <p>Supported correction: {e.preferred}</p>}
                 {!e.correction && e.preferred && (
-                  <p>Practised form: {e.preferred}</p>
+                  <p>
+                    {e.recognition_uncertain
+                      ? "Unconfirmed suggested form: "
+                      : "Practised form: "}
+                    {e.preferred}
+                  </p>
                 )}
-                {e.reason && <p>{e.reason}</p>}
+                {e.reason && (
+                  <p>
+                    {e.recognition_uncertain ? "Unconfirmed reason: " : ""}
+                    {e.reason}
+                  </p>
+                )}
                 <p>
                   Assistance: {e.assistance.kind.replaceAll("_", " ")}
                   {e.assistance.target_exposed ? " · target was offered" : ""}

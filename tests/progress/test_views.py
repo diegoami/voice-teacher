@@ -210,3 +210,14 @@ def test_two_courses_in_the_same_source_revision_keep_independent_positions(tmp_
     assert next(c for c in courses if c["course_id"]=="basics")["next_lesson_id"] is None
     assert next(c for c in courses if c["course_id"]=="advanced")["covered_items"]==0
     assert next(c for c in courses if c["course_id"]=="advanced")["next_lesson_id"]=="lesson-1"
+
+
+def test_reported_recognition_does_not_keep_unsupported_course_credit(tmp_path):
+    store=Store(tmp_path/"data");c,plan=repetition(store,"practice","alpha")
+    turn(c,"practice",plan.targets[0]["display"])
+    assert summary(store,LEARNER)["courses"][0]["covered_items"]==1
+    original=store.projection(LEARNER,"practice")["evidence"]
+    c.report_recognition(LEARNER,"practice","r0",status="recognized",text=plan.targets[0]["display"])
+    assert summary(store,LEARNER)["courses"][0]["covered_items"]==0
+    assert evidence(store,LEARNER,"practice")["rows"][0]["recognition_uncertain"]
+    assert store.projection(LEARNER,"practice")["evidence"]==original

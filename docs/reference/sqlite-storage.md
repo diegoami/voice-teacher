@@ -88,3 +88,11 @@ of future schemas. The current implementation validates a complete session
 history on append/rebuild for correctness; optimize this only after measuring
 real session sizes. This storage primitive does not yet coordinate resumable
 provider stages, deliver audio or synchronize a progress repository.
+
+T21 adds internal SQLite version 7: `feedback_decisions` durably records bounded
+post-attempt feedback under the original learner/session/request and pinned
+provider/context. Dialogue replies keep their existing journal representation.
+Version6→7 migration is atomic and tested with injected failure/rollback/retry;
+existing event history is preserved. Committed feedback/target choices live in
+private event checkpoints, while this pending decision cache requires database
+backup like the other request stages. See [free feedback](free-feedback.md).

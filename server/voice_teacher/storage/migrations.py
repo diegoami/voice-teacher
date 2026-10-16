@@ -1,6 +1,6 @@
 """Internal SQLite schema versions; independent of interchange schema versions."""
 APPLICATION_ID = 0x56544348  # VTCH
-VERSION = 6
+VERSION = 7
 
 V1 = (
     "CREATE TABLE learners (learner_id TEXT PRIMARY KEY, profile_json TEXT NOT NULL)",
@@ -86,4 +86,12 @@ V6 = (
         position INTEGER NOT NULL CHECK(position>=0), audio_id TEXT NOT NULL REFERENCES speech_cache(audio_id),
         PRIMARY KEY(learner_id,session_id,plan_id,position),
         FOREIGN KEY(learner_id,session_id) REFERENCES sessions(learner_id,session_id))""",
+)
+
+V7 = (
+    """CREATE TABLE feedback_decisions (
+        learner_id TEXT NOT NULL, session_id TEXT NOT NULL, request_id TEXT NOT NULL,
+        context_json TEXT NOT NULL, decision_json TEXT NOT NULL,
+        PRIMARY KEY(learner_id,session_id,request_id),
+        FOREIGN KEY(learner_id,session_id,request_id) REFERENCES requests(learner_id,session_id,request_id))""",
 )

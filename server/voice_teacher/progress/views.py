@@ -19,6 +19,11 @@ def _read(store, learner):
     return sessions, events, exported
 
 
+def _disputed(snapshots):
+    return {(s["session_id"],r["origin_turn_id"]) for s in snapshots
+            for r in s["engine_state"]["data"].get("recognition_reports",{}).values() if r.get("origin_turn_id")}
+
+
 def _source_key(source):
     return (source["source_id"], source["course_id"], source["revision"]["content_sha256"])
 
@@ -40,17 +45,20 @@ def summary(store, learner, *, progress_sync=None, limit=50):
     backup = {e["event_id"]: "pushed" if e["event_id"] in pushed else "exported" if e["event_id"] in exported else "locally_saved" for e in events}
     counts = Counter(backup.values())
     active = _active(events)
+    disputed = _disputed(sessions)
     covered = set()
     for event in active:
         evidence, p = event["evidence"], event["provenance"]
-        if event["mode"] == "free_conversation" or evidence["recognition_uncertain"] or evidence["outcome"] not in COVERED: continue
+        if event["mode"] == "free_conversation" or evidence["recognition_uncertain"] or (event["session_id"],event["turn"]["turn_id"]) in disputed or evidence["outcome"] not in COVERED: continue
         if p["original_source"] is None or p["original_item"] is None: continue
         item = p["original_item"]
         covered.add((*_source_key(p["original_source"]), item["item_id"], item["item_revision"]))
+    from ..practice.personal_review import source_id as personal_source_id
+    private_source = personal_source_id(learner)
     courses = {}
     for snapshot in sessions:
         source = snapshot["source"]
-        if source is None: continue
+        if source is None or (source["source_id"] == private_source and source["course_id"] == "personal-review"): continue
         key = _source_key(source)
         if key in courses: continue
         course = next(c for c in snapshot["curriculum_snapshot"]["courses"] if c["course_id"] == source["course_id"])
@@ -97,6 +105,8 @@ def evidence(store, learner, session, *, offset=0, limit=50):
         c.execute("BEGIN")
         if c.execute("SELECT 1 FROM sessions WHERE learner_id=? AND session_id=?", (learner, session)).fetchone() is None: raise KeyError("session not found")
         events = [json.loads(r[0]) for r in c.execute("SELECT body_json FROM events WHERE learner_id=? ORDER BY session_id,sequence", (learner,))]
+        snapshots = [json.loads(r[0]) for r in c.execute("SELECT snapshot_json FROM sessions WHERE learner_id=?", (learner,))]
+    disputed = _disputed(snapshots)
     turns = {(e["session_id"],e["turn"]["turn_id"]): e["turn"] for e in events if e["event_type"] == "turn.accepted"}
     superseded = {e["supersedes_event_id"] for e in events if e["supersedes_event_id"]}
     rows = [e for e in events if e["session_id"] == session and e["event_type"] == "evidence.recorded"]
@@ -105,9 +115,10 @@ def evidence(store, learner, session, *, offset=0, limit=50):
         value, p = e["evidence"], e["provenance"]
         turn = turns.get((session,e["turn"]["turn_id"]))
         if turn is None: raise ValueError("evidence has no accepted turn")
+        uncertain = value["recognition_uncertain"] or (session,turn["turn_id"]) in disputed
         correction = bool(value["preferred"]) and (e["assistance"]["kind"] == "correction" or value["outcome"] == "corrected_repeated" or (value["outcome"] == "observed" and bool(value["reason"])))
         result.append({"event_id":e["event_id"], "session_id":session, "turn":turn, "outcome":value["outcome"],
                        "attempt":value["attempt"], "preferred":value["preferred"], "reason":value["reason"],
-                       "recognition_uncertain":value["recognition_uncertain"], "correction":correction and not value["recognition_uncertain"],
+                       "recognition_uncertain":uncertain, "correction":correction and not uncertain,
                        "assistance":e["assistance"], "provenance":p, "superseded":e["event_id"] in superseded})
     return {"session_id":session,"rows":result,"next_offset":offset+limit if len(rows)>offset+limit else None}

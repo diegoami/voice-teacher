@@ -50,6 +50,8 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
     if coordinator.store.path != store.path: raise ValueError("coordinator must use the API runtime store")
     if any(type(v) is not int or v <= 0 for v in (max_json_bytes, max_audio_bytes)): raise ValueError("body limits must be positive")
     auth = Auth(store, operator_token, **({"clock": clock} if clock else {}))
+    from . import feedback_models as fm
+
     if progress_sync is not None and progress_sync.store.path != store.path: raise ValueError("sync must use the API runtime store")
     registry = SourceRegistry(store)
     app = FastAPI(title="Voice Teacher API", version="1", docs_url=None, redoc_url=None, openapi_url=None,
@@ -169,6 +171,17 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
             result.append(m.Lesson(lesson_id=lesson["lesson_id"], title=lesson["title"], authored_modes=lesson["modes"], available_modes=available))
         return result
 
+    @app.get("/api/v1/review-targets", response_model=list[fm.PersonalTarget])
+    def personal_targets(request: Request):
+        from ..practice.personal_review import queue
+        return call(queue, store, learner(request))
+
+    @app.post("/api/v1/sessions/{session_id}/review-targets", response_model=fm.Promoted)
+    def promote(request: Request, session_id: str, body: fm.Promotion):
+        owned(request, session_id)
+        return call(coordinator.promote_personal, learner(request), session_id, body.request_id,
+            expected_revision=body.expected_revision, observation_id=body.observation_id, form=body.form, meaning=body.meaning)
+
     @app.get("/api/v1/progress", response_model=m.ProgressView)
     def progress(request: Request, limit: int = Query(default=50, ge=1, le=100)):
         from ..progress.views import summary
@@ -218,6 +231,13 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
 
     @app.post("/api/v1/sessions", response_model=m.Presentation, status_code=201)
     def start(request: Request, body: m.Start):
+        if body.personal_target_ids is not None:
+            if body.mode != "repetition" or any(v is not None for v in (body.source_id,body.course_id,body.lesson_id,body.topic,body.item_ids,body.queue_event_ids)) or body.activity != "combined" or body.routine != "guided" or not body.cards or not body.spoken_tasks or body.max_goals != 3 or body.correction_style != "light_immediate" or any(k in body.model_fields_set for k in ("language","instruction_language")):
+                raise Problem(422,"invalid_request","Personal review needs only its target selection and repetition options")
+            result = call(coordinator.create_personal_review, learner(request), body.session_id, body.personal_target_ids,
+                recall_before_model=body.recall_before_model)
+            if coordinator.delivery_context: result = call(coordinator.presentation, learner(request), body.session_id)
+            return _presentation(result)
         if body.mode == "free_conversation":
             return start_free(request, body)
         if body.source_id is None or body.course_id is None or body.lesson_id is None:

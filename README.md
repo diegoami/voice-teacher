@@ -46,16 +46,20 @@ grows out of the manual Claude-Code ↔ Claude-voice loop in
 and a two-sitting lesson option. Its 53 tests pass locally. The production
 build follows the [production plan](docs/production-plan.md). Version 1
 data contracts, an installable practice engine, transactional SQLite storage
-and resumable guided-turn coordination are implemented, with a read-only adapter
+and resumable guided and repetition sessions are implemented, with a read-only adapter
 for existing lesson packages and a persistent local-source registry. Source
 updates are validated before activation and cannot change running sessions.
 An authenticated API exposes source selection and durable sessions with
 learner-bound pairing. Private progress exports rebuild history and interrupted
 sessions. A background Git worker now synchronizes progress with explicit
 save/export/push states. Configurable speech providers now recover saved turns and
-serve owner-bound audio through a runnable local API. The web app remains planned.
+serve owner-bound audio through a runnable local API. The installable web app shell pairs and selects lessons; recording and playback
+controls are next.
 
 2026-09-26: POC 0 (lesson connector) answered: it delivers a lesson reliably but cannot record or steer one through a general voice chat. See [pocs/00-mcp-connector](pocs/00-mcp-connector/README.md). Session 4A showed that speech recognition decides the runtime. POC 1 answered it: locked to Ukrainian, ElevenLabs Scribe v2 hears the learner's Ukrainian as Ukrainian (4.2% WER, no Russian) and keeps the learner's mistakes, while OpenAI `gpt-transcribe` corrects most of them. STT → Claude → TTS with Scribe stays the default. POC 2 answered the voice question: ElevenLabs Multilingual v2 with stress-marked text got every judged word right. See [pocs/02-tts-stress](pocs/02-tts-stress/README.md). See [pocs/01-stt-ukrainian](pocs/01-stt-ukrainian/README.md).
+
+[Independent repetition](docs/reference/repetition.md) supports phrase-only lessons
+and private weak-item review through the durable API.
 
 The [installable web app shell](docs/reference/web-app.md) lives in `apps/web`;
 serve its production build from the API origin.

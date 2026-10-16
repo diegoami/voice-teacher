@@ -137,3 +137,6 @@ T10 adds saved first-reply audio recovery through session status, plus owner-onl
 recognition read/report endpoints described in [voice-pipeline.md](voice-pipeline.md).
 A recognition report saves a portable annotation and returns the new revision,
 while preserving the original evidence and native lesson state.
+
+T13 adds [independent repetition](repetition.md), optional pre-model recall,
+authenticated review candidate IDs, and bounded lesson/queue item selection.

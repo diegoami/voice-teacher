@@ -1,0 +1,289 @@
+[
+  {
+    "schema_version": 1,
+    "kind": "progress_event",
+    "event_id": "state-1",
+    "learner_id": "synthetic-learner",
+    "session_id": "synthetic-session",
+    "sequence": 1,
+    "occurred_at": "2026-10-16T12:00:00Z",
+    "event_type": "state.saved",
+    "mode": "guided_conversation",
+    "source": {
+      "source_id": "synthetic-alpha",
+      "course_id": "basics",
+      "lesson_id": "lesson-1",
+      "revision": {
+        "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "content_sha256": "32c8f1546b489ae28641d5d54d3ae5b443edb81b24dbd3a7067fa56b24b753ea",
+        "dirty": false
+      }
+    },
+    "turn": null,
+    "assistance": null,
+    "provenance": {
+      "original_source": {
+        "source_id": "synthetic-origin",
+        "course_id": "basics",
+        "lesson_id": "lesson-1",
+        "revision": {
+          "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "dirty": false
+        }
+      },
+      "original_item": {
+        "source_id": "synthetic-origin",
+        "course_id": "basics",
+        "item_id": "hello",
+        "item_revision": 1
+      },
+      "practice_source": {
+        "source_id": "synthetic-alpha",
+        "course_id": "basics",
+        "lesson_id": "lesson-1",
+        "revision": {
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "content_sha256": "32c8f1546b489ae28641d5d54d3ae5b443edb81b24dbd3a7067fa56b24b753ea",
+          "dirty": false
+        }
+      },
+      "origin_session_id": "original-session",
+      "origin_turn_id": "original-turn"
+    },
+    "evidence": null,
+    "snapshot": {
+      "schema_version": 1,
+      "kind": "session_snapshot",
+      "learner_id": "synthetic-learner",
+      "session_id": "synthetic-session",
+      "revision": 1,
+      "event_sequence": 1,
+      "mode": "guided_conversation",
+      "status": "paused",
+      "source": {
+        "source_id": "synthetic-alpha",
+        "course_id": "basics",
+        "lesson_id": "lesson-1",
+        "revision": {
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "content_sha256": "32c8f1546b489ae28641d5d54d3ae5b443edb81b24dbd3a7067fa56b24b753ea",
+          "dirty": false
+        }
+      },
+      "curriculum_snapshot": {
+        "schema_version": 1,
+        "kind": "curriculum",
+        "source_id": "synthetic-alpha",
+        "title": "Synthetic course catalogue",
+        "courses": [
+          {
+            "course_id": "basics",
+            "title": "Basics",
+            "language": "uk",
+            "instruction_language": "en",
+            "items": [
+              {
+                "item_id": "hello",
+                "item_revision": 1,
+                "text": {
+                  "display": "Привіт",
+                  "speech": "Приві́т"
+                },
+                "meaning": "Hello"
+              }
+            ],
+            "lessons": [
+              {
+                "lesson_id": "lesson-1",
+                "title": "Synthetic greeting",
+                "modes": [
+                  "guided_conversation"
+                ],
+                "repetition_item_ids": [],
+                "guided_steps": [
+                  {
+                    "step_id": "greet",
+                    "teacher": {
+                      "display": "Say hello",
+                      "speech": "Say hello"
+                    },
+                    "goal": "Greet a neighbour",
+                    "target_item_ids": [
+                      "hello"
+                    ]
+                  }
+                ],
+                "recall_goals": [
+                  {
+                    "goal_id": "recall-hello",
+                    "prompt": {
+                      "display": "Greet again",
+                      "speech": "Greet again"
+                    },
+                    "target_item_ids": [
+                      "hello"
+                    ]
+                  }
+                ],
+                "topic": null
+              }
+            ]
+          }
+        ]
+      },
+      "topic": null,
+      "language": "uk",
+      "instruction_language": "en",
+      "learner_profile": {
+        "level": "beginner"
+      },
+      "engine_state": {
+        "format_version": 1,
+        "data": {
+          "phase": "guided",
+          "step_id": "greet",
+          "help_level": 1,
+          "pending_reply": "Try again"
+        }
+      }
+    },
+    "supersedes_event_id": null
+  },
+  {
+    "schema_version": 1,
+    "kind": "progress_event",
+    "event_id": "turn-1",
+    "learner_id": "synthetic-learner",
+    "session_id": "synthetic-session",
+    "sequence": 2,
+    "occurred_at": "2026-10-16T12:00:00Z",
+    "event_type": "turn.accepted",
+    "mode": "guided_conversation",
+    "source": {
+      "source_id": "synthetic-alpha",
+      "course_id": "basics",
+      "lesson_id": "lesson-1",
+      "revision": {
+        "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "content_sha256": "32c8f1546b489ae28641d5d54d3ae5b443edb81b24dbd3a7067fa56b24b753ea",
+        "dirty": false
+      }
+    },
+    "turn": {
+      "turn_id": "learner-turn-1",
+      "index": 0,
+      "role": "learner",
+      "text": "Привіт"
+    },
+    "assistance": {
+      "kind": "cue",
+      "help_level": 1,
+      "target_exposed": false
+    },
+    "provenance": {
+      "original_source": {
+        "source_id": "synthetic-origin",
+        "course_id": "basics",
+        "lesson_id": "lesson-1",
+        "revision": {
+          "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "dirty": false
+        }
+      },
+      "original_item": {
+        "source_id": "synthetic-origin",
+        "course_id": "basics",
+        "item_id": "hello",
+        "item_revision": 1
+      },
+      "practice_source": {
+        "source_id": "synthetic-alpha",
+        "course_id": "basics",
+        "lesson_id": "lesson-1",
+        "revision": {
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "content_sha256": "32c8f1546b489ae28641d5d54d3ae5b443edb81b24dbd3a7067fa56b24b753ea",
+          "dirty": false
+        }
+      },
+      "origin_session_id": "original-session",
+      "origin_turn_id": "original-turn"
+    },
+    "evidence": null,
+    "snapshot": null,
+    "supersedes_event_id": null
+  },
+  {
+    "schema_version": 1,
+    "kind": "progress_event",
+    "event_id": "evidence-1",
+    "learner_id": "synthetic-learner",
+    "session_id": "synthetic-session",
+    "sequence": 3,
+    "occurred_at": "2026-10-16T12:00:00Z",
+    "event_type": "evidence.recorded",
+    "mode": "guided_conversation",
+    "source": {
+      "source_id": "synthetic-alpha",
+      "course_id": "basics",
+      "lesson_id": "lesson-1",
+      "revision": {
+        "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "content_sha256": "32c8f1546b489ae28641d5d54d3ae5b443edb81b24dbd3a7067fa56b24b753ea",
+        "dirty": false
+      }
+    },
+    "turn": {
+      "turn_id": "learner-turn-1",
+      "index": 0,
+      "role": "learner",
+      "text": "Привіт"
+    },
+    "assistance": {
+      "kind": "cue",
+      "help_level": 1,
+      "target_exposed": false
+    },
+    "provenance": {
+      "original_source": {
+        "source_id": "synthetic-origin",
+        "course_id": "basics",
+        "lesson_id": "lesson-1",
+        "revision": {
+          "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "dirty": false
+        }
+      },
+      "original_item": {
+        "source_id": "synthetic-origin",
+        "course_id": "basics",
+        "item_id": "hello",
+        "item_revision": 1
+      },
+      "practice_source": {
+        "source_id": "synthetic-alpha",
+        "course_id": "basics",
+        "lesson_id": "lesson-1",
+        "revision": {
+          "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "content_sha256": "32c8f1546b489ae28641d5d54d3ae5b443edb81b24dbd3a7067fa56b24b753ea",
+          "dirty": false
+        }
+      },
+      "origin_session_id": "original-session",
+      "origin_turn_id": "original-turn"
+    },
+    "evidence": {
+      "outcome": "cued",
+      "attempt": "Привіт",
+      "preferred": null,
+      "reason": null,
+      "recognition_uncertain": false
+    },
+    "snapshot": null,
+    "supersedes_event_id": null
+  }
+]

@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "kind": "session_snapshot",
+  "learner_id": "synthetic-learner",
+  "session_id": "synthetic-session",
+  "revision": 1,
+  "event_sequence": 1,
+  "mode": "guided_conversation",
+  "status": "paused",
+  "source": {
+    "source_id": "synthetic-alpha",
+    "course_id": "basics",
+    "lesson_id": "lesson-1",
+    "revision": {
+      "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "content_sha256": "32c8f1546b489ae28641d5d54d3ae5b443edb81b24dbd3a7067fa56b24b753ea",
+      "dirty": false
+    }
+  },
+  "curriculum_snapshot": {
+    "schema_version": 1,
+    "kind": "curriculum",
+    "source_id": "synthetic-alpha",
+    "title": "Synthetic course catalogue",
+    "courses": [
+      {
+        "course_id": "basics",
+        "title": "Basics",
+        "language": "uk",
+        "instruction_language": "en",
+        "items": [
+          {
+            "item_id": "hello",
+            "item_revision": 1,
+            "text": {
+              "display": "Привіт",
+              "speech": "Приві́т"
+            },
+            "meaning": "Hello"
+          }
+        ],
+        "lessons": [
+          {
+            "lesson_id": "lesson-1",
+            "title": "Synthetic greeting",
+            "modes": [
+              "guided_conversation"
+            ],
+            "repetition_item_ids": [],
+            "guided_steps": [
+              {
+                "step_id": "greet",
+                "teacher": {
+                  "display": "Say hello",
+                  "speech": "Say hello"
+                },
+                "goal": "Greet a neighbour",
+                "target_item_ids": [
+                  "hello"
+                ]
+              }
+            ],
+            "recall_goals": [
+              {
+                "goal_id": "recall-hello",
+                "prompt": {
+                  "display": "Greet again",
+                  "speech": "Greet again"
+                },
+                "target_item_ids": [
+                  "hello"
+                ]
+              }
+            ],
+            "topic": null
+          }
+        ]
+      }
+    ]
+  },
+  "topic": null,
+  "language": "uk",
+  "instruction_language": "en",
+  "learner_profile": {
+    "level": "beginner"
+  },
+  "engine_state": {
+    "format_version": 1,
+    "data": {
+      "phase": "guided",
+      "step_id": "greet",
+      "help_level": 1,
+      "pending_reply": "Try again"
+    }
+  }
+}

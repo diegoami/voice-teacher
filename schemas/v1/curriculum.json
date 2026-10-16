@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voice-teacher.invalid/schemas/v1/curriculum.json",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "curriculum"
+    },
+    "source_id": {
+      "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+    },
+    "title": {
+      "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/text"
+    },
+    "courses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "course_id": {
+            "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+          },
+          "title": {
+            "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/text"
+          },
+          "language": {
+            "type": "string",
+            "pattern": "^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+          },
+          "instruction_language": {
+            "type": "string",
+            "pattern": "^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "item_id": {
+                  "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+                },
+                "item_revision": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "text": {
+                  "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/rendering"
+                },
+                "meaning": {
+                  "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/text"
+                }
+              },
+              "required": [
+                "item_id",
+                "item_revision",
+                "text",
+                "meaning"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "lessons": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "lesson_id": {
+                  "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+                },
+                "title": {
+                  "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/text"
+                },
+                "modes": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/mode"
+                  },
+                  "minItems": 1,
+                  "uniqueItems": true
+                },
+                "repetition_item_ids": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+                  },
+                  "uniqueItems": true
+                },
+                "guided_steps": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "step_id": {
+                        "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+                      },
+                      "teacher": {
+                        "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/rendering"
+                      },
+                      "goal": {
+                        "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/text"
+                      },
+                      "target_item_ids": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+                        },
+                        "minItems": 1,
+                        "uniqueItems": true
+                      }
+                    },
+                    "required": [
+                      "step_id",
+                      "teacher",
+                      "goal",
+                      "target_item_ids"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "recall_goals": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "goal_id": {
+                        "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+                      },
+                      "prompt": {
+                        "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/rendering"
+                      },
+                      "target_item_ids": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+                        },
+                        "minItems": 1,
+                        "uniqueItems": true
+                      }
+                    },
+                    "required": [
+                      "goal_id",
+                      "prompt",
+                      "target_item_ids"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "topic": {
+                  "anyOf": [
+                    {
+                      "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/text"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "lesson_id",
+                "title",
+                "modes",
+                "repetition_item_ids",
+                "guided_steps",
+                "recall_goals",
+                "topic"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "course_id",
+          "title",
+          "language",
+          "instruction_language",
+          "items",
+          "lessons"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    }
+  },
+  "required": [
+    "schema_version",
+    "kind",
+    "source_id",
+    "title",
+    "courses"
+  ],
+  "additionalProperties": false
+}

@@ -8,7 +8,7 @@ import re
 import sqlite3
 
 from schemas.validate import canonical_json, validate_event_stream
-from .migrations import APPLICATION_ID, VERSION, V1, V2
+from .migrations import APPLICATION_ID, VERSION, V1, V2, V3
 
 
 class StorageError(ValueError):
@@ -116,6 +116,11 @@ class Store:
                     _project(c, e)
                     c.execute("INSERT INTO outbox(job_id) VALUES (?)", (e["event_id"],))
                 c.execute("PRAGMA user_version=2")
+                version = 2
+            if version == 2:
+                for sql in V3:
+                    c.execute(sql)
+                c.execute("PRAGMA user_version=3")
 
     @contextmanager
     def _connection(self):
@@ -167,7 +172,7 @@ class Store:
         return [json.loads(row[0]) for row in c.execute(
             "SELECT body_json FROM events WHERE learner_id=? AND session_id=? ORDER BY sequence", (learner_id, session_id))]
 
-    def commit(self, learner_id, session_id, events, *, expected_revision, activities=()):
+    def commit(self, learner_id, session_id, events, *, expected_revision, activities=(), _completion=None):
         """Append one transition ending in state.saved. Duplicate IDs are conflicts.
 
         None means create at revision zero; updates require current revision + 1.
@@ -195,6 +200,19 @@ class Store:
             _id(a["activity_id"])
             _object(a["data"])
         with self._transaction() as c:
+            if _completion is not None:
+                request_id, result = _completion
+                _id(request_id)
+                result_body = _object(result)
+                request = c.execute("SELECT stage, expected_revision FROM requests WHERE learner_id=? AND session_id=? AND request_id=?",
+                                    (learner_id, session_id, request_id)).fetchone()
+                if request is None or request["expected_revision"] != expected_revision:
+                    raise RevisionConflict("request does not own this transition")
+                if request["stage"] in {"committed", "delivered"}:
+                    saved = c.execute("SELECT snapshot_json FROM sessions WHERE learner_id=? AND session_id=?", (learner_id, session_id)).fetchone()
+                    return json.loads(saved[0])  # caller reloads original request result
+                if request["stage"] not in {"accepted", "judged"}:
+                    raise RevisionConflict("request has been cancelled")
             row = c.execute("SELECT revision FROM sessions WHERE learner_id=? AND session_id=?", (learner_id, session_id)).fetchone()
             if (row is None) != (expected_revision is None) or (row is not None and row[0] != expected_revision):
                 raise RevisionConflict("session revision changed or does not exist for this learner")
@@ -222,6 +240,9 @@ class Store:
                 c.execute("INSERT INTO events VALUES (?,?,?,?,?)", (e["event_id"], learner_id, session_id, e["sequence"], canonical_json(e)))
                 _project(c, e)
                 c.execute("INSERT INTO outbox(job_id) VALUES (?)", (e["event_id"],))
+            if _completion is not None:
+                c.execute("UPDATE requests SET stage='committed', result_json=? WHERE learner_id=? AND session_id=? AND request_id=?",
+                          (result_body, learner_id, session_id, request_id))
         return snapshot
 
     def projection(self, learner_id, session_id):

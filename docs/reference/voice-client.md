@@ -13,6 +13,8 @@ or uploads. Hold supports pointer/touch capture and Space/Enter, with cancellati
 on lost focus or pointer cancellation. Every capture exit stops its microphone
 tracks; a late permission grant after finish or navigation is released immediately.
 Leaving a session stops its player and microphone without inventing a server stop.
+Explicitly reopening even the same saved session replaces the local controller
+with the latest server presentation and rechecks its durable pending intent.
 
 Recording requires HTTPS or loopback and browser microphone permission.
 `MediaRecorder.isTypeSupported` chooses WebM/Opus, WebM, Ogg/Opus or MP4; uploads

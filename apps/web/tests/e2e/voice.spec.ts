@@ -281,6 +281,14 @@ async function fake(page: Page) {
       failure = v;
     },
     getStarts: () => starts,
+    externalAdvance: () => {
+      current = {
+        ...current,
+        request_id: "external-turn",
+        revision: current.revision + 1,
+        teacher: [{ text: "Externally saved reply", kind: "reply" }],
+      };
+    },
   };
 }
 async function open(page: Page, mode = "guided_conversation") {
@@ -690,4 +698,19 @@ test("voice: multiple teacher segments play in order without overlap", async ({
     .toBe(0);
   expect(f.uploads).toHaveLength(0);
   await noOverlap(page);
+});
+
+test("voice: reopening the same saved session loads the current server presentation", async ({
+  page,
+}, info) => {
+  await media(page);
+  const f = await fake(page);
+  await open(page);
+  f.externalAdvance();
+  await press(page, info, "Open Tickets");
+  await expect(page.getByLabel("Teacher instructions")).toContainText(
+    "Externally saved reply",
+  );
+  expect(f.getStarts()).toBe(1);
+  expect(f.uploads).toHaveLength(0);
 });

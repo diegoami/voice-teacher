@@ -58,13 +58,14 @@ interchange format or a mode scheduler.
 completed jobs remain completed on replay. No Git or export worker runs here;
 T11/T12 own those operations. Callers can retrieve job payloads from the event log.
 
-Internal SQLite schema version 4 is separate from JSON interchange version 1.
+Internal SQLite schema version 5 is separate from JSON interchange version 1.
 The migration path creates v1 core tables, then v2 activities/projections/outbox
 and append-only triggers. Existing v1 event history backfills projections and
 pending export jobs. T06 adds durable request stages in v3; see
 [turn-recovery.md](turn-recovery.md). T08 adds source configuration, immutable
 compiled versions, active pointers and item-revision definitions in v4; see
-[source-registry.md](source-registry.md). DDL and `user_version` changes share one transaction.
+[source-registry.md](source-registry.md). T09 adds hashed pairing codes and
+learner-bound client grants in v5; see [session-api.md](session-api.md). DDL and `user_version` changes share one transaction.
 Existing databases are inspected read-only before a writable connection: newer
 versions, foreign application IDs and nonempty unversioned databases are refused.
 There is no automatic downgrade, destructive repair or adoption of unrelated data.

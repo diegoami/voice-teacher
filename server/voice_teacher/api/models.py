@@ -1,0 +1,124 @@
+"""Public API allowlists. Never return a private session/curriculum directly."""
+from typing import Literal
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+ID = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$"
+
+
+class Input(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+
+class Pair(Input):
+    code: str = Field(min_length=32, max_length=256)
+
+
+class PairCode(Input):
+    learner_id: str = Field(pattern=ID)
+    label: str = Field(min_length=1, max_length=100)
+
+
+class Learner(Input):
+    level: str = Field(min_length=1, max_length=100)
+
+
+class SourceConfig(Input):
+    source_id: str = Field(pattern=ID)
+    name: str = Field(min_length=1, max_length=100)
+    checkout: str = Field(min_length=1, max_length=4096)
+    subdirectory: str = "."
+    adapter: Literal["canonical_json", "legacy"] = "canonical_json"
+    manifest: str = "voice-teacher.json"
+    mapping: dict | None = None
+    allow_dirty: bool = False
+
+
+class Start(Input):
+    session_id: str = Field(pattern=ID)
+    source_id: str = Field(pattern=ID)
+    course_id: str = Field(pattern=ID)
+    lesson_id: str = Field(pattern=ID)
+    mode: Literal["guided_conversation", "repetition", "free_conversation"] = "guided_conversation"
+    activity: Literal["combined", "first_sitting", "second_sitting"] = "combined"
+
+
+class Revision(Input):
+    request_id: str = Field(pattern=ID)
+    expected_revision: int = Field(ge=0)
+
+
+class Turn(Revision):
+    text: str = Field(min_length=1, max_length=8000)
+
+    @field_validator("text")
+    @classmethod
+    def nonempty(cls, value):
+        if not value.strip(): raise ValueError("nonempty text required")
+        return value
+
+
+class Control(Revision):
+    operation: Literal["pause", "resume", "finish"]
+
+
+class Teacher(BaseModel):
+    text: str
+    kind: str
+
+
+class Presentation(BaseModel):
+    session_id: str
+    request_id: str | None
+    revision: int
+    status: Literal["active", "paused", "finished"]
+    done: bool
+    card: str | None
+    teacher: list[Teacher]
+    audio_ids: list[str]
+
+
+class Source(BaseModel):
+    source_id: str
+    name: str
+    version_id: str | None
+    available: bool
+
+
+class Course(BaseModel):
+    course_id: str
+    title: str
+    language: str
+    instruction_language: str
+
+
+class Lesson(BaseModel):
+    lesson_id: str
+    title: str
+    authored_modes: list[str]
+    available_modes: list[str]
+
+
+class TranscriptTurn(BaseModel):
+    turn_id: str
+    role: Literal["learner", "teacher"]
+    text: str
+
+
+class ErrorBody(BaseModel):
+    code: str
+    message: str
+
+
+class Error(BaseModel):
+    error: ErrorBody
+
+
+class Paired(BaseModel):
+    token: str
+    client_id: str
+    expires_at: float
+
+
+class Code(BaseModel):
+    code: str
+    expires_at: float

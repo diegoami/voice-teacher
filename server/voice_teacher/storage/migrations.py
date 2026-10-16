@@ -1,6 +1,6 @@
 """Internal SQLite schema versions; independent of interchange schema versions."""
 APPLICATION_ID = 0x56544348  # VTCH
-VERSION = 4
+VERSION = 5
 
 V1 = (
     "CREATE TABLE learners (learner_id TEXT PRIMARY KEY, profile_json TEXT NOT NULL)",
@@ -59,4 +59,14 @@ V4 = (
         source_id TEXT NOT NULL REFERENCES sources(source_id), course_id TEXT NOT NULL, item_id TEXT NOT NULL,
         item_revision INTEGER NOT NULL CHECK(item_revision >= 1), definition_hash TEXT NOT NULL,
         PRIMARY KEY(source_id, course_id, item_id, item_revision))""",
+)
+
+V5 = (
+    """CREATE TABLE pairing_codes (
+        code_hash TEXT PRIMARY KEY, learner_id TEXT NOT NULL REFERENCES learners(learner_id),
+        label TEXT NOT NULL, expires REAL NOT NULL)""",
+    """CREATE TABLE clients (
+        token_hash TEXT PRIMARY KEY, client_id TEXT NOT NULL UNIQUE,
+        learner_id TEXT NOT NULL REFERENCES learners(learner_id), label TEXT NOT NULL,
+        expires REAL NOT NULL, revoked INTEGER NOT NULL DEFAULT 0 CHECK(revoked IN (0,1)))""",
 )

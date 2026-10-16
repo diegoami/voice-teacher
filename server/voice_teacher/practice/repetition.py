@@ -120,7 +120,8 @@ class RepetitionSession:
 
     def start(self):
         if self.phase != "new": raise ValueError("repetition already started")
-        return self._begin()
+        says = self._begin()
+        return self._render([Say(self.profile.listen, "intro")]) + says if self.phase == "repeat" else says
 
     def stop(self):
         if self.done: return []

@@ -17,7 +17,8 @@ pins plan/profile hashes and checks phase, position, retry counters and evidence
 
 ## Evidence and recovery
 
-Default practice plays the authored model, accepts a repetition and advances. One
+Default practice speaks the listen/repeat instruction once, plays the authored
+model, accepts a repetition and advances. One
 mismatch replays it; a second records `needs_turn` and advances. A match records
 `repeated`, never pronunciation accuracy or mastery. No judge is called during
 listen-and-repeat. Authored stop words remain valid material; a standalone spoken

@@ -72,8 +72,8 @@ def outcomes(store, sid="session"):
 def test_phrase_only_selected_set_retries_and_replays_without_guided_dependencies(tmp_path):
     store, c, judge, s, plan, first = setup(tmp_path, ids=["price"])
     assert s.lesson("basics", "lesson-1")["guided_steps"] == []
-    assert first["teacher"][0]["text"] == PRICE and TICKET not in canonical_json(first)
-    assert "\u0301" not in first["teacher"][0]["display"]
+    assert first["teacher"][-1]["text"] == PRICE and TICKET not in canonical_json(first)
+    assert "\u0301" not in first["teacher"][-1]["display"]
     result = turn(c, store, PRICE, request="one")
     before = store.events(LEARNER, "session")
     assert c.submit(LEARNER, "session", "one", expected_revision=0, text=PRICE) == result
@@ -239,7 +239,7 @@ def test_api_lists_and_starts_phrase_only_mode_and_keeps_queue_private(tmp_path)
     assert listed[0]["available_modes"] == ["repetition"] and "targets" not in canonical_json(listed)
     body = dict(session_id="api", source_id="alpha", course_id="basics", lesson_id="lesson-1", mode="repetition", item_ids=["price"])
     response = client.post("/api/v1/sessions", json=body, headers=headers)
-    assert response.status_code == 201 and response.json()["teacher"][0]["text"] == PRICE.replace("\u0301", "")
+    assert response.status_code == 201 and response.json()["teacher"][-1]["text"] == PRICE.replace("\u0301", "")
     assert client.get("/api/v1/review-items", headers=headers).json() == []
     assert client.get("/api/v1/review-items").status_code == 401
     assert client.post("/api/v1/sessions", json={**body, "session_id": "bad", "queue_event_ids": ["fake"]}, headers=headers).status_code == 422

@@ -198,6 +198,15 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
         if revision is not None and result["revision"] != revision: raise Problem(409, "session_conflict", "Session changed; reload its status")
         return _presentation(result)
 
+    @app.get("/api/v1/sessions/{session_id}/requests/{request_id}", response_model=m.Receipt)
+    def receipt(request: Request, session_id: str, request_id: str):
+        owned(request, session_id)
+        if not re.fullmatch(m.ID, request_id): raise Problem(404, "not_found", "Request not found")
+        def read():
+            try: return coordinator.request_status(learner(request), session_id, request_id)
+            except KeyError: raise Problem(404, "not_found", "Request not found") from None
+        return call(read)
+
     @app.get("/api/v1/sessions/{session_id}/transcript", response_model=list[m.TranscriptTurn])
     def transcript(request: Request, session_id: str, revision: int | None = Query(default=None, ge=0)):
         owned(request, session_id, revision)

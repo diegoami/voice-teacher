@@ -50,7 +50,12 @@ export function parseReport(text, meta) {
 
 export function reviewBrief(meta, task, patch, evidence) {
   const example = { schema_version: 1, base: meta.base, head: meta.head, verdict: 'approve',
-    criteria: meta.criteria.map((id) => ({ id, status: 'verified', evidence: 'Actual command and result, independently checked' })),
+    criteria: meta.criteria.map((id) => {
+      const corroboration = (meta.corroborations ?? []).find((c) => c.criterion === id);
+      return corroboration ? { id, status: 'corroborated', corroboration: corroboration.id,
+        evidence: 'Checks I ran, plus named operator evidence and its execution limits' } :
+        { id, status: 'verified', evidence: 'Actual command and result, independently checked' };
+    }),
     findings: [], limitations: [], unverified_criteria: [] };
   return `# Independent review of PR ${meta.pr}\n\n` +
     `Base: ${meta.base}\nHead: ${meta.head}\nModel: ${meta.model}\nImplementer family: ${meta.implementerFamily}\n\n` +
@@ -68,7 +73,10 @@ export function reviewBrief(meta, task, patch, evidence) {
     `"Verdict: user decision". Then end the response with one closed voice-teacher-review JSON fence shaped like ` +
     `the following example; choose your actual verdict and evidence. Every criterion must appear once. ` +
     `Statuses: verified (you ran/inspected it), corroborated (named operator evidence; add corroboration ID), ` +
-    `not_run (explain reason, also list ID in unverified_criteria). Approval requires every criterion verified or ` +
+    `not_run (explain reason, also list ID in unverified_criteria). A corroborated criterion MUST include the ` +
+    `literal corroboration field with an ID from the operator records above. Keep checks you did not run ` +
+    `in limitations; a criterion covered by named corroboration is not also unverified. If corroboration is ` +
+    `insufficient, use not_run and rework/user decision instead of approving. Approval requires every criterion verified or ` +
     `explicitly corroborated and zero blocking findings. Findings require id, severity (blocking/nonblocking), ` +
     `path, line, summary, evidence. Include all execution limitations. No tools after your final report.\n\n` +
     `\`\`\`voice-teacher-review\n${JSON.stringify(example, null, 2)}\n\`\`\`\n`;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseReport, criteriaFromTask } from '../../tools/review/report.mjs';
+import { parseReport, criteriaFromTask, reviewBrief } from '../../tools/review/report.mjs';
 import { publishEvidence } from '../../tools/review/publication.mjs';
 
 const meta = { repo: 'owner/project', pr: 5, task: 'T02', base: 'a'.repeat(40), head: 'b'.repeat(40),
@@ -47,6 +47,13 @@ test('not-run remains unverified; operator-only checks require named corroborati
   assert.equal(parseReport(text(r), m).verdict, 'approve');
   r.verdict = 'rework'; r.criteria[2].status = 'not_run'; r.unverified_criteria = ['DW3'];
   assert.equal(parseReport(text(r), meta).verdict, 'rework');
+});
+
+test('brief demonstrates exact named corroboration without pretending the model ran it', () => {
+  const m = { ...meta, corroborations: [{ id: 'operator-check', criterion: 'DW3', verifier: 'operator', evidence: 'Measured result' }] };
+  const brief = reviewBrief(m, 'Full task', 'full patch', 'implementer results');
+  assert.match(brief, /"corroboration": "operator-check"/);
+  assert.match(brief, /criterion covered by named corroboration is not also unverified/);
 });
 
 function fakeGH({ staleBefore = false, staleAfter = false, baseChanges = false } = {}) {

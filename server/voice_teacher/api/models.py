@@ -126,3 +126,19 @@ class Paired(Identity):
 class Code(BaseModel):
     code: str
     expires_at: float
+
+
+class RecognitionView(BaseModel):
+    request_id: str
+    status: Literal["accepted", "recognized", "empty", "failed"]
+    text: str | None
+    reported_problem: bool
+
+
+class Report(Input):
+    pass
+
+
+class Reported(BaseModel):
+    status: Literal["reported"]
+    revision: int

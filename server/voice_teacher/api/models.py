@@ -161,3 +161,9 @@ class Report(Input):
 class Reported(BaseModel):
     status: Literal["reported"]
     revision: int
+
+
+class Receipt(BaseModel):
+    request_id: str
+    status: Literal["pending", "ready", "cancelled"]
+    revision: int | None = Field(default=None, ge=0)

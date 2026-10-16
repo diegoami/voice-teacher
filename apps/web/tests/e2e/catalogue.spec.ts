@@ -4,7 +4,8 @@ const code = "synthetic-pairing-code-".repeat(3),
 async function fake(page: Page) {
   const starts: any[] = [];
   let failSources = false,
-    failStart = false;
+    failStart = false,
+    failStartBefore = false;
   const sessions = new Map();
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request(),
@@ -80,10 +81,10 @@ async function fake(page: Page) {
           teacher: [{ text: "Привіт!", kind: "teacher" }],
           audio_ids: [],
         };
-        sessions.set(body.session_id, entry);
+        if (!failStartBefore) sessions.set(body.session_id, entry);
         result = entry;
         status = 201;
-        if (failStart) {
+        if (failStart || failStartBefore) {
           status = 502;
           result = { error: { message: "RAW_PRIVATE_BACKEND_DETAILS" } };
         }
@@ -108,6 +109,7 @@ async function fake(page: Page) {
     starts,
     setFailSources: (v: boolean) => (failSources = v),
     setFailStart: (v: boolean) => (failStart = v),
+    setFailStartBefore: (v: boolean) => (failStartBefore = v),
   };
 }
 async function pair(page: Page) {
@@ -349,4 +351,34 @@ test("catalogue: manifest, icons and Chromium installability checks", async ({
   const cdp = await context.newCDPSession(page);
   const result = await cdp.send("Page.getInstallabilityErrors");
   expect(result.installabilityErrors).toEqual([]);
+});
+
+test("resume: missing saved start retries the original source, mode and session ID after GET 404", async ({
+  page,
+}) => {
+  const f = await fake(page);
+  await pair(page);
+  await choose(page, "alpha");
+  f.setFailStartBefore(true);
+  await page
+    .getByRole("button", { name: "Start practice", exact: true })
+    .click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  const original = { ...f.starts[0] };
+  f.setFailStartBefore(false);
+  await page.reload();
+  await choose(page, "beta");
+  await page.getByRole("radio", { name: "Repetition", exact: true }).check();
+  const missing = page.waitForResponse((r) =>
+    r.url().endsWith("/sessions/" + original.session_id),
+  );
+  await page
+    .getByRole("button", { name: "Open At the station", exact: true })
+    .click();
+  expect((await missing).status()).toBe(404);
+  await expect(
+    page.getByRole("heading", { name: "Session ready", exact: true }),
+  ).toBeVisible();
+  expect(f.starts).toHaveLength(2);
+  expect(f.starts[1]).toEqual(original);
 });

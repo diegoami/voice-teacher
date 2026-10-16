@@ -172,8 +172,19 @@ function App() {
         ),
       );
     } catch (e) {
-      if (!(e instanceof ApiError) || e.status !== 404) throw e;
-      setCurrent(await api<Presentation>("/sessions", grant.token, s.start));
+      if (e instanceof ApiError && e.status === 502) {
+        setCurrent(
+          await api<Presentation>(
+            "/sessions/" +
+              encodeURIComponent(s.start.session_id) +
+              "?prepare_audio=false",
+            grant.token,
+          ),
+        );
+      } else {
+        if (!(e instanceof ApiError) || e.status !== 404) throw e;
+        setCurrent(await api<Presentation>("/sessions", grant.token, s.start));
+      }
     }
     // An explicit Open replaces the local media controller even for the same
     // session ID. Its old capture/playback ends; the new server state and any

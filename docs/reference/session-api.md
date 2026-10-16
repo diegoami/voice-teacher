@@ -152,3 +152,16 @@ all ownership, revision and response-field protections still apply.
 T20 adds optional `topic`, target/instruction language and `correction_style` for
 free conversation. Source-free starts omit the lesson triple; other modes still
 require it. The confirmed correction default is `light_immediate`.
+
+### Owned request receipts (T17)
+
+`GET /api/v1/sessions/{session_id}/requests/{request_id}` is a read-only,
+owner-bound receipt lookup. It returns only `request_id`, `status` (`pending`,
+`ready`, or `cancelled`) and `revision` (accepted next revision for `ready`,
+otherwise null). Unknown requests and other owners' sessions return 404. It
+makes no speech/model call and exposes no input, transcript or judgement.
+A 404 can precede durable coordinator acceptance (for example during speech
+recognition); a client may recover its original recording with the same ID
+and bytes. It must not manufacture another attempt. A ready receipt confirms
+that original attempt even if later controls changed the latest presentation;
+clients then load the current owned session, rather than replaying old state.

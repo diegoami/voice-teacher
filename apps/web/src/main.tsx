@@ -20,6 +20,7 @@ import type {
   Choice,
   SavedSession,
   Presentation,
+  CorrectionStyle,
 } from "./api";
 import "./style.css";
 import { SessionScreen } from "./session";
@@ -40,6 +41,10 @@ function App() {
     lesson_id: "",
     mode: "guided_conversation",
   });
+  const [sourceFree, setSourceFree] = useState(false);
+  const [topic, setTopic] = useState("");
+  const [correction, setCorrection] =
+    useState<CorrectionStyle>("light_immediate");
   const [sessions, setSessions] = useState<SavedSession[]>([]),
     [current, setCurrent] = useState<Presentation | null>(null);
   const [reload, setReload] = useState(0);
@@ -159,9 +164,11 @@ function App() {
     course = courses.find((c) => c.course_id === choice.course_id),
     lesson = lessons.find((l) => l.lesson_id === choice.lesson_id);
   const available = Boolean(
-    source?.available &&
-    course &&
-    lesson?.available_modes.includes(choice.mode),
+    sourceFree
+      ? topic.trim().length > 0 && topic.trim().length <= 500
+      : source?.available &&
+          course &&
+          lesson?.available_modes.includes(choice.mode),
   );
   async function openSession(s: SavedSession) {
     if (!grant) return;
@@ -193,16 +200,28 @@ function App() {
     setSessionOpen((n) => n + 1);
   }
   async function start() {
-    if (!grant || !available || !lesson) return;
+    if (!grant || !available) return;
+    const free = sourceFree || choice.mode === "free_conversation";
     const entry: SavedSession = {
       start: {
-        ...choice,
+        ...(sourceFree
+          ? {
+              mode: "free_conversation" as const,
+              language: "uk",
+              instruction_language: "en",
+            }
+          : choice),
         session_id: crypto.randomUUID(),
-        activity: "combined",
+        ...(free
+          ? {
+              correction_style: correction,
+              ...(topic.trim() ? { topic: topic.trim() } : {}),
+            }
+          : { activity: "combined" as const }),
       },
-      title: lesson.title,
-      sourceName: source!.name,
-      version: source!.version_id,
+      title: sourceFree ? topic.trim() : lesson!.title,
+      sourceName: sourceFree ? "Personal topic" : source!.name,
+      version: sourceFree ? null : source!.version_id,
     };
     const next = [entry, ...sessions];
     save(grant.learner_id, "sessions", next);
@@ -330,73 +349,83 @@ function App() {
           <section aria-labelledby="catalogue">
             <p className="eyebrow">Choose today’s practice</p>
             <h2 id="catalogue">Your lessons</h2>
-            <div className="selections">
-              <label>
-                Lesson source
-                <select
-                  value={choice.source_id}
-                  onChange={(e) =>
-                    select({
-                      ...choice,
-                      source_id: e.target.value,
-                      course_id: "",
-                      lesson_id: "",
-                    })
-                  }
-                >
-                  <option value="">Choose a source</option>
-                  {sources.map((s) => (
-                    <option
-                      key={s.source_id}
-                      value={s.source_id}
-                      disabled={!s.available}
-                    >
-                      {s.name}
-                      {s.available ? "" : " — unavailable"}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Course
-                <select
-                  disabled={!source?.available}
-                  value={choice.course_id}
-                  onChange={(e) =>
-                    select({
-                      ...choice,
-                      course_id: e.target.value,
-                      lesson_id: "",
-                    })
-                  }
-                >
-                  <option value="">Choose a course</option>
-                  {courses.map((c) => (
-                    <option key={c.course_id} value={c.course_id}>
-                      {c.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Lesson or topic
-                <select
-                  disabled={!course}
-                  value={choice.lesson_id}
-                  onChange={(e) =>
-                    select({ ...choice, lesson_id: e.target.value })
-                  }
-                >
-                  <option value="">Choose a lesson</option>
-                  {lessons.map((l) => (
-                    <option key={l.lesson_id} value={l.lesson_id}>
-                      {l.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            {lesson && (
+            <label className="mode">
+              <input
+                type="checkbox"
+                checked={sourceFree}
+                onChange={(e) => setSourceFree(e.target.checked)}
+              />
+              Practise a topic without a lesson
+            </label>
+            {!sourceFree && (
+              <div className="selections">
+                <label>
+                  Lesson source
+                  <select
+                    value={choice.source_id}
+                    onChange={(e) =>
+                      select({
+                        ...choice,
+                        source_id: e.target.value,
+                        course_id: "",
+                        lesson_id: "",
+                      })
+                    }
+                  >
+                    <option value="">Choose a source</option>
+                    {sources.map((s) => (
+                      <option
+                        key={s.source_id}
+                        value={s.source_id}
+                        disabled={!s.available}
+                      >
+                        {s.name}
+                        {s.available ? "" : " — unavailable"}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Course
+                  <select
+                    disabled={!source?.available}
+                    value={choice.course_id}
+                    onChange={(e) =>
+                      select({
+                        ...choice,
+                        course_id: e.target.value,
+                        lesson_id: "",
+                      })
+                    }
+                  >
+                    <option value="">Choose a course</option>
+                    {courses.map((c) => (
+                      <option key={c.course_id} value={c.course_id}>
+                        {c.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Lesson or topic
+                  <select
+                    disabled={!course}
+                    value={choice.lesson_id}
+                    onChange={(e) =>
+                      select({ ...choice, lesson_id: e.target.value })
+                    }
+                  >
+                    <option value="">Choose a lesson</option>
+                    {lessons.map((l) => (
+                      <option key={l.lesson_id} value={l.lesson_id}>
+                        {l.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
+            {!sourceFree && lesson && (
               <fieldset>
                 <legend>How would you like to practise?</legend>
                 {modes.map(([mode, label]) => (
@@ -421,13 +450,55 @@ function App() {
                 ))}
               </fieldset>
             )}
+            {(sourceFree || choice.mode === "free_conversation") && (
+              <fieldset>
+                <legend>Free conversation</legend>
+                {sourceFree && (
+                  <p className="hint">
+                    Ukrainian conversation with English explanations.
+                  </p>
+                )}
+                <label>
+                  Conversation topic
+                  <input
+                    maxLength={500}
+                    required={sourceFree}
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    placeholder={
+                      sourceFree
+                        ? "Choose something to talk about"
+                        : "Use the lesson topic, or choose your own"
+                    }
+                  />
+                </label>
+                <label>
+                  Correction preference
+                  <select
+                    value={correction}
+                    onChange={(e) =>
+                      setCorrection(e.target.value as CorrectionStyle)
+                    }
+                  >
+                    <option value="light_immediate">
+                      Light immediate correction
+                    </option>
+                    <option value="end_of_session">Feedback at the end</option>
+                  </select>
+                </label>
+                <p className="hint">
+                  Choose the preference before starting. A resumed conversation
+                  keeps its original choice.
+                </p>
+              </fieldset>
+            )}
             <button
               disabled={busy || !available}
               onClick={() => void action(start)}
             >
               Start practice
             </button>
-            {lesson && !available && (
+            {!sourceFree && lesson && !available && (
               <p role="status">
                 Choose an available mode to start this lesson.
               </p>
@@ -470,6 +541,9 @@ function App() {
                 grant.client_id + ":" + current.session_id + ":" + sessionOpen
               }
               initial={current}
+              context={sessions.find(
+                (s) => s.start.session_id === current.session_id,
+              )}
               grant={grant}
               received={setCurrent}
               unauthorized={failure}

@@ -1,0 +1,413 @@
+[
+  {
+    "id": "repetition-supported",
+    "mode": "repetition",
+    "attempt_recorded": true,
+    "hidden_targets": [
+      "Мені потрібен зворотний квиток."
+    ],
+    "expected_label": "repeated",
+    "response": {
+      "text": "Один квиток, будь ласка.",
+      "evidence_label": "repeated",
+      "observations": []
+    },
+    "expected_issues": []
+  },
+  {
+    "id": "repetition-wrong-evidence",
+    "mode": "repetition",
+    "attempt_recorded": true,
+    "hidden_targets": [
+      "Мені потрібен зворотний квиток."
+    ],
+    "expected_label": "repeated",
+    "response": {
+      "text": "Один квиток, будь ласка.",
+      "evidence_label": "mastered",
+      "observations": []
+    },
+    "expected_issues": [
+      "evidence_label"
+    ]
+  },
+  {
+    "id": "repetition-early-target",
+    "mode": "repetition",
+    "attempt_recorded": false,
+    "hidden_targets": [
+      "Мені потрібен зворотний квиток."
+    ],
+    "expected_label": "repeated",
+    "response": {
+      "text": "Мені потрібен зворотний квиток.",
+      "evidence_label": "repeated",
+      "observations": []
+    },
+    "expected_issues": [
+      "premature_target"
+    ]
+  },
+  {
+    "id": "guided_conversation-supported",
+    "mode": "guided_conversation",
+    "attempt_recorded": true,
+    "hidden_targets": [
+      "Мені потрібен зворотний квиток."
+    ],
+    "expected_label": "independent",
+    "response": {
+      "text": "Добрий день! Куди ви їдете?",
+      "evidence_label": "independent",
+      "observations": []
+    },
+    "expected_issues": []
+  },
+  {
+    "id": "guided_conversation-wrong-evidence",
+    "mode": "guided_conversation",
+    "attempt_recorded": true,
+    "hidden_targets": [
+      "Мені потрібен зворотний квиток."
+    ],
+    "expected_label": "independent",
+    "response": {
+      "text": "Добрий день! Куди ви їдете?",
+      "evidence_label": "mastered",
+      "observations": []
+    },
+    "expected_issues": [
+      "evidence_label"
+    ]
+  },
+  {
+    "id": "guided_conversation-early-target",
+    "mode": "guided_conversation",
+    "attempt_recorded": false,
+    "hidden_targets": [
+      "Мені потрібен зворотний квиток."
+    ],
+    "expected_label": "independent",
+    "response": {
+      "text": "Мені потрібен зворотний квиток.",
+      "evidence_label": "independent",
+      "observations": []
+    },
+    "expected_issues": [
+      "premature_target"
+    ]
+  },
+  {
+    "id": "free_conversation-supported",
+    "mode": "free_conversation",
+    "attempt_recorded": true,
+    "hidden_targets": [
+      "Мені потрібен зворотний квиток."
+    ],
+    "expected_label": "observed",
+    "response": {
+      "text": "Який потяг ви оберете?",
+      "evidence_label": "observed",
+      "observations": []
+    },
+    "expected_issues": [],
+    "feedback_context": {
+      "language": "uk",
+      "instruction_language": "en",
+      "turn": {
+        "turn_id": "accepted-1",
+        "text": "Я їду потягом до Львова."
+      },
+      "items": [],
+      "recognition_uncertain": false
+    },
+    "supported_corrections": [],
+    "required_any": [
+      "потяг"
+    ],
+    "forbidden_claims": [
+      "mastered",
+      "course complete"
+    ]
+  },
+  {
+    "id": "free_conversation-wrong-evidence",
+    "mode": "free_conversation",
+    "attempt_recorded": true,
+    "hidden_targets": [
+      "Мені потрібен зворотний квиток."
+    ],
+    "expected_label": "observed",
+    "response": {
+      "text": "Який потяг ви оберете?",
+      "evidence_label": "mastered",
+      "observations": []
+    },
+    "expected_issues": [
+      "evidence_label"
+    ],
+    "feedback_context": {
+      "language": "uk",
+      "instruction_language": "en",
+      "turn": {
+        "turn_id": "accepted-1",
+        "text": "Я їду потягом до Львова."
+      },
+      "items": [],
+      "recognition_uncertain": false
+    },
+    "supported_corrections": [],
+    "required_any": [
+      "потяг"
+    ],
+    "forbidden_claims": [
+      "mastered",
+      "course complete"
+    ]
+  },
+  {
+    "id": "free-invented",
+    "mode": "free_conversation",
+    "attempt_recorded": true,
+    "hidden_targets": [
+      "Мені потрібен зворотний квиток."
+    ],
+    "expected_label": "observed",
+    "response": {
+      "text": "Який потяг ви оберете?",
+      "evidence_label": "observed",
+      "observations": [
+        {
+          "turn_id": "accepted-1",
+          "original": "Я їду потягом",
+          "preferred": "Я їду на поїзді",
+          "reason": "Invented grammar claim",
+          "item_id": null
+        }
+      ]
+    },
+    "expected_issues": [
+      "invented_correction"
+    ],
+    "feedback_context": {
+      "language": "uk",
+      "instruction_language": "en",
+      "turn": {
+        "turn_id": "accepted-1",
+        "text": "Я їду потягом до Львова."
+      },
+      "items": [],
+      "recognition_uncertain": false
+    },
+    "supported_corrections": [],
+    "required_any": [
+      "потяг"
+    ],
+    "forbidden_claims": [
+      "mastered",
+      "course complete"
+    ]
+  },
+  {
+    "id": "free-wrong-turn",
+    "mode": "free_conversation",
+    "attempt_recorded": true,
+    "hidden_targets": [
+      "Мені потрібен зворотний квиток."
+    ],
+    "expected_label": "observed",
+    "response": {
+      "text": "Який потяг ви оберете?",
+      "evidence_label": "observed",
+      "observations": [
+        {
+          "turn_id": "another-turn",
+          "original": "Я їду потягом",
+          "preferred": null,
+          "reason": null,
+          "item_id": null
+        }
+      ]
+    },
+    "expected_issues": [
+      "unsupported_reference"
+    ],
+    "feedback_context": {
+      "language": "uk",
+      "instruction_language": "en",
+      "turn": {
+        "turn_id": "accepted-1",
+        "text": "Я їду потягом до Львова."
+      },
+      "items": [],
+      "recognition_uncertain": false
+    },
+    "supported_corrections": [],
+    "required_any": [
+      "потяг"
+    ],
+    "forbidden_claims": [
+      "mastered",
+      "course complete"
+    ]
+  },
+  {
+    "id": "free-invented-quote",
+    "mode": "free_conversation",
+    "attempt_recorded": true,
+    "hidden_targets": [
+      "Мені потрібен зворотний квиток."
+    ],
+    "expected_label": "observed",
+    "response": {
+      "text": "Який потяг ви оберете?",
+      "evidence_label": "observed",
+      "observations": [
+        {
+          "turn_id": "accepted-1",
+          "original": "Я їхаю",
+          "preferred": null,
+          "reason": null,
+          "item_id": null
+        }
+      ]
+    },
+    "expected_issues": [
+      "unsupported_reference"
+    ],
+    "feedback_context": {
+      "language": "uk",
+      "instruction_language": "en",
+      "turn": {
+        "turn_id": "accepted-1",
+        "text": "Я їду потягом до Львова."
+      },
+      "items": [],
+      "recognition_uncertain": false
+    },
+    "supported_corrections": [],
+    "required_any": [
+      "потяг"
+    ],
+    "forbidden_claims": [
+      "mastered",
+      "course complete"
+    ]
+  },
+  {
+    "id": "free-off-topic",
+    "mode": "free_conversation",
+    "attempt_recorded": true,
+    "hidden_targets": [
+      "Мені потрібен зворотний квиток."
+    ],
+    "expected_label": "observed",
+    "response": {
+      "text": "You have mastered the course. Let us discuss algebra.",
+      "evidence_label": "observed",
+      "observations": []
+    },
+    "expected_issues": [
+      "task_adherence"
+    ],
+    "feedback_context": {
+      "language": "uk",
+      "instruction_language": "en",
+      "turn": {
+        "turn_id": "accepted-1",
+        "text": "Я їду потягом до Львова."
+      },
+      "items": [],
+      "recognition_uncertain": false
+    },
+    "supported_corrections": [],
+    "required_any": [
+      "потяг"
+    ],
+    "forbidden_claims": [
+      "mastered",
+      "course complete"
+    ]
+  },
+  {
+    "id": "free-unbounded",
+    "mode": "free_conversation",
+    "attempt_recorded": true,
+    "hidden_targets": [
+      "Мені потрібен зворотний квиток."
+    ],
+    "expected_label": "observed",
+    "response": {
+      "text": "Потяг. Ще питання. Ще одне. І ще одне.",
+      "evidence_label": "observed",
+      "observations": []
+    },
+    "expected_issues": [
+      "reply_bound"
+    ],
+    "feedback_context": {
+      "language": "uk",
+      "instruction_language": "en",
+      "turn": {
+        "turn_id": "accepted-1",
+        "text": "Я їду потягом до Львова."
+      },
+      "items": [],
+      "recognition_uncertain": false
+    },
+    "supported_corrections": [],
+    "required_any": [
+      "потяг"
+    ],
+    "forbidden_claims": [
+      "mastered",
+      "course complete"
+    ]
+  },
+  {
+    "id": "free-supported-number-correction",
+    "mode": "free_conversation",
+    "attempt_recorded": true,
+    "hidden_targets": [
+      "Мені потрібен зворотний квиток."
+    ],
+    "expected_label": "observed",
+    "response": {
+      "text": "Який потяг ви оберете?",
+      "evidence_label": "observed",
+      "observations": [
+        {
+          "turn_id": "accepted-1",
+          "original": "два квиток",
+          "preferred": "два квитки",
+          "reason": "Use the plural form after два.",
+          "item_id": null
+        }
+      ]
+    },
+    "expected_issues": [],
+    "feedback_context": {
+      "language": "uk",
+      "instruction_language": "en",
+      "turn": {
+        "turn_id": "accepted-1",
+        "text": "Я купив два квиток."
+      },
+      "items": [],
+      "recognition_uncertain": false
+    },
+    "supported_corrections": [
+      {
+        "original": "два квиток",
+        "preferred": "два квитки"
+      }
+    ],
+    "required_any": [
+      "потяг"
+    ],
+    "forbidden_claims": [
+      "mastered",
+      "course complete"
+    ]
+  }
+]

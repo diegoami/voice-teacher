@@ -10,6 +10,8 @@ from voice_teacher.api import create_app
 from voice_teacher.content.registry import SourceRegistry, SourceSpec
 from voice_teacher.practice.coordinator import Coordinator
 from voice_teacher.providers import Judgement, Verdict
+from voice_teacher.providers.dialogue import DialogueReply
+from voice_teacher.practice.free import FreePolicy
 from voice_teacher.providers.pipeline import VoicePipeline
 from voice_teacher.providers.speech import Recognition, SpeechConfig
 from voice_teacher.storage import Store
@@ -41,7 +43,7 @@ def main():
             course = raw["courses"][0]
             course["items"][0].update(text={"display": TICKET.replace("\u0301", ""), "speech": TICKET}, meaning="One ticket, please")
             lesson = course["lessons"][0]
-            lesson.update(title="Tickets", modes=["guided_conversation", "repetition"], repetition_item_ids=["hello"])
+            lesson.update(title="Tickets", modes=["guided_conversation", "repetition", "free_conversation"], topic="Train travel", repetition_item_ids=["hello"])
             lesson["guided_steps"][0].update(teacher={"display": "Добрий день!", "speech": "До́брий день!"}, goal="Ask for one ticket")
             manifest.write_text(json.dumps(raw, ensure_ascii=False))
         registry.register(SourceSpec(source, "Synthetic " + source, str(checkout), allow_dirty=True))
@@ -74,7 +76,14 @@ def main():
             stage("synthesis")
             return b"synthetic audio: " + text.encode()
 
-    coordinator = Coordinator(store, Judge())
+    class Dialogue:
+        identity = {"provider": "fake", "model": "browser-dialogue", "policy_version": 1, "max_reply_tokens": 256}
+        def __call__(self, context):
+            stage("dialogue")
+            assert context["curriculum"]["topic"]
+            return DialogueReply("Куди ви хочете поїхати далі?", 0, {})
+
+    coordinator = Coordinator(store, Judge(), dialogue=Dialogue(), free_policies={("uk", "en"): FreePolicy()})
     pipeline = VoicePipeline(store, coordinator, Recognizer(), Synthesizer())
     origin = "http://127.0.0.1:" + str(args.port)
     app = create_app(store, coordinator, operator_token="synthetic-operator-" + "x" * 40,

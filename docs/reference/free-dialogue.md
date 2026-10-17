@@ -7,7 +7,7 @@ title and up to six communicative goals; its hidden target renderings and privat
 legacy context are excluded. Free conversation also works without a repository.
 It records accepted learner turns and teacher replies, with no automatic item,
 lesson-completion or mastery evidence. T21 owns supported observations/feedback;
-T22 owns the complete topic/preference UI and live quality gate.
+The [three-mode client and evaluations](three-mode-evals.md) add topic/preference controls; the T22 live quality gate remains incomplete.
 
 The confirmed default correction preference is `light_immediate`. The alternative
 is `end_of_session`, selectable when creating a conversation. The provider is told

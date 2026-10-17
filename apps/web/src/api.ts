@@ -34,7 +34,19 @@ export type Choice = {
   lesson_id: string;
   mode: Mode;
 };
-export type Start = Choice & { session_id: string; activity: "combined" };
+export type CorrectionStyle = "light_immediate" | "end_of_session";
+export type Start = {
+  session_id: string;
+  mode: Mode;
+  source_id?: string;
+  course_id?: string;
+  lesson_id?: string;
+  activity?: "combined";
+  topic?: string;
+  correction_style?: CorrectionStyle;
+  language?: string;
+  instruction_language?: string;
+};
 export type Presentation = {
   session_id: string;
   request_id: string | null;
@@ -174,10 +186,21 @@ export function readSessions(learner: string): SavedSession[] {
           typeof v === "object" &&
           v.start &&
           id(v.start.session_id) &&
-          id(v.start.source_id) &&
-          id(v.start.course_id) &&
-          id(v.start.lesson_id) &&
-          v.start.activity === "combined" &&
+          ((id(v.start.source_id) &&
+            id(v.start.course_id) &&
+            id(v.start.lesson_id)) ||
+            (v.start.mode === "free_conversation" &&
+              v.start.source_id === undefined &&
+              v.start.course_id === undefined &&
+              v.start.lesson_id === undefined &&
+              typeof v.start.topic === "string" &&
+              v.start.topic.trim().length > 0 &&
+              v.start.topic.length <= 500)) &&
+          (v.start.activity === undefined || v.start.activity === "combined") &&
+          (v.start.correction_style === undefined ||
+            ["light_immediate", "end_of_session"].includes(
+              v.start.correction_style,
+            )) &&
           modes.some(([m]) => m === v.start.mode) &&
           typeof v.title === "string" &&
           typeof v.sourceName === "string" &&

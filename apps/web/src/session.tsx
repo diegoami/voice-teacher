@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import type { Grant, Presentation } from "./api";
+import type { Grant, Presentation, SavedSession } from "./api";
 import { ApiError } from "./api";
 import { VoiceController } from "./voice";
 import type { VoiceView } from "./voice";
 
 export function SessionScreen({
   initial,
+  context,
   grant,
   received,
   unauthorized,
 }: {
   initial: Presentation;
+  context?: SavedSession;
   grant: Grant;
   received: (p: Presentation) => void;
   unauthorized: (e: ApiError) => void;
@@ -68,6 +70,14 @@ export function SessionScreen({
     <section aria-labelledby="session">
       <p className="eyebrow">{p.status}</p>
       <h2 id="session">Session ready</h2>
+      {context?.start.mode === "free_conversation" && (
+        <p>
+          Free conversation · {context.start.topic || context.title} ·{" "}
+          {context.start.correction_style === "end_of_session"
+            ? "Feedback at the end"
+            : "Light immediate correction"}
+        </p>
+      )}
       {p.activity && (
         <p className="hint">
           Activity {p.activity.position + 1} of {p.activity.total}

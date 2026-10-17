@@ -102,3 +102,9 @@ T33 migrates schema7 to8 transactionally, adding an append-only
 per pinned source/course/content hash. Export acknowledgement is mutable; learner
 choices are immutable. Failure rolls back the migration without altering earlier
 practice. Completion/reopen records do not change session projections or queues.
+
+T26 migrates schema8 to9 transactionally, adding owner-bound recording preferences
+and asset metadata. Raw recordings stay in a separate private runtime directory;
+expiry/deletion states never rewrite immutable events or learner decisions. See
+[recording retention](recording-retention.md) for lifetime, cleanup and restore
+semantics. Failed migration leaves the schema8 history/decisions intact.

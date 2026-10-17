@@ -19,9 +19,12 @@ def _hash(data): return hashlib.sha256(data).hexdigest()
 
 
 class VoicePipeline:
-    def __init__(self, store, coordinator, recognizer, synthesizer):
+    def __init__(self, store, coordinator, recognizer, synthesizer, *, recordings=None):
         if store.path != coordinator.store.path: raise ValueError("voice coordinator must use the same store")
         self.store, self.coordinator, self.recognizer, self.synthesizer = store, coordinator, recognizer, synthesizer
+        from ..storage.recordings import Recordings
+        self.recordings = recordings if recordings is not None else Recordings(store)
+        if self.recordings.store.path != store.path: raise ValueError("recordings must use the voice runtime store")
         self.cache = store.path.parent / "teacher-audio"
         if self.cache.is_symlink(): raise SpeechError("audio cache symlinks are refused")
         self.cache.mkdir(mode=0o700, exist_ok=True)
@@ -117,6 +120,7 @@ class VoicePipeline:
                 elif work is None and (snapshot["revision"] != expected_revision or snapshot["status"] != "active"):
                     raise RevisionConflict("session changed")
                 cached = json.loads(row["transcript_json"]) if row is not None and row["status"] == "recognized" else None
+            self.recordings.keep(learner, session, request, data, media_type)
             if cached is None:
                 failed_status = "failed"
                 try:

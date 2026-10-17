@@ -1,5 +1,9 @@
 """Typed HTTP adapter around validated sources and durable session coordination."""
 import re
+import asyncio
+import logging
+import math
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Query
@@ -46,7 +50,7 @@ def _presentation(value):
 
 
 def create_app(store, coordinator, *, operator_token, origin="http://localhost:8000", audio=None,
-               assets=None, clock=None, max_json_bytes=32768, max_audio_bytes=8 * 1024 * 1024, progress_sync=None, git_sources=None, legacy=None):
+               assets=None, clock=None, max_json_bytes=32768, max_audio_bytes=8 * 1024 * 1024, progress_sync=None, git_sources=None, legacy=None, recordings=None, recording_cleanup_interval=60):
     if coordinator.store.path != store.path: raise ValueError("coordinator must use the API runtime store")
     if any(type(v) is not int or v <= 0 for v in (max_json_bytes, max_audio_bytes)): raise ValueError("body limits must be positive")
     auth = Auth(store, operator_token, **({"clock": clock} if clock else {}))
@@ -55,9 +59,36 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
     if progress_sync is not None and progress_sync.store.path != store.path: raise ValueError("sync must use the API runtime store")
     legacy = legacy if legacy is not None else getattr(progress_sync, "legacy", None)
     if legacy is not None and legacy.path.parent != store.path.parent: raise ValueError("legacy ledger must use the API runtime directory")
+    from ..storage.recordings import Recordings
+    if recordings is None:
+        candidate = getattr(audio, "recordings", None)
+        recordings = candidate if isinstance(candidate, Recordings) else Recordings(store, **({"clock": clock} if clock else {}))
+    if not isinstance(recordings, Recordings) or recordings.store.path != store.path:
+        raise ValueError("recordings must use the API runtime store")
+    if type(recording_cleanup_interval) not in (int, float) or not math.isfinite(recording_cleanup_interval) or not .05 <= recording_cleanup_interval <= 3600:
+        raise ValueError("invalid recording cleanup interval")
+
+    @asynccontextmanager
+    async def lifespan(application):
+        async def cleanup_recordings():
+            while True:
+                await asyncio.sleep(recording_cleanup_interval)
+                try:
+                    await asyncio.to_thread(recordings.cleanup)
+                    application.state.recording_cleanup_failed = False
+                except Exception:
+                    application.state.recording_cleanup_failed = True
+                    logging.getLogger("voice_teacher.retention").warning("Recording cleanup failed; private operator inspection required")
+        worker = asyncio.create_task(cleanup_recordings())
+        try:
+            yield
+        finally:
+            worker.cancel()
+            with suppress(asyncio.CancelledError): await worker
+
     registry = SourceRegistry(store)
-    app = FastAPI(title="Voice Teacher API", version="1", docs_url=None, redoc_url=None, openapi_url=None,
-                  responses={status: {"model": m.Error} for status in (400, 401, 403, 404, 409, 413, 415, 422, 502, 503)})
+    app = FastAPI(title="Voice Teacher API", version="1", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None,
+                  responses={status: {"model": m.Error} for status in (400, 401, 403, 404, 409, 410, 413, 415, 422, 502, 503)})
     if git_sources is not None and git_sources.store.path != store.path: raise ValueError("Git source manager must use the API runtime store")
     app.state.git_sources = git_sources
     app.state.auth = auth
@@ -207,6 +238,34 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
         owned(request, session_id)
         return call(coordinator.promote_personal, learner(request), session_id, body.request_id,
             expected_revision=body.expected_revision, observation_id=body.observation_id, form=body.form, meaning=body.meaning)
+
+    @app.get("/api/v1/recording-retention", response_model=m.RecordingPolicy)
+    def recording_policy(request: Request):
+        return call(recordings.policy, learner(request))
+
+    @app.post("/api/v1/recording-retention", response_model=m.RecordingPolicy)
+    def recording_policy_update(request: Request, body: m.RecordingRetention):
+        return call(recordings.set_policy, learner(request), body.retention_days)
+
+    @app.post("/api/v1/recording-retention/cleanup", response_model=m.RecordingCleanup)
+    def recording_cleanup(request: Request, body: m.RecordingCleanupInput):
+        return call(recordings.cleanup, learner(request))
+
+    @app.get("/api/v1/sessions/{session_id}/recordings", response_model=list[m.RecordingAsset])
+    def learner_recordings(request: Request, session_id: str):
+        owned(request, session_id)
+        return call(recordings.list, learner(request), session_id)
+
+    @app.get("/api/v1/sessions/{session_id}/recordings/{recording_id}")
+    def learner_recording(request: Request, session_id: str, recording_id: str):
+        owned(request, session_id)
+        result = call(recordings.read, learner(request), session_id, recording_id)
+        if result is None: raise Problem(404, "not_found", "Recording not found")
+        metadata, data = result
+        if data is None:
+            labels = {"expired": "Recording expired", "deleted": "Recording deleted", "not_retained": "Recording was not retained", "unavailable": "Recording is unavailable"}
+            raise Problem(410, "recording_unavailable", labels.get(metadata["state"], "Recording is unavailable"))
+        return Response(data, media_type=metadata["media_type"])
 
     @app.post("/api/v1/lesson-completions", response_model=m.LessonCompletionResult)
     def lesson_completion(request: Request, body: m.LessonCompletion):

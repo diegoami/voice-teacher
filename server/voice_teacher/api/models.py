@@ -310,3 +310,28 @@ class GitSourceConfig(Input):
     adapter: Literal["canonical_json","legacy"] = "canonical_json"
     manifest: str = "voice-teacher.json"
     mapping: dict | None = None
+
+
+class RecordingRetention(Input):
+    retention_days: int = Field(ge=0, le=30)
+
+
+class RecordingPolicy(BaseModel):
+    retention_days: int
+
+
+class RecordingAsset(BaseModel):
+    recording_id: str
+    request_id: str
+    media_type: str
+    created_at: float
+    expires_at: float | None
+    state: Literal["retained", "not_retained", "expired", "deleted", "unavailable"]
+
+
+class RecordingCleanup(BaseModel):
+    expired: int
+
+
+class RecordingCleanupInput(Input):
+    pass

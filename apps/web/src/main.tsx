@@ -1,4 +1,5 @@
 import { ProgressPanel } from "./progress";
+import { RetentionPanel } from "./retention";
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -546,6 +547,13 @@ function App() {
               )}
               grant={grant}
               received={setCurrent}
+              unauthorized={failure}
+            />
+          )}
+          {grant && (
+            <RetentionPanel
+              key={"retention-" + grant.client_id}
+              token={grant.token}
               unauthorized={failure}
             />
           )}

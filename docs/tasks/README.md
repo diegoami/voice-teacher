@@ -105,46 +105,43 @@ expand the release into a multi-user service.
 
 ## Resuming product work
 
-The owner inserted T34 to add the authenticated agy CLI and trial a Sonnet
-review of T33. T33/PR71 is merged. Keep T26's unfinished edits in its separate
-worktree, complete the bounded tooling task, then resume T26. The existing
-MiniMax/OpenCode merge gate remains required during the agy trial.
+The owner authorized all remaining tasks sequentially, retaining main-session
+implementation and MiniMax review through OpenCode. Use GitHub issue labels and
+merged PRs for live status; do not repeat merged tasks. Work in dependency order,
+one branch/PR at a time, and merge only after current-head approval and successful
+checks. Missing owner decisions or human acceptance stay incomplete; continue
+other eligible contracts where possible. Creating a follow-up issue does not
+start its implementation or change the selected reviewer.
 
-The owner has now authorized all remaining tasks sequentially, retaining main
-implementation and MiniMax review. T23 / PR #63 and T22 / PR #67 are merged;
-their PRs contain approval, results, limitations and reconciliation. Use GitHub
-issue labels for live status rather than a copied status board. Continue in
-dependency order, one branch/PR at a time, merging only after current-head
-approval and successful checks. A task requiring a missing owner decision or
-human check stays incomplete; proceed with other eligible tasks when possible.
+T22/PR67 records the bounded selected-model integration and owner listening.
+Its owner amendment defers full microphone-to-server and unscripted acceptance
+to the deployed phone app; the six-turn live cap is already used. T23/PR63 and
+T24/PR68 are merged. The owner approved T25's explained initial migration sample;
+PR70 records application, source-hash checks and clean private-remote restore.
+Reuse that imported position without repeating the old lessons. Remaining
+structured history import stays incomplete and future samples still need review.
+T33/PR71 supplies explicit completion/reopening independently from practice
+coverage, while preserving weak-item review and actual evidence.
 
-Continue with [T24](T24.md) after T22, then the eligible remaining contracts.
-The owner added T33 after T25 and before phone/release acceptance: explicit
-learner completion/reopening must prevent forced repetition of covered lessons
-while preserving weak-item review and actual practice evidence. T25's first
-selected sample is the latest recorded session with tracker/queue references;
-its concrete manifest required review before actual historical writes.
-The owner subsequently approved that initial sample; PR #70 records its
-application, source-hash checks and clean private-remote restore. Remaining
-structured history import stays incomplete. Future samples still need review.
-Recheck dependencies, create an isolated worktree and run the available baseline
-for each task. T22's bounded selected-model integration and owner listening are
-recorded in PR #67; its explicit owner amendment defers full microphone-to-server
-and unscripted human acceptance to the deployed phone app. Never mark missing
-human/live checks complete.
-T19 still needs real Android participation after T28's stable HTTPS setup;
-browser emulation does not replace that gate.
+The owner-inserted agy/Sonnet task T34/PR74 is merged. Its
+[static second-opinion path](../reference/agy-review.md) remains ineligible for
+merge approval. The existing MiniMax/OpenCode gate is unchanged. The requested
+cross-project issue35 comment is recorded in PR74; it does not establish a
+command-enabled agy harness. Follow-up issues73 and75 remain separately scoped
+backlog work.
 
-For this execution sequence the owner requested main-session implementation,
-MiniMax review through the OpenCode CLI, and merge after approval and successful
-checks before moving on. Revalidate the actual reviewer ID/variant and native
-session identity for each PR. Follow the [process](../process.md); see the
-[review runbook](../../tools/review/README.md#report-format-check-before-publication)
-for the known parser gap. Do not reuse a failed review or repair its report.
+Finish T26 recording privacy if its issue remains open, then continue eligible
+operational contracts. T28 requires the owner's stable HTTPS route choice and
+real-phone participation; it must precede phone checks in T19 and T27. T29 can
+proceed after T26 while a missing endpoint choice or human check is pending.
+Emulation does not satisfy the real-device gate. Never mark missing phone,
+microphone or unscripted checks complete.
 
-Earlier scratch notes, review runtimes and task checkouts under `/tmp` are no
-longer present on this host. Their Git worktree registrations may still appear
-as prunable; do not prune them as routine cleanup. Use merged PRs and published
-reports for durable evidence, and provision fresh test/review dependencies.
-T24 had read-only format reconnaissance only; redo that preflight when selected,
-using the source repository's instructions and original synthetic fixtures.
+For each task, read the contract, recheck dependencies, create an isolated
+worktree and run the available baseline. Revalidate the live reviewer ID/variant
+and native session identity for every PR. Follow the [process](../process.md)
+and [review report boundary check](../../tools/review/README.md#report-format-check-before-publication)
+for the known parser gap. Preserve original failed reviews and task worktrees;
+do not repair a report or prune worktrees as routine cleanup. Local scratch
+availability can change between hosts/sessions; merged PRs and published reports
+provide the durable acceptance evidence.

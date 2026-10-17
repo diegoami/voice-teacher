@@ -59,6 +59,9 @@ routes are disabled. `/healthz` exposes only `{"status":"ok"}` without identity.
 
 | Method/path | Identity | Behaviour |
 | --- | --- | --- |
+| `GET/POST /recording-retention` | Paired learner | Read/set private recording lifetime; see [retention](recording-retention.md) |
+| `POST /recording-retention/cleanup` | Paired learner | Expire recordings without editing progress |
+| `GET /sessions/{id}/recordings` | Paired learner | Own session recording status; child `/{recording_id}` retrieves retained bytes or 410 |
 | `POST /lesson-completions` | Paired learner | Idempotent completion/reopen choice; see [learner choices](progress-views.md#learner-lesson-choices-t33) |
 | `POST /pair` | Pair code | Exchange `{code}` for `{token,client_id,expires_at}` |
 | `PUT /operator/learners/{id}` | Operator | Provision/update `{level}` without changing existing grants |

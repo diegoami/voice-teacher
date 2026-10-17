@@ -26,6 +26,7 @@ def main():
     parser.add_argument("--assets", type=Path, required=True)
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--completion-fixture", action="store_true")
+    parser.add_argument("--retention-fixture", action="store_true")
     args = parser.parse_args()
     root = args.data
     root.mkdir(parents=True, exist_ok=True)
@@ -97,7 +98,7 @@ def main():
         from completion_fixture import legacy_position
         legacy = legacy_position(root, store, LEARNER)
     app = create_app(store, coordinator, legacy=legacy, operator_token="synthetic-operator-" + "x" * 40,
-                     origin=origin, audio=pipeline, assets=args.assets)
+                     origin=origin, audio=pipeline, assets=args.assets, recording_cleanup_interval=.1 if args.retention_fixture else 60)
     # Auth grants are persisted by the actual service. No special browser bypass.
     code = app.state.auth.issue_code(LEARNER, "browser-test")["code"]
     (root / "ready.json").write_text(json.dumps({"origin": origin, "code": code, "pid": os.getpid()}))

@@ -1,5 +1,11 @@
 import { spawn, ChildProcess } from "node:child_process";
-import { mkdtemp, readFile, writeFile, unlink } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  writeFile,
+  unlink,
+  readdir,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,7 +16,9 @@ const repo =
   process.env.VOICE_TEACHER_TEST_REPO ?? resolve(here, "../../../../..");
 const python =
   process.env.VOICE_TEACHER_TEST_PYTHON ?? join(repo, ".venv/bin/python");
-export async function server(options: { completion?: boolean } = {}) {
+export async function server(
+  options: { completion?: boolean; retention?: boolean } = {},
+) {
   const root = await mkdtemp(
     join(
       process.env.VOICE_TEACHER_TEST_TMP ?? tmpdir(),
@@ -38,6 +46,7 @@ export async function server(options: { completion?: boolean } = {}) {
         "--port",
         String(port),
         ...(options.completion ? ["--completion-fixture"] : []),
+        ...(options.retention ? ["--retention-fixture"] : []),
       ],
       {
         env: {
@@ -114,6 +123,39 @@ export async function server(options: { completion?: boolean } = {}) {
       await stop();
       await unlink(join(root, "arm.json")).catch(() => {});
       await start();
+    },
+    async recordingFiles() {
+      return (await readdir(join(root, "runtime/learner-recordings"))).filter(
+        (name) => name.endsWith(".bin"),
+      );
+    },
+    async expireRecordings() {
+      if (!options.retention)
+        throw new Error("Enable the explicit synthetic retention fixture");
+      const script =
+        "import sys;from voice_teacher.storage import Store;s=Store(sys.argv[1]);c=s._connection();db=c.__enter__();db.execute(\"UPDATE learner_recordings SET expires_at=0 WHERE state='retained'\");c.__exit__(None,None,None)";
+      const process = spawn(python, ["-c", script, join(root, "runtime")], {
+        env: {
+          ...globalThis.process.env,
+          PYTHONDONTWRITEBYTECODE: "1",
+          PYTHONPATH: [
+            join(repo, "server"),
+            repo,
+            globalThis.process.env.PYTHONPATH,
+          ]
+            .filter(Boolean)
+            .join(":"),
+        },
+        stdio: "ignore",
+      });
+      await new Promise<void>((resolve, reject) => {
+        process.on("error", reject);
+        process.on("exit", (code) =>
+          code === 0
+            ? resolve()
+            : reject(new Error("Synthetic expiry update failed")),
+        );
+      });
     },
     async inspect(session: string) {
       const script =

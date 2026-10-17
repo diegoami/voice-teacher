@@ -68,7 +68,7 @@ use parallel native implementers only for independent contracts and worktrees.
 | [T27](T27.md) | Bound provider work and measure actual voice latency | Operational release | T10, T16 | [#27](https://github.com/diegoami/voice-teacher/issues/27) |
 | [T28](T28.md) | Run the app locally through stable HTTPS | Local operation | T09, T16 | [#28](https://github.com/diegoami/voice-teacher/issues/28) |
 | [T29](T29.md) | Back up and restore runtime state and pending progress | Operational release | T12, T26 | [#29](https://github.com/diegoami/voice-teacher/issues/29) |
-| [T30](T30.md) | Accept and package the local three-mode release | Local release acceptance | T19, T22, T23, T25, T26, T27, T28, T29 | [#30](https://github.com/diegoami/voice-teacher/issues/30) |
+| [T30](T30.md) | Accept and package the local three-mode release | Local release acceptance | T19, T22, T23, T25, T26, T27, T28, T29, T33 | [#30](https://github.com/diegoami/voice-teacher/issues/30) |
 | [T31](T31.md) | Choose an always-on hosting target using measured requirements | Later hosting | T30 | [#31](https://github.com/diegoami/voice-teacher/issues/31) |
 | [T32](T32.md) | Deploy the accepted service to the chosen always-on host | Later hosting | T31 | [#32](https://github.com/diegoami/voice-teacher/issues/32) |
 | [T33](T33.md) | Let the learner complete or reopen lessons and move on | Three-mode release | T18, T25 | [#69](https://github.com/diegoami/voice-teacher/issues/69) |

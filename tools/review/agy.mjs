@@ -166,6 +166,13 @@ export function parseAgyResult(envelope, meta) {
   };
 }
 
+function insideGit(directory) {
+  for (let current = directory; ; current = path.dirname(current)) {
+    if (fs.existsSync(path.join(current, ".git"))) return true;
+    if (path.dirname(current) === current) return false;
+  }
+}
+
 export function prepareAgy(spec) {
   agyArgs(spec.model, spec.implementerFamily, "probe");
   if (
@@ -176,9 +183,17 @@ export function prepareAgy(spec) {
     "apiKey" in spec
   )
     throw new Error("Invalid pinned task spec");
-  const root = path.resolve(spec.artifacts),
-    source = fs.realpathSync(spec.source);
-  if (root === source || root.startsWith(source + "/"))
+  const requestedRoot = path.resolve(spec.artifacts);
+  const root = path.join(
+    fs.realpathSync(path.dirname(requestedRoot)),
+    path.basename(requestedRoot),
+  );
+  const source = fs.realpathSync(spec.source);
+  if (
+    root === source ||
+    root.startsWith(source + "/") ||
+    insideGit(path.dirname(root))
+  )
     throw new Error("Artifacts must be outside the source checkout");
   fs.mkdirSync(root, { mode: 0o700 }); // exclusive, including after a failed attempt
   writeJSON(path.join(root, "result.json"), {
@@ -301,6 +316,11 @@ export async function runAgy(root, { binary, credential } = {}) {
     if (
       !fs.statSync(binary).isFile() ||
       !fs.statSync(credential).isFile() ||
+      insideGit(root) ||
+      insideGit(path.dirname(binary)) ||
+      insideGit(path.dirname(credential)) ||
+      binary.startsWith(meta.source + "/") ||
+      binary.startsWith(root + "/") ||
       credential.startsWith(meta.source + "/") ||
       credential.startsWith(root + "/")
     )

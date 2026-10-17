@@ -43,7 +43,9 @@ node tools/review/agy.mjs run /tmp/unique-private-agy-review \
 Native sandbox permission is required for the owned broker/namespace. The helper
 reads only the selected OAuth credential file into a new private runtime; it does
 not copy account conversations, settings, plugins or the host home. Specs never
-contain credential values. Do not point artifacts into a code/content checkout.
+contain credential values. Artifacts are rejected inside Git checkouts, including aliases through symlinked
+parents. The selected CLI and credential must also be outside Git checkouts and
+outside the source/artifact directories.
 The packet contains committed changed text files, task and full patch; uncommitted
 work and Git metadata are excluded. The helper verifies packet hashes before and
 after execution. Symlink entries and oversized prompts are refused.

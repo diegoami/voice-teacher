@@ -258,3 +258,53 @@ test("documented structured output can accompany native display metadata without
   envelope.structured_output = { ...report, head: "c".repeat(40) };
   assert.throws(() => parseAgyResult(envelope, meta), /disagree/);
 });
+
+test("artifact aliases into source and other Git checkouts are rejected", () => {
+  const f = fixture();
+  fs.symlinkSync(f.source, path.join(f.root, "source-alias"));
+  assert.throws(
+    () =>
+      prepareAgy({
+        ...f.spec,
+        artifacts: path.join(f.root, "source-alias", "review"),
+      }),
+    /outside|checkout/,
+  );
+  const other = path.join(f.root, "other-checkout");
+  fs.mkdirSync(other);
+  execFileSync("git", ["init", "-q", "--template=", other]);
+  assert.throws(
+    () =>
+      prepareAgy({ ...f.spec, artifacts: path.join(other, "private-review") }),
+    /outside|checkout/,
+  );
+});
+
+test("candidate-controlled CLI is rejected before help execution or credential staging", async () => {
+  const f = fixture();
+  prepareAgy(f.spec);
+  const binary = path.join(f.source, "fake-agy");
+  const marker = path.join(f.root, "host-executed");
+  fs.writeFileSync(binary, "#!/bin/sh\ntouch " + marker + "\necho --help\n", {
+    mode: 0o700,
+  });
+  const credential = path.join(f.root, "selected-auth.json");
+  fs.writeFileSync(
+    credential,
+    JSON.stringify({ token: "synthetic-provider-token-long-enough" }),
+    { mode: 0o600 },
+  );
+  await assert.rejects(
+    () => runAgy(f.spec.artifacts, { binary, credential }),
+    /external operator-owned CLI/,
+  );
+  assert.ok(!fs.existsSync(marker));
+  assert.ok(
+    !fs.existsSync(
+      path.join(
+        f.spec.artifacts,
+        "runtime/home/.gemini/antigravity-cli/antigravity-oauth-token",
+      ),
+    ),
+  );
+});

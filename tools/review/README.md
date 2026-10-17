@@ -241,3 +241,12 @@ The supervised adapter closes stdin, bounds individual checks and caps a
 model invocation at ten minutes. It retains failures, but it is not T02's
 startup/idle watcher, parser or publisher. If execution fails, diagnose it;
 do not silently switch providers, versions or models.
+
+## Optional Antigravity CLI second opinion
+
+The owner-requested T34 [agy/Sonnet workflow](../../docs/reference/agy-review.md)
+uses `agy.mjs prepare/run` for a pinned static source packet inside the Linux
+read-only namespace. It retains the original response and always marks it
+ineligible for merge approval. Native model attestation and independent candidate
+checks remain unverified. `runner.mjs` and `publication.mjs` retain their existing
+OpenCode/native-identity requirements; agy output is never fed into them.

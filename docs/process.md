@@ -80,6 +80,16 @@ subagent, recording any change of implementer. Two unsuccessful rework rounds
 trigger a scope/architecture diagnosis with the user rather than an automatic
 reviewer/model switch. Do not stop task work at a local patch without its PR.
 
+## Supplemental agy reviews
+
+The owner authorized an agy/Sonnet trial in T34. The
+[agy runbook](reference/agy-review.md) defines its static, isolated second-opinion
+path. Its output is always supplemental and ineligible for merge approval;
+underlying model attestation and candidate acceptance checks are unverified.
+Retain original reports, reconcile findings, and continue the existing independent
+OpenCode current-head approval/checks gate. This adds an explicit tool option,
+not a silent reviewer substitution or a new fixed roster.
+
 ## Choosing and invoking the reviewer
 
 Choose only after the PR and validation evidence exist. Ask for the OpenCode

@@ -74,14 +74,61 @@ use parallel native implementers only for independent contracts and worktrees.
 
 ## Preflight decisions
 
-Use the existing private `language-learning-data` repository under an isolated
-namespace, or a dedicated private progress repository; make the destination
-configurable. Confirm the Android web-client assumption before T15 and whether
-screen-locked/headset use requires a separate native-client task. Confirm the
-free-conversation correction default before T20. These choices do not block
-schema, engine or review-tooling work.
+Confirmed by the owner during implementation:
+
+- Proceed with an installable web app for Android and desktop. Screen-locked
+  audio and headset controls would require a separately scoped native client.
+- Default to light immediate correction, with a learner-selectable alternative.
+- Use OpenRouter `google/gemini-3.8-flash`, the POC default, for T22's bounded
+  live free-conversation check, up to six turns. The
+  [recorded model choice](https://github.com/diegoami/voice-teacher/issues/22#issuecomment-6226131578)
+  is for the live dialogue check; MiniMax remains the PR reviewer. Do not
+  silently replace either model if unavailable.
+- Reuse the POC ElevenLabs configuration and existing private credential source.
+  On the original host the source is `~/.elevenlabs_env` (singular). Never copy
+  keys into fixtures, reports or this repository. Locate the existing private
+  OpenRouter configuration without printing its contents.
+
+The private progress destination remains unselected: use a verified isolated
+namespace in `language-learning-data` or a dedicated private repository. Do not
+configure or push to one implicitly. T25 additionally requires an operator-selected,
+reviewed sample manifest before actual historical import. Keep all original
+source records intact.
 
 This backlog assumes one personal learner and one active writer server.
 Accounts for other learners, billing, app-store packaging and automatic lesson
 authoring require separately scoped tasks if requested. T31 does not silently
 expand the release into a multi-user service.
+
+## Resuming product work
+
+Work stopped at the owner's request after
+[T23 / PR #63](https://github.com/diegoami/voice-teacher/pull/63) merged. That PR
+contains the exact approval, test results, limitations and reconciliation; use
+GitHub issue labels for live task status rather than a copied status board.
+No next product task was started. Resume only when the owner requests it.
+
+The agreed next task is [T22](T22.md), before T24. Recheck its T17/T18/T21
+dependencies, create its isolated worktree and run the available baseline.
+Read [free dialogue](../reference/free-dialogue.md),
+[free feedback and personal review](../reference/free-feedback.md),
+[session API](../reference/session-api.md) and
+[voice client](../reference/voice-client.md) before extending the app. Existing
+server support does not complete T22's client controls, original per-mode evals
+or live-quality acceptance. Never mark missing human/live checks complete.
+T19 still needs real Android participation after T28's stable HTTPS setup;
+browser emulation does not replace that gate.
+
+For this execution sequence the owner requested main-session implementation,
+MiniMax review through the OpenCode CLI, and merge after approval and successful
+checks before moving on. Revalidate the actual reviewer ID/variant and native
+session identity for each PR. Follow the [process](../process.md); see the
+[review runbook](../../tools/review/README.md#report-format-check-before-publication)
+for the known parser gap. Do not reuse a failed review or repair its report.
+
+Earlier scratch notes, review runtimes and task checkouts under `/tmp` are no
+longer present on this host. Their Git worktree registrations may still appear
+as prunable; do not prune them as routine cleanup. Use merged PRs and published
+reports for durable evidence, and provision fresh test/review dependencies.
+T24 had read-only format reconnaissance only; redo that preflight when selected,
+using the source repository's instructions and original synthetic fixtures.

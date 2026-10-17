@@ -22,6 +22,7 @@ export type VoiceView = {
   pending: boolean;
   controlPending: ControlOperation | null;
   hasUpload: boolean;
+  recordingStartedAt?: number;
 };
 const formats = [
   "audio/webm;codecs=opus",
@@ -342,6 +343,7 @@ export class VoiceController {
       this.recordingTimer = setTimeout(() => this.endRecording(), maxDuration);
       this.update({
         phase: "recording",
+        recordingStartedAt: Date.now(),
         message: "Listening… Tap to send your answer.",
       });
     } catch (e) {

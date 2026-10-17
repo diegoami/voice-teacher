@@ -73,6 +73,8 @@ use parallel native implementers only for independent contracts and worktrees.
 | [T32](T32.md) | Deploy the accepted service to the chosen always-on host | Later hosting | T31 | [#32](https://github.com/diegoami/voice-teacher/issues/32) |
 | [T33](T33.md) | Let the learner complete or reopen lessons and move on | Three-mode release | T18, T25 | [#69](https://github.com/diegoami/voice-teacher/issues/69) |
 
+| [T34](T34.md) | Add an agy supplemental review and trial Sonnet | Review workflow | T01, T02, T33 | [#72](https://github.com/diegoami/voice-teacher/issues/72) |
+
 ## Preflight decisions
 
 Confirmed by the owner during implementation:
@@ -102,6 +104,11 @@ authoring require separately scoped tasks if requested. T31 does not silently
 expand the release into a multi-user service.
 
 ## Resuming product work
+
+The owner inserted T34 to add the authenticated agy CLI and trial a Sonnet
+review of T33. T33/PR71 is merged. Keep T26's unfinished edits in its separate
+worktree, complete the bounded tooling task, then resume T26. The existing
+MiniMax/OpenCode merge gate remains required during the agy trial.
 
 The owner has now authorized all remaining tasks sequentially, retaining main
 implementation and MiniMax review. T23 / PR #63 and T22 / PR #67 are merged;

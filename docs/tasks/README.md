@@ -89,11 +89,11 @@ Confirmed by the owner during implementation:
   keys into fixtures, reports or this repository. Locate the existing private
   OpenRouter configuration without printing its contents.
 
-The private progress destination remains unselected: use a verified isolated
-namespace in `language-learning-data` or a dedicated private repository. Do not
-configure or push to one implicitly. T25 additionally requires an operator-selected,
-reviewed sample manifest before actual historical import. Keep all original
-source records intact.
+The owner selected a dedicated private `voice-teacher-progress` repository on
+2026-10-17. Verify its owner, visibility and app-owned namespace before use;
+this choice alone does not apply historical data. T25 additionally requires an
+operator-selected, reviewed sample manifest before actual historical import.
+Keep all original source records intact.
 
 This backlog assumes one personal learner and one active writer server.
 Accounts for other learners, billing, app-store packaging and automatic lesson
@@ -102,20 +102,20 @@ expand the release into a multi-user service.
 
 ## Resuming product work
 
-Work stopped at the owner's request after
-[T23 / PR #63](https://github.com/diegoami/voice-teacher/pull/63) merged. That PR
-contains the exact approval, test results, limitations and reconciliation; use
-GitHub issue labels for live task status rather than a copied status board.
-No next product task was started. Resume only when the owner requests it.
+The owner has now authorized all remaining tasks sequentially, retaining main
+implementation and MiniMax review. T23 / PR #63 and T22 / PR #67 are merged;
+their PRs contain approval, results, limitations and reconciliation. Use GitHub
+issue labels for live status rather than a copied status board. Continue in
+dependency order, one branch/PR at a time, merging only after current-head
+approval and successful checks. A task requiring a missing owner decision or
+human check stays incomplete; proceed with other eligible tasks when possible.
 
-The agreed next task is [T22](T22.md), before T24. Recheck its T17/T18/T21
-dependencies, create its isolated worktree and run the available baseline.
-Read [free dialogue](../reference/free-dialogue.md),
-[free feedback and personal review](../reference/free-feedback.md),
-[session API](../reference/session-api.md) and
-[voice client](../reference/voice-client.md) before extending the app. Existing
-server support does not complete T22's client controls, original per-mode evals
-or live-quality acceptance. Never mark missing human/live checks complete.
+Continue with [T24](T24.md) after T22, then the eligible remaining contracts.
+Recheck dependencies, create an isolated worktree and run the available baseline
+for each task. T22's bounded selected-model integration and owner listening are
+recorded in PR #67; its explicit owner amendment defers full microphone-to-server
+and unscripted human acceptance to the deployed phone app. Never mark missing
+human/live checks complete.
 T19 still needs real Android participation after T28's stable HTTPS setup;
 browser emulation does not replace that gate.
 

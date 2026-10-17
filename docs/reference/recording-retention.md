@@ -14,7 +14,8 @@ copies. This does not delete the session transcript, practice evidence, correcti
 or weak-item queue. Failed settings responses tell the learner to reload and
 confirm the server's actual state.
 
-A duration starts when an upload request is first accepted for processing. An
+A duration starts when the server first records the retention choice for an
+accepted upload, before calling speech recognition. An
 opted-in recording can therefore exist even if recognition later fails. Retrying
 the same upload never extends its expiry or recreates expired/deleted audio.
 Increasing the preference affects future uploads; shortening it also bounds
@@ -48,12 +49,22 @@ python -m voice_teacher.storage.recordings --runtime /private/server-runtime
 ```
 
 Use the installed application version and its private runtime directory. The
-command returns an expired-record count; failures return a sanitized error and
+command requires an existing runtime database and returns the expired-record
+count from its startup sweep; failures return a sanitized error and
 nonzero exit. It never edits progress events or teacher-audio cache. Startup and
 maintenance also remove interrupted `.pending-*` files and untracked managed
 recording files. Unknown ordinary files are preserved; symlinks stop cleanup
 rather than following their targets. A periodic-worker failure emits a generic
 operator warning without learner text, audio, credentials or private paths.
+
+Disable/expiry/unavailable states commit before their files are removed, under
+the same recording lock. A database rollback therefore cannot lose a valid
+recording through a premature unlink. If filesystem cleanup fails, the committed
+disable or denial remains in force; a failed response does not promise that all
+bytes were removed. Reload the setting and fix the private filesystem problem,
+then rerun cleanup. Managed files left by a crash or failed purge are retried on
+the next successful sweep. Symlinks deliberately stop cleanup and startup until
+the operator removes the offending entry without following its target.
 
 ## Storage and authenticated access
 

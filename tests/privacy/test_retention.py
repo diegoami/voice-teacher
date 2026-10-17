@@ -151,6 +151,98 @@ def test_cleanup_refuses_symlinks_without_touching_the_target(tmp_path):
     assert sentinel.read_bytes() == b'outside'
 
 
+def test_failed_purge_keeps_disable_committed_and_retries_without_losing_history(tmp_path):
+    import sqlite3
+    store, pipeline, recordings, now = retained(tmp_path)
+    submit(pipeline)
+    events = store.events(LEARNER, SESSION)
+    sentinel = tmp_path / 'sentinel'; sentinel.write_bytes(b'outside')
+    stray = recordings.root / 'stray'; stray.symlink_to(sentinel)
+    with pytest.raises(StorageError): recordings.set_policy(LEARNER, 0)
+    assert recordings.policy(LEARNER) == dict(retention_days=0)
+    with sqlite3.connect(store.path) as c:
+        assert c.execute('SELECT state FROM learner_recordings').fetchall() == [('deleted',)]
+    assert sentinel.read_bytes() == b'outside'
+    stray.unlink(); recordings.cleanup()
+    assert list(recordings.root.iterdir()) == []
+    assert recordings.list(LEARNER, SESSION)[0]['state'] == 'deleted'
+    assert store.events(LEARNER, SESSION) == events
+
+
+def test_database_rollback_does_not_delete_retained_files(tmp_path, monkeypatch):
+    from contextlib import contextmanager
+    import sqlite3
+    store, pipeline, recordings, now = retained(tmp_path)
+    submit(pipeline)
+    row = recordings.list(LEARNER, SESSION)[0]
+    transaction = store._transaction
+    @contextmanager
+    def failed_commit():
+        with transaction() as c:
+            yield c
+            raise sqlite3.OperationalError('synthetic commit failure')
+    with monkeypatch.context() as patch:
+        patch.setattr(store, '_transaction', failed_commit)
+        with pytest.raises(sqlite3.OperationalError): recordings.set_policy(LEARNER, 0)
+    assert recordings.policy(LEARNER) == dict(retention_days=1)
+    assert recordings.read(LEARNER, SESSION, row['recording_id'])[1] == b'synthetic recording'
+
+
+def test_failed_expiry_purge_keeps_expired_state_and_retry_removes_bytes(tmp_path):
+    import sqlite3
+    store, pipeline, recordings, now = retained(tmp_path)
+    submit(pipeline)
+    row = recordings.list(LEARNER, SESSION)[0]
+    sentinel = tmp_path / 'sentinel'; sentinel.write_bytes(b'outside')
+    stray = recordings.root / 'stray'; stray.symlink_to(sentinel)
+    now[0] = row['expires_at']
+    with pytest.raises(StorageError): recordings.cleanup()
+    with sqlite3.connect(store.path) as c:
+        assert c.execute('SELECT state FROM learner_recordings').fetchall() == [('expired',)]
+    stray.unlink(); recordings.cleanup()
+    assert list(recordings.root.iterdir()) == []
+    assert recordings.read(LEARNER, SESSION, row['recording_id'])[1] is None
+    assert sentinel.read_bytes() == b'outside'
+
+
+def recording_cli(runtime):
+    import subprocess
+    import sys
+    return subprocess.run([sys.executable, '-m', 'voice_teacher.storage.recordings',
+                           '--runtime', str(runtime)], capture_output=True, text=True, timeout=15)
+
+
+def test_maintenance_cli_counts_startup_expiry_and_preserves_history(tmp_path):
+    import sqlite3
+    store, pipeline, recordings, now = retained(tmp_path)
+    submit(pipeline)
+    events = store.events(LEARNER, SESSION)
+    with sqlite3.connect(store.path) as c: c.execute('UPDATE learner_recordings SET expires_at=1')
+    result = recording_cli(store.path.parent)
+    assert result.returncode == 0 and json.loads(result.stdout) == dict(expired=1)
+    assert list(recordings.root.iterdir()) == []
+    assert store.events(LEARNER, SESSION) == events
+    assert json.loads(recording_cli(store.path.parent).stdout) == dict(expired=0)
+
+
+def test_maintenance_cli_sanitizes_database_errors(tmp_path):
+    import sqlite3
+    store, pipeline, recordings, now = retained(tmp_path)
+    with sqlite3.connect(store.path) as c:
+        c.execute('BEGIN EXCLUSIVE')
+        result = recording_cli(store.path.parent)
+    assert result.returncode != 0 and result.stdout == ''
+    assert 'recording cleanup failed' in result.stderr
+    assert 'Traceback' not in result.stderr and 'sqlite3.' not in result.stderr
+    assert str(store.path.parent) not in result.stderr
+
+
+def test_maintenance_cli_refuses_missing_runtime_without_creating_it(tmp_path):
+    runtime = tmp_path / 'missing'
+    result = recording_cli(runtime)
+    assert result.returncode != 0 and not runtime.exists()
+
+
 def test_archive_and_clean_restore_exclude_raw_assets_and_retention_preference(tmp_path):
     store, pipeline, recordings, now = retained(tmp_path)
     submit(pipeline)
@@ -226,6 +318,7 @@ def test_api_retention_owner_acl_expired_status_and_public_allowlists(tmp_path):
     response = client.get(path, headers=owner)
     assert response.status_code == 200 and response.content == b'synthetic recording'
     assert response.headers['cache-control'] == 'no-store'
+    assert response.headers['x-content-type-options'] == 'nosniff'
     assert response.headers['content-type'].startswith('audio/webm')
     for suffix in ['unknown', '%2e%2e%2fsecret', 'a'*64]:
         assert client.get('/api/v1/sessions/'+SESSION+'/recordings/'+suffix, headers=owner).status_code == 404
@@ -238,7 +331,10 @@ def test_api_retention_owner_acl_expired_status_and_public_allowlists(tmp_path):
 
 
 def test_provider_errors_and_routine_logs_exclude_recordings_credentials_and_profiles(tmp_path, caplog):
+    import logging
+    caplog.set_level(logging.INFO)
     store, pipeline, recordings, now = retained(tmp_path, answers=[SpeechError('SYNTHETIC_PRIVATE_API_KEY')])
+    store.save_learner(LEARNER, {'private_note': 'SYNTHETIC_PRIVATE_PROFILE'})
     app, client, grant = client_for(store, pipeline, recordings)
     owner = grant(LEARNER)
     raw = b'SYNTHETIC_PRIVATE_AUDIO_BYTES'

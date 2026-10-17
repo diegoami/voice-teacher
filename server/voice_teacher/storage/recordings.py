@@ -6,6 +6,7 @@ import json
 import math
 import os
 import re
+import sqlite3
 import tempfile
 import time
 
@@ -26,7 +27,7 @@ class Recordings:
         if self.root.is_symlink(): raise StorageError('recording directory symlink refused')
         self.root.mkdir(mode=0o700, exist_ok=True)
         if self.root.stat().st_mode & 0o077: raise StorageError('recording directory must be private')
-        self.cleanup()
+        self.startup_cleanup = self.cleanup()
 
     @contextmanager
     def _locked(self):
@@ -73,17 +74,15 @@ class Recordings:
     def set_policy(self, learner, days):
         if type(days) is not int or not 0 <= days <= 30: raise StorageError('retention days must be 0 to 30')
         self.store.learner(_id(learner))
-        with self._locked(), self.store._transaction() as c:
-            c.execute('INSERT INTO recording_preferences VALUES (?,?) ON CONFLICT(learner_id) DO UPDATE SET retention_days=excluded.retention_days', (learner, days))
-            if days == 0:
-                for row in c.execute("SELECT recording_id FROM learner_recordings WHERE learner_id=? AND state='retained'", (learner,)):
-                    self._remove(row[0])
-                c.execute("UPDATE learner_recordings SET state='deleted' WHERE learner_id=? AND state='retained'", (learner,))
-            else:
-                c.execute("UPDATE learner_recordings SET expires_at=min(expires_at,created_at+?) WHERE learner_id=? AND state='retained'", (days*86400, learner))
-            self._expire(c, self._now())
-            self._orphans(c)
-            self._fsync()
+        with self._locked():
+            with self.store._transaction() as c:
+                c.execute('INSERT INTO recording_preferences VALUES (?,?) ON CONFLICT(learner_id) DO UPDATE SET retention_days=excluded.retention_days', (learner, days))
+                if days == 0:
+                    c.execute("UPDATE learner_recordings SET state='deleted' WHERE learner_id=? AND state='retained'", (learner,))
+                else:
+                    c.execute("UPDATE learner_recordings SET expires_at=min(expires_at,created_at+?) WHERE learner_id=? AND state='retained'", (days*86400, learner))
+                self._expire(c, self._now())
+            self._purge()
         return dict(retention_days=days)
 
     def keep(self, learner, session, request, data, media_type):
@@ -92,6 +91,7 @@ class Recordings:
         digest = hashlib.sha256(data).hexdigest()
         recording = identity(learner, session, request)
         created = False
+        self.cleanup()
         with self._locked():
             try:
                 with self.store._transaction() as c:
@@ -99,7 +99,6 @@ class Recordings:
                     if accepted is None: raise StorageError('recording request not accepted')
                     bound = json.loads(accepted[0])
                     if bound.get('sha256') != digest or bound.get('media_type') != media_type: raise StorageError('recording intent mismatch')
-                    self._expire(c, self._now())
                     old = c.execute('SELECT recording_id FROM learner_recordings WHERE recording_id=?', (recording,)).fetchone()
                     if old is not None: return recording  # never extend or resurrect on retry
                     setting = c.execute('SELECT retention_days FROM recording_preferences WHERE learner_id=?', (learner,)).fetchone()
@@ -122,27 +121,32 @@ class Recordings:
         return recording
 
     def _expire(self, c, now):
-        rows = c.execute("SELECT recording_id FROM learner_recordings WHERE state='retained' AND expires_at<=?", (now,)).fetchall()
-        for row in rows: self._remove(row[0])
-        c.execute("UPDATE learner_recordings SET state='expired' WHERE state='retained' AND expires_at<=?", (now,))
-        return len(rows)
+        return c.execute("UPDATE learner_recordings SET state='expired' WHERE state='retained' AND expires_at<=?", (now,)).rowcount
+
+    def _purge(self):
+        # Caller holds the recording lock. Persist denial/disable BEFORE deleting
+        # bytes: rollback cannot undo an unlink. A failed purge stays denied and
+        # a later cleanup retries all managed files no longer marked retained.
+        with self.store._connection() as c:
+            self._orphans(c)
+        self._fsync()
 
     def cleanup(self, learner=None):
         if learner is not None: self.store.learner(_id(learner))
-        with self._locked(), self.store._transaction() as c:
-            # Expiry is global policy enforcement; the count exposed to a client
-            # is restricted to that learner. No other learner metadata is returned.
-            before = c.execute("SELECT count(*) FROM learner_recordings WHERE state='retained' AND expires_at<=?" + (' AND learner_id=?' if learner else ''), (self._now(), learner) if learner else (self._now(),)).fetchone()[0]
-            self._expire(c, self._now())
-            self._orphans(c)
-            self._fsync()
+        with self._locked():
+            with self.store._transaction() as c:
+                # Expiry is global; the count exposed to a client is owner-only.
+                now = self._now()
+                before = c.execute("SELECT count(*) FROM learner_recordings WHERE state='retained' AND expires_at<=?" + (' AND learner_id=?' if learner else ''), (now, learner) if learner else (now,)).fetchone()[0]
+                self._expire(c, now)
+            self._purge()
         return dict(expired=before)
 
     def _orphans(self, c):
         live = {r[0] for r in c.execute("SELECT recording_id FROM learner_recordings WHERE state='retained'")}
         for path in self.root.iterdir():
             if path.is_symlink(): raise StorageError('recording symlink refused during cleanup')
-            if path.name.startswith('.pending-') or re.fullmatch('[a-f0-9]{64}\\.bin', path.name) and path.stem not in live:
+            if path.name.startswith('.pending-') or (re.fullmatch('[a-f0-9]{64}\\.bin', path.name) and path.stem not in live):
                 if not path.is_file(): raise StorageError('unexpected recording artifact')
                 path.unlink()
 
@@ -153,46 +157,56 @@ class Recordings:
     def list(self, learner, session):
         self.store.session(learner, session)
         self.cleanup(learner)
-        with self._locked(), self.store._transaction() as c:
-            if self._expire(c, self._now()): self._fsync()
-            rows = c.execute('SELECT * FROM learner_recordings WHERE learner_id=? AND session_id=? ORDER BY created_at,recording_id', (learner, session)).fetchall()
-            result = []
-            for row in rows:
-                value = self._public(row)
-                if row['state'] == 'retained' and not self._path(row['recording_id']).is_file():
-                    c.execute("UPDATE learner_recordings SET state='unavailable' WHERE recording_id=?", (row['recording_id'],)); value['state'] = 'unavailable'
-                result.append(value)
+        with self._locked():
+            with self.store._transaction() as c:
+                self._expire(c, self._now())
+                rows = c.execute('SELECT * FROM learner_recordings WHERE learner_id=? AND session_id=? ORDER BY created_at,recording_id', (learner, session)).fetchall()
+                result = []
+                for row in rows:
+                    value = self._public(row)
+                    if row['state'] == 'retained' and not self._path(row['recording_id']).is_file():
+                        c.execute("UPDATE learner_recordings SET state='unavailable' WHERE recording_id=?", (row['recording_id'],)); value['state'] = 'unavailable'
+                    result.append(value)
+            self._purge()
         return result
 
     def read(self, learner, session, recording):
         self.store.session(learner, session)
         if not isinstance(recording, str) or not re.fullmatch('[a-f0-9]{64}', recording): return None
         self.cleanup(learner)
-        with self._locked(), self.store._transaction() as c:
-            if self._expire(c, self._now()): self._fsync()
-            row = c.execute('SELECT * FROM learner_recordings WHERE learner_id=? AND session_id=? AND recording_id=?', (learner, session, recording)).fetchone()
-            if row is None: return None
-            if row['state'] != 'retained': return self._public(row), None
-            path = self._path(recording)
-            try:
-                with path.open('rb') as stream: data = stream.read(8*1024*1024+1)
-            except FileNotFoundError: data = b''
-            if hashlib.sha256(data).hexdigest() != row['sha256']:
-                self._remove(recording); self._fsync()
-                c.execute("UPDATE learner_recordings SET state='unavailable' WHERE recording_id=?", (recording,))
-                value = self._public(row); value['state'] = 'unavailable'
-                return value, None
-            return self._public(row), data
+        with self._locked():
+            with self.store._transaction() as c:
+                self._expire(c, self._now())
+                row = c.execute('SELECT * FROM learner_recordings WHERE learner_id=? AND session_id=? AND recording_id=?', (learner, session, recording)).fetchone()
+                result = None
+                if row is not None:
+                    value = self._public(row)
+                    data = None
+                    if row['state'] == 'retained':
+                        path = self._path(recording)
+                        try:
+                            with path.open('rb') as stream: data = stream.read(8*1024*1024+1)
+                        except FileNotFoundError: data = b''
+                        if hashlib.sha256(data).hexdigest() != row['sha256']:
+                            c.execute("UPDATE learner_recordings SET state='unavailable' WHERE recording_id=?", (recording,))
+                            value['state'] = 'unavailable'; data = None
+                    result = value, data
+            self._purge()
+        return result
 
 
 def main():
     import argparse
+    from pathlib import Path
     from . import Store
     parser = argparse.ArgumentParser(description='Expire private learner recordings without changing progress')
     parser.add_argument('--runtime', required=True)
     args = parser.parse_args()
-    try: result = Recordings(Store(args.runtime)).cleanup()
-    except (ValueError, OSError): parser.error('recording cleanup failed; inspect private configuration')
+    try:
+        database = Path(args.runtime).expanduser() / 'voice-teacher.sqlite'
+        if database.is_symlink() or not database.is_file(): raise StorageError('runtime database required')
+        result = Recordings(Store(args.runtime)).startup_cleanup
+    except (ValueError, OSError, sqlite3.Error): parser.error('recording cleanup failed; inspect private configuration')
     print(json.dumps(result))
 
 

@@ -1,6 +1,6 @@
 """Internal SQLite schema versions; independent of interchange schema versions."""
 APPLICATION_ID = 0x56544348  # VTCH
-VERSION = 8
+VERSION = 9
 
 V1 = (
     "CREATE TABLE learners (learner_id TEXT PRIMARY KEY, profile_json TEXT NOT NULL)",
@@ -108,4 +108,17 @@ V8 = (
         decision_id,learner_id,request_id,source_id,course_id,content_sha256,sequence,input_json,body_json
         ON lesson_decisions BEGIN SELECT RAISE(ABORT, 'lesson decisions are append-only'); END""",
     "CREATE TRIGGER immutable_lesson_decisions_delete BEFORE DELETE ON lesson_decisions BEGIN SELECT RAISE(ABORT, 'lesson decisions are append-only'); END",
+)
+
+V9 = (
+    """CREATE TABLE recording_preferences (
+        learner_id TEXT PRIMARY KEY REFERENCES learners(learner_id),
+        retention_days INTEGER NOT NULL CHECK(retention_days BETWEEN 0 AND 30))""",
+    """CREATE TABLE learner_recordings (
+        recording_id TEXT PRIMARY KEY, learner_id TEXT NOT NULL, session_id TEXT NOT NULL,
+        request_id TEXT NOT NULL, sha256 TEXT NOT NULL, media_type TEXT NOT NULL,
+        created_at REAL NOT NULL, expires_at REAL,
+        state TEXT NOT NULL CHECK(state IN ('retained','not_retained','expired','deleted','unavailable')),
+        UNIQUE(learner_id,session_id,request_id),
+        FOREIGN KEY(learner_id,session_id,request_id) REFERENCES speech_requests(learner_id,session_id,request_id))""",
 )

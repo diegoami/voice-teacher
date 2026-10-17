@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { RecordingHistory } from "./retention";
 import { api, ApiError, load as loadSaved, save, type Choice } from "./api";
 
 type SourceRef = {
@@ -548,6 +549,12 @@ export function ProgressPanel({
               More observations
             </button>
           )}
+          <RecordingHistory
+            key={detail.session_id}
+            token={token}
+            unauthorized={unauthorized}
+            session={detail.session_id}
+          />
           <h4>Saved transcript</h4>
           <ol>
             {turns.map((t) => (

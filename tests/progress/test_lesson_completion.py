@@ -174,6 +174,7 @@ def test_v8_failure_rolls_back_and_preserves_previous_practice(tmp_path, monkeyp
     store = Store(tmp_path / 'runtime'); session(store)
     events = store.events(PRACTICE_LEARNER, 'alpha')
     with sqlite3.connect(store.path) as c:
+        c.execute('DROP TABLE learner_recordings'); c.execute('DROP TABLE recording_preferences')
         c.execute('DROP TABLE lesson_decisions'); c.execute('PRAGMA user_version=7')
     original = implementation.V8
     monkeypatch.setattr(implementation, 'V8', (*original, 'SELECT synthetic_failure()'))

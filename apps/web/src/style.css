@@ -264,3 +264,23 @@ p {
   padding: 0.65rem 0;
   cursor: pointer;
 }
+
+.legacy-history {
+  margin: 1rem 0;
+  padding: 1rem;
+  box-shadow: none;
+}
+.legacy-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  border-top: 1px solid #dedfd2;
+  padding-top: 1rem;
+}
+.archive-hash {
+  overflow-wrap: anywhere;
+}
+.legacy-history summary {
+  min-height: 44px;
+  cursor: pointer;
+}

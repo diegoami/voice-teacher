@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { LegacyHistory } from "./legacy-history";
 import { RecordingHistory } from "./retention";
 import { api, ApiError, load as loadSaved, save, type Choice } from "./api";
 
@@ -240,6 +241,7 @@ export function ProgressPanel({
   return (
     <section aria-labelledby="progress">
       <h2 id="progress">History and progress</h2>
+      <LegacyHistory token={token} unauthorized={unauthorized} />
       <button
         className="secondary"
         disabled={busy}

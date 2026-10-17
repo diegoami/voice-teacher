@@ -186,12 +186,12 @@ def test_v8_failure_rolls_back_and_preserves_previous_practice(tmp_path, monkeyp
 
 
 def test_manual_completion_preserves_practice_evidence_and_weak_queue(tmp_path):
-    from test_views import repetition
-    from test_roundtrip import LEARNER as PRACTICE_LEARNER, turn
+    from test_roundtrip import LEARNER as PRACTICE_LEARNER, turn, session, Judge
     from voice_teacher.practice.repetition import weak_queue
     store = Store(tmp_path / 'runtime')
-    coordinator, plan = repetition(store, 'practice', 'synthetic')
-    for _ in range(2): turn(coordinator, 'practice', 'banana orange pear apple plum')
+    coordinator = session(store, 'practice', Judge('error', 'accept'))
+    turn(coordinator, 'practice', 'Wrong synthetic greeting')
+    turn(coordinator, 'practice', 'Привіт')
     snapshot = store.session(PRACTICE_LEARNER, 'practice')
     snap = SourceSnapshot('version-original', canonical_json(dict(curriculum=snapshot['curriculum_snapshot'], provenance=dict(commit=None, dirty=True))))
     before = store.events(PRACTICE_LEARNER, 'practice')

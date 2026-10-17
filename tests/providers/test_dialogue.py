@@ -93,3 +93,55 @@ def test_optional_dialogue_configuration_does_not_make_network_calls_at_composit
         speech_key="SYNTHETIC_SPEECH", judge_key="SYNTHETIC_JUDGE", judge_model="synthetic/judge",
         dialogue_model="synthetic/dialogue", origin="http://teacher.test")
     assert TestClient(app, base_url="http://teacher.test").get("/healthz").json() == {"status": "ok"}
+
+
+def test_explicit_reasoning_effort_leaves_the_small_budget_for_a_complete_reply():
+    def handler(request):
+        body = json.loads(request.content)
+        # Reproduces the observed provider boundary without a paid call.
+        value = response()
+        if body.get("reasoning") != {"effort": "minimal"}:
+            value["choices"][0].update(finish_reason="length")
+            value["choices"][0]["message"]["content"] = ""
+        assert body["max_completion_tokens"] == 512
+        return httpx.Response(200, json=value)
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    legacy = OpenRouterDialogue("key", "synthetic/model", max_reply_tokens=512, client=client)
+    with pytest.raises(RuntimeError):
+        legacy(context())
+    configured = OpenRouterDialogue("key", "synthetic/model", max_reply_tokens=512,
+                                    reasoning_effort="minimal", client=client)
+    assert configured(context()).text == "Куди ви подорожуєте?"
+    assert configured.identity == {**legacy.identity, "policy_version": 2, "reasoning_effort": "minimal"}
+
+
+def test_reasoning_identity_is_closed_versioned_and_preserves_legacy_capsules():
+    from voice_teacher.providers.dialogue import provider_identity
+    old = OpenRouterDialogue("key", "model").identity
+    assert provider_identity(old) == old and old["policy_version"] == 1
+    new = {**old, "policy_version": 2, "reasoning_effort": "minimal"}
+    assert provider_identity(new) == new
+    for bad in [{**new, "policy_version": 1}, {**old, "policy_version": 2},
+                {**new, "reasoning_effort": "automatic"}, {**new, "reasoning_effort": []},
+                {**new, "reasoning_effort": None}, {**new, "hidden_config": True}]:
+        with pytest.raises(ValueError):
+            provider_identity(bad)
+
+
+def test_server_pins_explicit_effort_for_both_free_roles_without_network(tmp_path, monkeypatch):
+    from voice_teacher.__main__ import build_app
+    def forbidden(*args, **kwargs):
+        raise AssertionError("composition must not call a provider")
+    monkeypatch.setattr(httpx.Client, "stream", forbidden)
+    import importlib
+    module = importlib.import_module("voice_teacher.__main__")
+    monkeypatch.setattr(module, "create_app", lambda store, coordinator, **kwargs: coordinator)
+    coordinator = build_app(tmp_path / "data", operator_token="operator-" + "x" * 40,
+                    speech_key="speech", judge_key="judge", judge_model="judge",
+                    dialogue_model="dialogue", free_reasoning_effort="minimal", dialogue_reply_tokens=512)
+    assert coordinator.dialogue.identity["reasoning_effort"] == "minimal"
+    assert coordinator.dialogue.identity["max_reply_tokens"] == 512
+    assert coordinator.feedback.identity["reasoning_effort"] == "minimal"
+    with pytest.raises(ValueError, match="requires explicitly configured"):
+        build_app(tmp_path / "other", operator_token="operator-" + "x" * 40,
+                  speech_key="speech", judge_key="judge", judge_model="judge", free_reasoning_effort="minimal")

@@ -11,7 +11,7 @@ from pathlib import Path
 import httpx2
 from voice_teacher.practice.coordinator import Coordinator
 from voice_teacher.practice.free import FreePolicy, plan_free
-from voice_teacher.providers.dialogue import OpenRouterDialogue
+from voice_teacher.providers.dialogue import OpenRouterDialogue, REASONING_EFFORTS
 from voice_teacher.providers.feedback import OpenRouterFeedback
 from voice_teacher.providers.speech import ElevenLabs
 from voice_teacher.storage import Store
@@ -24,6 +24,22 @@ INPUTS = (
     "Ми хочемо прямий потяг. Чи можна взяти з собою велосипед?",
     "Дякую. Я виберу ранковий потяг і візьму велосипед.",
 )
+
+
+def observe_response(response, observe):
+    """Observe decoded bytes under the same cap as the production adapter."""
+    original = response.iter_bytes
+
+    def observed_bytes(*args, **kwargs):
+        raw = bytearray()
+        for chunk in original(*args, **kwargs):
+            raw.extend(chunk)
+            if len(raw) > 64 * 1024:
+                raise ValueError("provider response exceeds metadata limit")
+            yield chunk
+        observe(response.status_code, bytes(raw))
+
+    response.iter_bytes = observed_bytes
 
 
 def bounded_turns(value):
@@ -47,6 +63,7 @@ def main():
     parser.add_argument("--turns", type=bounded_turns, default=6)
     parser.add_argument("--correction-style", choices=["light_immediate", "end_of_session"], default="light_immediate")
     parser.add_argument("--output", required=True)
+    parser.add_argument("--reasoning-effort", choices=REASONING_EFFORTS)
     parser.add_argument("--reply-tokens", type=int, choices=range(64, 513), default=256, metavar="64..512")
     parser.add_argument("--speech", action="store_true", help="also generate private ElevenLabs samples")
     args = parser.parse_args()
@@ -61,7 +78,7 @@ def main():
     if args.model not in {m["id"] for m in response.json()["data"]}:
         raise SystemExit("selected model unavailable; no substitute or live turn started")
     root.mkdir(mode=0o700)
-    report = dict(model=args.model, turns=[], input_kind="synthetic_text", correction_style=args.correction_style, max_reply_tokens=args.reply_tokens,
+    report = dict(model=args.model, turns=[], input_kind="synthetic_text", correction_style=args.correction_style, max_reply_tokens=args.reply_tokens, reasoning_effort=args.reasoning_effort,
                   human_conversation="incomplete", human_listening="incomplete", real_microphone="not run",
                   generated_stress="unverified: generated words have no authored stress guarantee")
     def save():
@@ -70,26 +87,27 @@ def main():
         p.chmod(0o600)
     save()
     try:
-        def response_metadata(response):
-            response.read()
-            if "/chat/completions" not in str(response.url):
-                return
+        def response_metadata(status, raw):
             try:
-                body = response.json()
+                body = json.loads(raw)
                 choice = (body.get("choices") or [{}])[0]
                 message = choice.get("message") or {}
                 report.setdefault("provider_responses", []).append({
-                    "http_status": response.status_code, "model": body.get("model"),
+                    "http_status": status, "model": body.get("model"),
                     "finish_reason": choice.get("finish_reason"),
                     "refused": bool(message.get("refusal")),
                     "error_code": (body.get("error") or {}).get("code"),
+                    "completion_tokens": (body.get("usage") or {}).get("completion_tokens"),
+                    "reasoning_tokens": ((body.get("usage") or {}).get("completion_tokens_details") or {}).get("reasoning_tokens"),
+                    "content_characters": len(message.get("content") or ""),
                 })
             except Exception:
-                report.setdefault("provider_responses", []).append({"http_status": response.status_code})
+                report.setdefault("provider_responses", []).append({"http_status": status})
             save()
-        client = httpx2.Client(timeout=20, follow_redirects=False, event_hooks={"response": [response_metadata]})
-        dialogue = OpenRouterDialogue(key, args.model, client=client, max_reply_tokens=args.reply_tokens)
-        feedback = OpenRouterFeedback(key, args.model, client=client)
+        client = httpx2.Client(timeout=20, follow_redirects=False,
+                               event_hooks={"response": [lambda response: observe_response(response, response_metadata)]})
+        dialogue = OpenRouterDialogue(key, args.model, client=client, max_reply_tokens=args.reply_tokens, reasoning_effort=args.reasoning_effort)
+        feedback = OpenRouterFeedback(key, args.model, client=client, reasoning_effort=args.reasoning_effort)
         speech = ElevenLabs(speech_key) if args.speech else None
         store = Store(root / "runtime")
         learner, sid = "synthetic-eval", "bounded-live"

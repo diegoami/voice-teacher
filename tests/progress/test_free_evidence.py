@@ -27,9 +27,12 @@ class Feedback:
         return FeedbackReply([{"turn_id":turn["turn_id"],"original":turn["text"],"preferred":turn["text"].replace("потяг.","потягом."),"reason":"Use the instrumental form for the means of transport.","item_id":None}],0,{})
 
 
-def setup(tmp_path,style="light_immediate",source=None):
+def setup(tmp_path,style="light_immediate",source=None,effort=None):
     store=Store(tmp_path/"data");store.save_learner(LEARNER,{"level":"A2","private_note":"SYNTHETIC_PRIVATE"})
     dialogue,feedback=Dialogue(),Feedback()
+    if effort is not None:
+        dialogue.identity={**dialogue.identity,"policy_version":2,"reasoning_effort":effort}
+        feedback.identity={**feedback.identity,"policy_version":2,"reasoning_effort":effort}
     c=Coordinator(store,lambda *a: (_ for _ in ()).throw(AssertionError("no fixed-target judge")),dialogue=dialogue)
     c.feedback=feedback
     plan=plan_free(source,"basics" if source else None,"lesson-1" if source else None,topic="Travel",learner_level="A2",provider=dialogue.identity,policy=FreePolicy(),correction_style=style)
@@ -332,3 +335,20 @@ def test_saved_published_feedback_must_match_actual_committed_evidence(tmp_path,
     if mutation=="wording":state["observations"][0]["claim"]["preferred"]="Invented saved wording"
     else:state["observations"][0]["event_id"]="nonexistent-observation";state["published"]=["nonexistent-observation"]
     with pytest.raises(ValueError):checked_state(state,snapshot,projection["turns"],projection["evidence"])
+
+
+def test_explicit_feedback_effort_survives_archive_restore_and_cannot_silently_change(tmp_path):
+    store,c,dialogue,feedback=setup(tmp_path,"end_of_session",effort="minimal")
+    c.submit(LEARNER,"free","one",expected_revision=0,text="Я їду потяг.")
+    root=tmp_path/"archive";root.mkdir();archive=Archive(root);archive.export(store)
+    restored=Store(tmp_path/"restored");archive.restore(restored)
+    resumed=Coordinator(restored,lambda *a: None,dialogue=dialogue,feedback=feedback)
+    resumed.submit(LEARNER,"free","two",expected_revision=1,text="Він їде потяг.")
+    changed=Feedback();changed.identity={**feedback.identity,"reasoning_effort":"low"}
+    other=Coordinator(restored,lambda *a: None,dialogue=dialogue,feedback=changed)
+    before=restored.events(LEARNER,"free")
+    with pytest.raises(StorageError,match="pinned feedback provider"):
+        other.submit(LEARNER,"free","bad",expected_revision=2,text="Ми їдемо потяг.")
+    assert restored.events(LEARNER,"free")==before and changed.calls==[]
+    resumed.control(LEARNER,"free","finish",expected_revision=2,operation="stop")
+    assert len(restored.projection(LEARNER,"free")["evidence"])==2

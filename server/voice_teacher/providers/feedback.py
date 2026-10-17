@@ -46,8 +46,8 @@ class FeedbackReply:
 
 
 class OpenRouterFeedback(OpenRouterDialogue):
-    def __init__(self,key,model,*,client=None,timeout=20,max_reply_tokens=512):
-        super().__init__(key,model,client=client,timeout=timeout,max_reply_tokens=max_reply_tokens)
+    def __init__(self,key,model,*,client=None,timeout=20,max_reply_tokens=512,reasoning_effort=None):
+        super().__init__(key,model,client=client,timeout=timeout,max_reply_tokens=max_reply_tokens,reasoning_effort=reasoning_effort)
 
     def __call__(self,context):
         validate_context(context)
@@ -57,6 +57,8 @@ class OpenRouterFeedback(OpenRouterDialogue):
                   "max_tokens":self.identity["max_reply_tokens"],"temperature":0,
                   "response_format":{"type":"json_schema","json_schema":{"name":"free_observations","strict":True,"schema":SCHEMA}},
                   "provider":{"require_parameters":True},"plugins":[],"usage":{"include":True}}
+            if "reasoning_effort" in self.identity:
+                body["reasoning"] = {"effort": self.identity["reasoning_effort"]}
             with self.client.stream("POST","https://openrouter.ai/api/v1/chat/completions",json=body,
                     headers={"Authorization":"Bearer "+self._key},timeout=self.timeout,follow_redirects=False) as response:
                 if response.status_code!=200:raise ValueError()

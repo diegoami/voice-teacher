@@ -52,7 +52,8 @@ Android emulation exercise the same paths. Physical-phone acceptance remains T19
 
 ```bash
 uv run python tools/evals/live.py --live \
-  --model google/gemini-3.8-flash --turns 6 \
+  --model google/gemini-3.8-flash --turns 3 \
+  --reasoning-effort minimal --reply-tokens 512 \
   --output /private/fresh-directory --speech
 ```
 
@@ -83,10 +84,42 @@ All three stopped before an accepted turn; no feedback or speech was generated.
 No model substitution occurred, and only three of the six permitted turns were
 attempted. Private original reports are retained outside the checkout.
 
-**T22 DW3 remains incomplete.** No successful sustained live dialogue or
-speech/listening assessment is claimed. Generated stress remains unverified:
-generated words do not have authored, dictionary-checked stress guarantees.
-Human conversation/listening and physical Android checks remain incomplete.
-Resolving the selected model's response budget/format incompatibility and then
-obtaining human acceptance requires further work; automated/emulated checks
-cannot close those gates. T22 must remain unmerged pending required acceptance.
+### Resumed check: three accepted turns
+
+The owner then authorized continuing the same task/model combination. The
+remaining three attempts used the unchanged exact model, explicit `minimal`
+reasoning and a 512-token dialogue budget. All three accepted turns completed,
+including real post-attempt feedback, and ElevenLabs Multilingual v2 generated
+three nonempty private MP3 samples. Total attempted dialogue turns across all
+runs: six (three initial failures, three successes). No additional live call is
+authorized by restarting the probe. The successful private run and its SQLite
+state remain outside Git; no learner recording was used.
+
+Text inspection found sustained train-travel topic, brief follow-up questions,
+and the correct plural correction `два квиток` → `два квитки`, attributed to the
+actual third learner turn with outcome `observed`. The first turn produced no
+observation; the second a neutral observation. No course mastery/completion was
+inferred. Quality limits: repetitive `Чудово` praise and an unverified illustrative
+fare appeared in the role-play. The third response includes the engine's English
+turn-limit message. These observations are a small synthetic sample, not human
+conversation acceptance or a general quality claim.
+
+The initial resumed metadata collector observed compressed wire bytes and could
+record HTTP200 only; it did not retain per-response model/finish/token fields.
+The exact requested model is established by the request configuration and public
+catalogue, not a retained per-response attestation. Accepted replies nevertheless
+passed the actual production adapter's strict JSON, finish-reason and claim
+checks. The collector now observes decoded bytes with a 64KiB cap; offline gzip
+and oversized-response tests verify it. No extra paid run was used to validate
+that diagnostic fix. Raw reasoning is never retained by the collector. Reasoning
+budget exhaustion is a documented explanation consistent with the initial
+failures; their original reports lack usage counts, so the exact spent reasoning
+count cannot be reconstructed.
+
+**Human acceptance remains incomplete.** Three generated speech files are
+available privately for listening, but no intelligibility/stress judgement has
+been received. Generated words do not have authored, dictionary-checked stress
+guarantees. Unscripted human conversation, real microphone and physical Android
+checks remain incomplete. The live integration blocker is resolved; DW3's
+remaining manual acceptance has not been marked passed, and T22 stays unmerged
+until required acceptance and independent approval are satisfied.

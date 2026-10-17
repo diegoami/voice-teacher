@@ -73,5 +73,4 @@ server capability, with source-free topics and durable reply recovery. Full feed
 and the three-mode client/live checks remain subsequent tasks.
 
 [Three-mode client controls and original evaluations](docs/reference/three-mode-evals.md)
-add source-free topics and correction preferences. T22's selected-model live
-check and human quality acceptance remain incomplete; this is not release acceptance.
+add source-free topics and correction preferences. T22's human quality acceptance remains incomplete; this is not release acceptance.

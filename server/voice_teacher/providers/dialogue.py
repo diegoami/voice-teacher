@@ -8,6 +8,8 @@ import httpx2 as httpx
 
 from schemas.validate import canonical_json
 
+REASONING_EFFORTS = ("minimal", "low", "medium", "high")
+
 CORRECTION_STYLES = {"light_immediate", "end_of_session"}
 SYSTEM = """You are a spoken-language conversation partner for an adult learner.
 Use the target language and learner level given in the JSON data. Sustain the
@@ -31,11 +33,20 @@ pretend to have performed actions."""
 
 
 def provider_identity(value):
-    if not isinstance(value, dict) or set(value) != {"provider", "model", "policy_version", "max_reply_tokens"}:
+    fields = {"provider", "model", "policy_version", "max_reply_tokens"}
+    if not isinstance(value, dict) or type(value.get("policy_version")) is not int:
+        raise ValueError("explicit dialogue provider identity required")
+    if value["policy_version"] == 2:
+        fields.add("reasoning_effort")
+        if not isinstance(value.get("reasoning_effort"), str) or value["reasoning_effort"] not in REASONING_EFFORTS:
+            raise ValueError("invalid explicit reasoning effort")
+    elif value["policy_version"] != 1:
+        raise ValueError("unsupported dialogue rendering policy")
+    if set(value) != fields:
         raise ValueError("explicit dialogue provider identity required")
     if any(not isinstance(value[k], str) or not value[k].strip() or len(value[k]) > 200 or "\n" in value[k] for k in ["provider", "model"]):
         raise ValueError("invalid dialogue provider identity")
-    if type(value["policy_version"]) is not int or value["policy_version"] != 1 or type(value["max_reply_tokens"]) is not int or not 64 <= value["max_reply_tokens"] <= 512:
+    if type(value["max_reply_tokens"]) is not int or not 64 <= value["max_reply_tokens"] <= 512:
         raise ValueError("invalid dialogue rendering policy")
     return dict(value)
 
@@ -85,10 +96,12 @@ def validate_context(context):
 
 
 class OpenRouterDialogue:
-    def __init__(self, key, model, *, client=None, timeout=20, max_reply_tokens=256):
+    def __init__(self, key, model, *, client=None, timeout=20, max_reply_tokens=256, reasoning_effort=None):
         if not isinstance(key, str) or not key or not isinstance(model, str) or not model.strip():
             raise ValueError("explicit dialogue credential and model required")
-        self.identity = provider_identity({"provider": "openrouter", "model": model, "policy_version": 1, "max_reply_tokens": max_reply_tokens})
+        self.identity = provider_identity({"provider": "openrouter", "model": model,
+            "policy_version": 1 if reasoning_effort is None else 2, "max_reply_tokens": max_reply_tokens,
+            **({"reasoning_effort": reasoning_effort} if reasoning_effort is not None else {})})
         if type(timeout) not in {int, float} or not math.isfinite(timeout) or not 0 < timeout <= 120:
             raise ValueError("invalid dialogue timeout")
         self._key, self.timeout = key, timeout
@@ -105,6 +118,8 @@ class OpenRouterDialogue:
                     "schema": {"type": "object", "properties": {"text": {"type": "string", "minLength": 1, "maxLength": 1200}},
                                "required": ["text"], "additionalProperties": False}}},
                 "provider": {"require_parameters": True}, "plugins": [], "usage": {"include": True}}
+            if "reasoning_effort" in self.identity:
+                body["reasoning"] = {"effort": self.identity["reasoning_effort"]}
             with self.client.stream("POST", "https://openrouter.ai/api/v1/chat/completions", json=body,
                     headers={"Authorization": "Bearer " + self._key}, timeout=self.timeout, follow_redirects=False) as response:
                 if response.status_code != 200: raise ValueError()

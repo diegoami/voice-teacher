@@ -37,3 +37,31 @@ def test_live_artifacts_cannot_be_written_to_a_checkout(tmp_path):
     (tmp_path / ".git").mkdir()
     with pytest.raises(ValueError, match="outside Git"):
         private_output(tmp_path / "private-output")
+
+
+def test_probe_metadata_observes_production_stream_without_bypassing_byte_limit():
+    import httpx2
+    from tools.evals.live import observe_response
+    seen = []
+    transport = httpx2.MockTransport(lambda r: httpx2.Response(200, stream=httpx2.ByteStream(b'{"choices":[]}')))
+    with httpx2.Client(transport=transport, event_hooks={"response": [lambda r: observe_response(r, lambda status, raw: seen.append((status, json.loads(raw))))]}) as client:
+        assert client.post("https://synthetic.invalid").status_code == 200
+    assert seen == [(200, {"choices": []})]
+    oversized = httpx2.MockTransport(lambda r: httpx2.Response(200, stream=httpx2.ByteStream(b"x" * 65537)))
+    with httpx2.Client(transport=oversized, event_hooks={"response": [lambda r: observe_response(r, lambda *a: seen.append(a))]}) as client:
+        with pytest.raises(ValueError, match="metadata limit"):
+            client.post("https://synthetic.invalid")
+    assert len(seen) == 1
+
+
+def test_probe_metadata_decodes_compressed_responses_before_reading_token_counts():
+    import gzip
+    import httpx2
+    from tools.evals.live import observe_response
+    payload = {"usage": {"completion_tokens": 80, "completion_tokens_details": {"reasoning_tokens": 10}}}
+    wire = gzip.compress(json.dumps(payload).encode())
+    seen = []
+    transport = httpx2.MockTransport(lambda r: httpx2.Response(200, headers={"Content-Encoding": "gzip"}, stream=httpx2.ByteStream(wire)))
+    with httpx2.Client(transport=transport, event_hooks={"response": [lambda r: observe_response(r, lambda status, raw: seen.append(json.loads(raw)))]}) as client:
+        assert client.post("https://synthetic.invalid").json() == payload
+    assert seen == [payload]

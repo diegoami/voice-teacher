@@ -3,6 +3,10 @@
 Architecture and proofs of concept for a spoken-lesson engine. Read
 `README.md` and `docs/architecture.md` first.
 
+Before resuming product work, read the confirmed choices and restart order in
+[docs/tasks/README.md](docs/tasks/README.md#resuming-product-work). A handover
+request alone does not restart the paused task sequence.
+
 Product tasks follow `AGENTS.md`, `docs/process.md` and their contract under
 `docs/tasks/`. The main session or its native same-family subagent implements;
 an independently chosen OpenCode model reviews the resulting GitHub PR.

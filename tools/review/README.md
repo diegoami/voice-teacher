@@ -77,6 +77,23 @@ reviewer references their ID and must state the execution limit. The parser chec
 structure and explicit verdict consistency, not the truth of arbitrary prose;
 the main session reconciles the complete findings and evidence.
 
+### Report format check before publication
+
+Until [issue #64](https://github.com/diegoami/voice-teacher/issues/64) is fixed,
+the main session must check the original report text even when the runner says
+`eligible: true`. During T23 a report joined `Verdict: approve` directly to the
+opening JSON fence on the same line. The parser found the unanchored fence and
+sliced the preceding prose there, making the verdict appear standalone in the
+slice. It accepted a malformed original boundary. The main session rejected
+that run, retained it unchanged and obtained a fresh valid review before merge.
+
+Require the plain, unformatted verdict on its own line, followed by a blank
+line and an opening `voice-teacher-review` fence on its own line. The closing
+fence must also occupy its own line, with nothing after it. Check every
+criterion, finding and execution limitation against the complete human report
+and native session. Do not edit an invalid report into approval. A valid JSON
+payload or successful process exit alone does not satisfy these checks.
+
 The publisher revalidates process/CLI/native response and full report, queries live
 base/head before and after posting, and annotates a head change during publication
 as outdated. A later head always invalidates the historical approval. This is a

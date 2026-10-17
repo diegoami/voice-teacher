@@ -123,3 +123,15 @@ can name the locked interpreter; `VOICE_TEACHER_TEST_REPO` and
 `VOICE_TEACHER_TEST_TMP` can locate read-only fixtures and private temporary data in
 an isolated test environment. CI installs locked Python dependencies for these
 checks; desktop and Android emulation run the same actual-server scenarios.
+
+When running these checks in a read-only container, copy the app and its locked
+dependencies into writable scratch space. An executable `tmpfs` is required
+there: a default `noexec` mount can reject Vite's npm shim or prevent Rollup's
+native module from mapping, before any browser test starts. If the container
+cannot execute the npm shim, invoke Vite's installed JavaScript entry point
+through Node in the scratch Playwright configuration; keep the submitted config
+unchanged. Mount a parent artifact directory and use a child as Playwright's
+output directory, since the runner clears that output directory. Keep synthetic
+backend state outside Git checkouts. If a host temporary directory inherits an
+unrelated Git marker, choose a separate approved temporary root rather than
+weakening the Store's code/content separation guard.

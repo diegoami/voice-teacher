@@ -211,3 +211,32 @@ test("conversation: deferred feedback stays hidden until finish", async ({
   ).toBeVisible();
   await noOverlap(page);
 });
+
+test("conversation: cancelling pending permission never implies a captured answer", async ({
+  page,
+}, info) => {
+  await media(page);
+  const f = await fake(page);
+  await open(page);
+  await page.evaluate(() => {
+    (window as any).voiceTest.delayedPermission = true;
+  });
+  await press(page, info, "Tap to talk");
+  await expect(page.getByLabel("Microphone state")).toHaveText(
+    "Waiting for microphone permission",
+  );
+  await expect(
+    page.getByRole("button", { name: "Send answer", exact: true }),
+  ).toHaveCount(0);
+  await press(page, info, "Cancel microphone request");
+  await expect(page.getByLabel("Microphone state")).toHaveText(
+    "Ready for your answer",
+  );
+  await page.evaluate(() => (window as any).voiceTest.releasePermission());
+  await expect
+    .poll(() => page.evaluate(() => (window as any).voiceTest.activeTracks))
+    .toBe(0);
+  expect(await page.evaluate(() => (window as any).voiceTest.records)).toBe(0);
+  expect(f.uploads).toHaveLength(0);
+  await noOverlap(page);
+});

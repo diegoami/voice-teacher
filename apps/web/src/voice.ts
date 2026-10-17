@@ -365,6 +365,10 @@ export class VoiceController {
     }
   }
   endRecording() {
+    if (this.view.phase === "requesting") {
+      this.cancelRecording();
+      return;
+    }
     this.released = true;
     if (this.recorder?.state === "recording") {
       this.captureEnded = performance.now();

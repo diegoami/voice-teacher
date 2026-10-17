@@ -174,13 +174,15 @@ export function SessionScreen({
             if (hold && capturing) controller.current?.cancelRecording();
           }}
         >
-          {hold
-            ? capturing
-              ? "Release to send"
-              : "Hold to talk"
-            : capturing
-              ? "Send answer"
-              : "Tap to talk"}
+          {view.phase === "requesting"
+            ? "Cancel microphone request"
+            : hold
+              ? capturing
+                ? "Release to send"
+                : "Hold to talk"
+              : capturing
+                ? "Send answer"
+                : "Tap to talk"}
         </button>
         <button
           className="secondary"

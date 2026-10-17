@@ -116,7 +116,10 @@ The owner added T33 after T25 and before phone/release acceptance: explicit
 learner completion/reopening must prevent forced repetition of covered lessons
 while preserving weak-item review and actual practice evidence. T25's first
 selected sample is the latest recorded session with tracker/queue references;
-the concrete manifest still needs review before actual historical writes.
+its concrete manifest required review before actual historical writes.
+The owner subsequently approved that initial sample; PR #70 records its
+application, source-hash checks and clean private-remote restore. Remaining
+structured history import stays incomplete. Future samples still need review.
 Recheck dependencies, create an isolated worktree and run the available baseline
 for each task. T22's bounded selected-model integration and owner listening are
 recorded in PR #67; its explicit owner amendment defers full microphone-to-server

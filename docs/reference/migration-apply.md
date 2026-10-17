@@ -137,3 +137,20 @@ belong in the PR's acceptance evidence. Until the owner reviews and the selected
 sample is actually applied/reconciled, DW2 stays incomplete. Synthetic fixtures
 and local bare Git tests cannot substitute for that check. Real-phone acceptance
 also remains explicitly incomplete under its own task contracts.
+
+## Initial sample acceptance (2026-10-17)
+
+The owner reviewed the explained sample and authorized applying it. The main
+session rechecked actual repository privacy/ownership and the exact preview
+hash against current source bytes before applying. Nine selected legacy groups
+retain 75 supporting records; 260 remaining context records stay unresolved.
+The saved source-specific course declaration matches the approved manifest.
+
+The sample was pushed to the selected private repository. A clean runtime and
+fresh managed checkout restored from the real remote with identical observations,
+positions, approval and full raw context. Retrying added no import or observation
+and left the pushed commit unchanged. All three selected source-file hashes and
+the source checkout's Git status were unchanged. Detailed evidence and exact
+identifiers remain in private operator metadata; PR #70 contains sanitized
+acceptance results. No new practice or provider call was needed. Broader
+structured import, T33's app controls and real-phone acceptance remain incomplete.

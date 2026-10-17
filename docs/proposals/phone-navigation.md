@@ -1,6 +1,10 @@
 # Phone navigation proposal
 
-Status: **proposed for owner review**, not an accepted or implemented redesign.
+Status: **four-destination structure approved by the owner in the current
+session**. The initial navigation implementation is in PR82. The wireframe
+remains a synthetic proposal artifact. Individual History-record deep links
+below remain proposed; the initial implementation covers the four destinations
+and owner-checked active-session links.
 Issue [#79](https://github.com/diegoami/voice-teacher/issues/79); contract
 [T37](../tasks/T37.md). Open the [interactive wireframe](phone-navigation.html)
 in a browser. It contains synthetic placeholders and navigation only.

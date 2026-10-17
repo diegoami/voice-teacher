@@ -25,6 +25,7 @@ def main():
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--assets", type=Path, required=True)
     parser.add_argument("--port", type=int, required=True)
+    parser.add_argument("--completion-fixture", action="store_true")
     args = parser.parse_args()
     root = args.data
     root.mkdir(parents=True, exist_ok=True)
@@ -45,6 +46,11 @@ def main():
             lesson = course["lessons"][0]
             lesson.update(title="Tickets", modes=["guided_conversation", "repetition", "free_conversation"], topic="Train travel", repetition_item_ids=["hello"])
             lesson["guided_steps"][0].update(teacher={"display": "Добрий день!", "speech": "До́брий день!"}, goal="Ask for one ticket")
+            if args.completion_fixture:
+                from copy import deepcopy
+                second = deepcopy(lesson)
+                second.update(lesson_id="lesson-2", title="Second lesson")
+                course["lessons"].append(second)
             manifest.write_text(json.dumps(raw, ensure_ascii=False))
         registry.register(SourceSpec(source, "Synthetic " + source, str(checkout), allow_dirty=True))
         registry.refresh(source)
@@ -86,7 +92,11 @@ def main():
     coordinator = Coordinator(store, Judge(), dialogue=Dialogue(), free_policies={("uk", "en"): FreePolicy()})
     pipeline = VoicePipeline(store, coordinator, Recognizer(), Synthesizer())
     origin = "http://127.0.0.1:" + str(args.port)
-    app = create_app(store, coordinator, operator_token="synthetic-operator-" + "x" * 40,
+    legacy = None
+    if args.completion_fixture:
+        from completion_fixture import legacy_position
+        legacy = legacy_position(root, store, LEARNER)
+    app = create_app(store, coordinator, legacy=legacy, operator_token="synthetic-operator-" + "x" * 40,
                      origin=origin, audio=pipeline, assets=args.assets)
     # Auth grants are persisted by the actual service. No special browser bypass.
     code = app.state.auth.issue_code(LEARNER, "browser-test")["code"]

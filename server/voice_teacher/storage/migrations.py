@@ -1,6 +1,6 @@
 """Internal SQLite schema versions; independent of interchange schema versions."""
 APPLICATION_ID = 0x56544348  # VTCH
-VERSION = 7
+VERSION = 8
 
 V1 = (
     "CREATE TABLE learners (learner_id TEXT PRIMARY KEY, profile_json TEXT NOT NULL)",
@@ -94,4 +94,18 @@ V7 = (
         context_json TEXT NOT NULL, decision_json TEXT NOT NULL,
         PRIMARY KEY(learner_id,session_id,request_id),
         FOREIGN KEY(learner_id,session_id,request_id) REFERENCES requests(learner_id,session_id,request_id))""",
+)
+
+V8 = (
+    """CREATE TABLE lesson_decisions (
+        decision_id TEXT PRIMARY KEY, learner_id TEXT NOT NULL REFERENCES learners(learner_id),
+        request_id TEXT NOT NULL, source_id TEXT NOT NULL, course_id TEXT NOT NULL,
+        content_sha256 TEXT NOT NULL, sequence INTEGER NOT NULL CHECK(sequence>=1),
+        input_json TEXT NOT NULL, body_json TEXT NOT NULL,
+        exported INTEGER NOT NULL DEFAULT 0 CHECK(exported IN (0,1)),
+        UNIQUE(learner_id,request_id), UNIQUE(learner_id,source_id,course_id,content_sha256,sequence))""",
+    """CREATE TRIGGER immutable_lesson_decisions_update BEFORE UPDATE OF
+        decision_id,learner_id,request_id,source_id,course_id,content_sha256,sequence,input_json,body_json
+        ON lesson_decisions BEGIN SELECT RAISE(ABORT, 'lesson decisions are append-only'); END""",
+    "CREATE TRIGGER immutable_lesson_decisions_delete BEFORE DELETE ON lesson_decisions BEGIN SELECT RAISE(ABORT, 'lesson decisions are append-only'); END",
 )

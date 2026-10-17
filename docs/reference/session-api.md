@@ -59,6 +59,7 @@ routes are disabled. `/healthz` exposes only `{"status":"ok"}` without identity.
 
 | Method/path | Identity | Behaviour |
 | --- | --- | --- |
+| `POST /lesson-completions` | Paired learner | Idempotent completion/reopen choice; see [learner choices](progress-views.md#learner-lesson-choices-t33) |
 | `POST /pair` | Pair code | Exchange `{code}` for `{token,client_id,expires_at}` |
 | `PUT /operator/learners/{id}` | Operator | Provision/update `{level}` without changing existing grants |
 | `POST /operator/pairing-codes` | Operator | Issue code for `{learner_id,label}` |

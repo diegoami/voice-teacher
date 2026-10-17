@@ -1,6 +1,6 @@
 # History and course item practice
 
-T18 exposes read-only, paired-learner history. In the app, **Load history and
+T18 exposes paired-learner history; T33 adds explicit learner lesson choices. In the app, **Load history and
 progress** fetches the saved server history, including sessions started by
 another paired client. **Refresh history** updates it after practice or a sync
 retry. Finished and interrupted sessions remain visible. Finishing a session
@@ -8,8 +8,9 @@ means the session stopped; it does not prove all its material was covered.
 
 ## Coverage rule
 
-Course position means the first lesson with uncovered authored items in the
-pinned course's lesson order. A lesson's required item set is the union of its
+By default, course position means the first lesson with uncovered authored items
+in the pinned course's lesson order. An explicit learner completion or reopening
+overrides that lesson's progression state while preserving its coverage counts. A lesson's required item set is the union of its
 repetition items and guided-step target items. One supported repetition or
 guided observation for the exact original source/course/content revision and
 item revision covers that item. Accepted outcomes are `independent`, `repeated`,
@@ -94,3 +95,44 @@ This personal-server projection reads the learner's complete saved event history
 for coverage; it is not a materialized, indexed analytics service. Recent session
 and observation responses are bounded; transcript reads use the existing API.
 Larger-history performance and operational budgets remain subjects for T27/T29.
+
+## Learner lesson choices (T33)
+
+The progress panel lists active course lessons before practice begins. **Mark
+lesson complete** advances the recommendation even when items remain uncovered.
+**Reopen lesson** makes it eligible again, including when all items have practice
+evidence. **Continue to next lesson** selects the recommended lesson in the
+catalogue; starting practice remains a separate action. The displayed "Completed
+by you" / "Reopened by you" label distinguishes a learner choice from evidence.
+No session, provider request, evidence observation or mastery claim is created.
+Weak-item review and corrections are unchanged.
+
+`POST /api/v1/lesson-completions` accepts `request_id`, `expected_revision`,
+`source_id`, `course_id`, `lesson_id`, `version_id`, and boolean `completed`.
+Authentication supplies the learner; another learner ID is rejected as an extra
+field. The revision is the course's `decision_revision` in the progress response.
+Choices are scoped by learner, source, course and pinned curriculum content hash.
+A refreshed content hash starts a separate stream; old decisions remain visible
+in their historical course group. Only active versions expose edit controls.
+
+A durable unique request ID returns the original response on identical retry,
+even after the source is removed or refreshed. Reusing it with different intent
+or submitting a stale revision returns409. The browser stores a pending choice
+under the verified learner's local account key before submitting it, and offers
+**Retry saved lesson choice** after connection loss or refresh. A conflict offers
+**Reload changed lesson choices**; the server decision history is retained.
+
+`legacy_positions` shows the configured T25 ledger's source-specific covered
+lesson IDs and recorded next lesson, with no transcripts or raw import evidence.
+Supply `create_app(..., legacy=ledger)` or the same runtime's `progress_sync`
+worker with its configured `legacy` ledger. Merely reading progress never starts
+sync or imports history. **Use imported next lesson in selected course** lets the
+learner explicitly select a matching lesson ID in the currently chosen course.
+This does not alias historical and current sources or create item evidence;
+confirm the intended course in the catalogue before choosing it. Operational
+composition of the ledger and worker is part of T28 setup.
+
+SQLite schema8 stores immutable learner decisions. Private export/restore and
+GitSync retain their request IDs, original response and complete ordered history;
+backup counts include decisions. Automated checks use original synthetic history
+and temporary remotes. Real deployed-phone acceptance remains incomplete (T19/T30).

@@ -553,6 +553,16 @@ function App() {
             <ProgressPanel
               key={grant.client_id}
               token={grant.token}
+              learner={grant.learner_id}
+              selection={choice}
+              availableLessons={lessons.map((l) => l.lesson_id)}
+              chooseLesson={(source_id, course_id, lesson_id) => {
+                setSourceFree(false);
+                select({ ...choice, source_id, course_id, lesson_id });
+                document
+                  .getElementById("lesson")
+                  ?.scrollIntoView({ block: "center" });
+              }}
               unauthorized={failure}
             />
           )}

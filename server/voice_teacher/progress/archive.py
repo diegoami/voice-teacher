@@ -177,6 +177,17 @@ class Archive:
                     "SELECT activity_id,position,data_json FROM activities WHERE learner_id=? AND session_id=? ORDER BY position", (learner, session))]
                 payloads.append({"schema_version": 1, "kind": "private_progress_batch", "learner_id": learner,
                                  "session_id": session, "events": events, "activities": activities})
+            from .lesson_completion import validate_stream, stream_key
+            decisions = validate_stream([json.loads(r[0]) for r in c.execute("SELECT body_json FROM lesson_decisions")])
+            pending = {r[0] for r in c.execute("SELECT decision_id FROM lesson_decisions WHERE exported=0")}
+            streams = defaultdict(list)
+            for decision in decisions:
+                streams[(decision["learner_id"], *stream_key(decision))].append(decision)
+            for (learner, *_), rows in streams.items():
+                if not any(r["decision_id"] in pending for r in rows): continue
+                profile = json.loads(c.execute("SELECT profile_json FROM learners WHERE learner_id=?", (learner,)).fetchone()[0])
+                payloads.append(dict(schema_version=1, kind="private_lesson_decision_batch", learner_id=learner,
+                                     learner_profile=profile, decisions=rows))
         validate_event_stream(available)
         _resolve(available)
         written = []
@@ -185,28 +196,33 @@ class Archive:
                 name = self._publish(payload)
                 # Crash before this acknowledgement simply republishes identical bytes.
                 with store._transaction() as c:
-                    c.executemany("UPDATE outbox SET status='done',attempts=attempts+1 WHERE job_id=? AND status='pending'",
-                                  [(e["event_id"],) for e in payload["events"]])
+                    if payload["kind"] == "private_lesson_decision_batch":
+                        c.executemany("UPDATE lesson_decisions SET exported=1 WHERE decision_id=?", [(d["decision_id"],) for d in payload["decisions"]])
+                    else:
+                        c.executemany("UPDATE outbox SET status='done',attempts=attempts+1 WHERE job_id=? AND status='pending'",
+                                      [(e["event_id"],) for e in payload["events"]])
                 written.append(name)
             except Exception:
-                with store._transaction() as c:
-                    c.executemany("UPDATE outbox SET attempts=attempts+1 WHERE job_id=? AND status='pending'",
-                                  [(e["event_id"],) for e in payload["events"]])
+                if payload["kind"] == "private_progress_batch":
+                    with store._transaction() as c:
+                        c.executemany("UPDATE outbox SET attempts=attempts+1 WHERE job_id=? AND status='pending'",
+                                      [(e["event_id"],) for e in payload["events"]])
                 raise
         return written
 
-    def _read(self):
+    def _read_contents(self):
         namespace = self.root / "voice-teacher"
         if namespace.is_symlink(): raise ArchiveError("archive symlinks are refused")
-        if not namespace.exists(): return [], {}
+        if not namespace.exists(): return [], {}, [], {}
         # A legacy-only archive can exist before the first canonical session.
         current = self.root
         for part in self.NAMESPACE.parts:
             current /= part
             if current.is_symlink(): raise ArchiveError("archive symlinks are refused")
-            if not current.exists(): return [], {}
+            if not current.exists(): return [], {}, [], {}
         directory = _directory(self.root, self.NAMESPACE)
         events, activities, consumed = {}, defaultdict(dict), 0
+        decisions, profiles = {}, {}
         paths = sorted(directory.iterdir())
         if len(paths) > self.max_batches: raise ArchiveError("archive exceeds configured batch count")
         for path in paths:
@@ -221,6 +237,19 @@ class Archive:
             if path.stem != _digest(data): raise ArchiveError("batch checksum mismatch or incomplete write")
             try: value = json.loads(data)
             except ValueError: raise ArchiveError("batch is not valid JSON") from None
+            if isinstance(value, dict) and value.get("kind") == "private_lesson_decision_batch":
+                from .lesson_completion import validate_decision
+                if set(value) != {"schema_version", "kind", "learner_id", "learner_profile", "decisions"} or type(value["schema_version"]) is not int or value["schema_version"] != 1 or not isinstance(value["learner_profile"], dict) or not isinstance(value["decisions"], list) or not value["decisions"] or _bytes(value) != data:
+                    raise ArchiveError("unsupported lesson decision batch")
+                learner = _id(value["learner_id"])
+                profiles.setdefault(learner, value["learner_profile"])
+                for decision in value["decisions"]:
+                    validate_decision(decision)
+                    if decision["learner_id"] != learner:
+                        raise ArchiveError("lesson decision ownership mismatch")
+                    if decisions.setdefault(decision["decision_id"], decision) != decision:
+                        raise ArchiveError("lesson decision ID has conflicting contents")
+                continue
             if not isinstance(value, dict) or set(value) != {"schema_version", "kind", "learner_id", "session_id", "events", "activities"} or value["schema_version"] != 1 or value["kind"] != "private_progress_batch":
                 raise ArchiveError("unsupported batch format")
             if _bytes(value) != data: raise ArchiveError("batch is not canonical JSON")
@@ -243,7 +272,15 @@ class Archive:
                 if old != a: raise ArchiveError("activity ID has different contents")
         ordered = sorted(events.values(), key=lambda e: (e["learner_id"], e["session_id"], e["sequence"]))
         validate_event_stream(ordered)
-        return ordered, activities
+        from .lesson_completion import validate_stream
+        return ordered, activities, validate_stream(list(decisions.values())), profiles
+
+    def _read(self):
+        events, activities, _, _ = self._read_contents()
+        return events, activities
+
+    def read_decisions(self):
+        return self._read_contents()[2]
 
     def read(self):
         events, _ = self._read()
@@ -253,7 +290,7 @@ class Archive:
     def restore(self, store):
         if store.path.is_relative_to(self.root) or self.root.is_relative_to(store.path.parent):
             raise ArchiveError("progress archive and runtime database must be separate")
-        incoming, activities = self._read()
+        incoming, activities, decisions, profiles = self._read_contents()
         grouped = defaultdict(list)
         for e in incoming: grouped[(e["learner_id"], e["session_id"])].append(e)
         imported = 0
@@ -302,4 +339,6 @@ class Archive:
                         c.execute("INSERT INTO activities VALUES (?,?,?,?,?)", (learner, session, a["activity_id"], a["position"], canonical_json(a["data"])))
             # Imported events are already exported locally. No remote-push claim.
             c.executemany("UPDATE outbox SET status='done' WHERE job_id=?", [(e["event_id"],) for e in incoming])
+            from .lesson_completion import restore_decisions
+            imported += restore_decisions(c, decisions, profiles)
         return imported

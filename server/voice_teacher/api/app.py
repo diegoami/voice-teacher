@@ -46,13 +46,15 @@ def _presentation(value):
 
 
 def create_app(store, coordinator, *, operator_token, origin="http://localhost:8000", audio=None,
-               assets=None, clock=None, max_json_bytes=32768, max_audio_bytes=8 * 1024 * 1024, progress_sync=None, git_sources=None):
+               assets=None, clock=None, max_json_bytes=32768, max_audio_bytes=8 * 1024 * 1024, progress_sync=None, git_sources=None, legacy=None):
     if coordinator.store.path != store.path: raise ValueError("coordinator must use the API runtime store")
     if any(type(v) is not int or v <= 0 for v in (max_json_bytes, max_audio_bytes)): raise ValueError("body limits must be positive")
     auth = Auth(store, operator_token, **({"clock": clock} if clock else {}))
     from . import feedback_models as fm
 
     if progress_sync is not None and progress_sync.store.path != store.path: raise ValueError("sync must use the API runtime store")
+    legacy = legacy if legacy is not None else getattr(progress_sync, "legacy", None)
+    if legacy is not None and legacy.path.parent != store.path.parent: raise ValueError("legacy ledger must use the API runtime directory")
     registry = SourceRegistry(store)
     app = FastAPI(title="Voice Teacher API", version="1", docs_url=None, redoc_url=None, openapi_url=None,
                   responses={status: {"model": m.Error} for status in (400, 401, 403, 404, 409, 413, 415, 422, 502, 503)})
@@ -206,10 +208,22 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
         return call(coordinator.promote_personal, learner(request), session_id, body.request_id,
             expected_revision=body.expected_revision, observation_id=body.observation_id, form=body.form, meaning=body.meaning)
 
+    @app.post("/api/v1/lesson-completions", response_model=m.LessonCompletionResult)
+    def lesson_completion(request: Request, body: m.LessonCompletion):
+        from ..progress.lesson_completion import find_request, record
+        intent = body.model_dump()
+        cached = call(find_request, store, learner(request), intent)
+        if cached is not None: return cached
+        snapshot = active(body.source_id)
+        selected = course(snapshot, body.course_id)
+        if not any(l["lesson_id"] == body.lesson_id for l in selected["lessons"]):
+            raise Problem(404, "not_found", "Lesson not found")
+        return call(record, store, learner(request), intent, snapshot)
+
     @app.get("/api/v1/progress", response_model=m.ProgressView)
     def progress(request: Request, limit: int = Query(default=50, ge=1, le=100)):
         from ..progress.views import summary
-        return call(summary, store, learner(request), progress_sync=progress_sync, limit=limit)
+        return call(summary, store, learner(request), progress_sync=progress_sync, legacy=legacy, limit=limit)
 
     @app.get("/api/v1/sessions/{session_id}/evidence", response_model=m.EvidencePage)
     def session_evidence(request: Request, session_id: str, offset: int = Query(default=0, ge=0), limit: int = Query(default=50, ge=1, le=100)):

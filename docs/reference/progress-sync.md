@@ -133,3 +133,9 @@ practice, failed push/restart/retry, lost push responses, divergence reconciliat
 foreign dirt/index refusal, preserved card-review files/content, conflicting events,
 staged commit recovery, privacy/destination/ownership gates, concurrent writer locks,
 background execution and retained last-success status.
+
+T33 also synchronizes immutable learner completion/reopen decisions in the existing
+canonical batch namespace. This retains the existing destination binding and
+requires no additional namespace adoption. Missing local decision exports are
+requeued; `status().lesson_decisions` (present when decisions exist) reports their
+local/exported/pushed states. Push receipts include validated decision IDs.

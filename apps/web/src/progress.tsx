@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, ApiError } from "./api";
+import { api, ApiError, load as loadSaved, save, type Choice } from "./api";
 
 type SourceRef = {
   source_id: string;
@@ -17,6 +17,8 @@ type Progress = {
     title: string;
     required_items: number;
     covered_items: number;
+    version_id?: string | null;
+    decision_revision?: number;
     next_lesson_id: string | null;
     lessons: {
       lesson_id: string;
@@ -24,7 +26,15 @@ type Progress = {
       required_items: number;
       covered_items: number;
       covered: boolean;
+      completed?: boolean;
+      learner_completed?: boolean | null;
     }[];
+  }[];
+  legacy_positions?: {
+    source_id: string;
+    course_id: string;
+    covered_lesson_ids: string[];
+    next_lesson_id: string | null;
   }[];
   sessions: ({
     session_id: string;
@@ -96,8 +106,16 @@ function CountsView({ value }: { value: Counts }) {
 export function ProgressPanel({
   token,
   unauthorized,
+  learner,
+  chooseLesson,
+  selection,
+  availableLessons,
 }: {
   token: string;
+  learner: string;
+  selection: Choice;
+  availableLessons: string[];
+  chooseLesson: (source: string, course: string, lesson: string) => void;
   unauthorized: (e: ApiError) => void;
 }) {
   const [view, setView] = useState<Progress | null>(null),
@@ -106,6 +124,61 @@ export function ProgressPanel({
   const [detail, setDetail] = useState<Page | null>(null),
     [turns, setTurns] = useState<Turn[]>([]);
   const [limit, setLimit] = useState(50);
+  type Intent = {
+    request_id: string;
+    source_id: string;
+    course_id: string;
+    lesson_id: string;
+    version_id: string;
+    expected_revision: number;
+    completed: boolean;
+  };
+  const [pending, setPending] = useState<Intent | null>(() => {
+    const v = loadSaved<Intent | null>(learner, "lesson-choice", null);
+    const id = (x: unknown) =>
+      typeof x === "string" && /^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/.test(x);
+    return v &&
+      [v.request_id, v.source_id, v.course_id, v.lesson_id, v.version_id].every(
+        id,
+      ) &&
+      Number.isSafeInteger(v.expected_revision) &&
+      v.expected_revision >= 0 &&
+      typeof v.completed === "boolean"
+      ? v
+      : null;
+  });
+  const [conflict, setConflict] = useState(false);
+  async function submitDecision(intent: Intent) {
+    try {
+      await api("/lesson-completions", token, intent);
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) setConflict(true);
+      throw e;
+    }
+    save(learner, "lesson-choice", null);
+    setPending(null);
+    setConflict(false);
+    await load();
+  }
+  async function decide(
+    course: Progress["courses"][number],
+    lesson: string,
+    completed: boolean,
+  ) {
+    if (pending || !course.version_id) return;
+    const intent = {
+      request_id: crypto.randomUUID(),
+      source_id: course.source_id,
+      course_id: course.course_id,
+      lesson_id: lesson,
+      version_id: course.version_id,
+      expected_revision: course.decision_revision ?? 0,
+      completed,
+    };
+    save(learner, "lesson-choice", intent);
+    setPending(intent);
+    await submitDecision(intent);
+  }
   const active = useRef(true),
     running = useRef(false);
   useEffect(() => {
@@ -175,6 +248,35 @@ export function ProgressPanel({
       </button>
       {busy && <p role="status">Loading saved progress…</p>}
       {error && <p role="alert">{error}</p>}
+      {pending && (
+        <div role="status">
+          <p>
+            A lesson choice is awaiting confirmation. Retry to recover the same
+            choice after a connection failure.
+          </p>
+          <button
+            disabled={busy || conflict}
+            onClick={() => void action(() => submitDecision(pending))}
+          >
+            Retry saved lesson choice
+          </button>
+          {conflict && (
+            <button
+              disabled={busy}
+              onClick={() =>
+                void action(async () => {
+                  await load();
+                  save(learner, "lesson-choice", null);
+                  setPending(null);
+                  setConflict(false);
+                })
+              }
+            >
+              Reload changed lesson choices
+            </button>
+          )}
+        </div>
+      )}
       {view && (
         <>
           <h3>Backup state</h3>
@@ -198,7 +300,46 @@ export function ProgressPanel({
               </time>
             </p>
           )}
+          <h3>Imported course position</h3>
+          {(view.legacy_positions ?? []).map((position) => (
+            <article key={position.source_id + ":" + position.course_id}>
+              <p>
+                {position.source_id} / {position.course_id}: historical lessons
+                covered {position.covered_lesson_ids.join(", ") || "none"}.
+                Next: {position.next_lesson_id ?? "none recorded"}.
+              </p>
+              <p className="hint">
+                Historical position is preserved separately from practice
+                evidence. Choose its current course above to use the recorded
+                next lesson.
+              </p>
+              {position.next_lesson_id && (
+                <button
+                  disabled={
+                    busy ||
+                    !selection.source_id ||
+                    !selection.course_id ||
+                    !availableLessons.includes(position.next_lesson_id)
+                  }
+                  onClick={() =>
+                    chooseLesson(
+                      selection.source_id,
+                      selection.course_id,
+                      position.next_lesson_id!,
+                    )
+                  }
+                >
+                  Use imported next lesson in selected course
+                </button>
+              )}
+            </article>
+          ))}
           <h3>Course item practice</h3>
+          <p className="hint">
+            You decide when a lesson is complete. Completing it changes the next
+            lesson; item coverage and weak expressions remain available for
+            review.
+          </p>
           <p className="hint">{view.criterion}</p>
           {!view.courses.length && <p>No lesson course history yet.</p>}
           {view.courses.map((course) => (
@@ -219,12 +360,26 @@ export function ProgressPanel({
               </p>
               <p>
                 {course.next_lesson_id
-                  ? "Next lesson with uncovered material: " +
+                  ? "Next lesson: " +
                     (course.lessons.find(
                       (l) => l.lesson_id === course.next_lesson_id,
                     )?.title ?? course.next_lesson_id)
-                  : "All listed items have practice evidence."}
+                  : "All listed lessons are complete."}
               </p>
+              {course.next_lesson_id && course.version_id && (
+                <button
+                  disabled={busy}
+                  onClick={() =>
+                    chooseLesson(
+                      course.source_id,
+                      course.course_id,
+                      course.next_lesson_id!,
+                    )
+                  }
+                >
+                  Continue to next lesson
+                </button>
+              )}
               <ol>
                 {course.lessons.map((l) => (
                   <li key={l.lesson_id}>
@@ -232,6 +387,34 @@ export function ProgressPanel({
                     {l.required_items
                       ? `${l.covered_items} of ${l.required_items} items covered`
                       : "No item coverage criterion"}
+                    {l.learner_completed != null && (
+                      <span>
+                        {" "}
+                        ·{" "}
+                        {l.learner_completed
+                          ? "Completed by you"
+                          : "Reopened by you"}
+                      </span>
+                    )}
+                    {course.version_id && (
+                      <button
+                        disabled={busy || !!pending}
+                        onClick={() =>
+                          void action(() =>
+                            decide(
+                              course,
+                              l.lesson_id,
+                              !(l.completed ?? l.covered),
+                            ),
+                          )
+                        }
+                      >
+                        {(l.completed ?? l.covered)
+                          ? "Reopen lesson"
+                          : "Mark lesson complete"}
+                        : {l.title}
+                      </button>
+                    )}
                   </li>
                 ))}
               </ol>

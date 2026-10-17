@@ -201,7 +201,7 @@ test("progress: separate course positions, provenance and supported-turn links",
     panel.getByText("0 of 1 items covered", { exact: true }),
   ).toBeVisible();
   await expect(
-    panel.getByText("Next lesson with uncovered material: beta lesson", {
+    panel.getByText("Next lesson: beta lesson", {
       exact: true,
     }),
   ).toBeVisible();

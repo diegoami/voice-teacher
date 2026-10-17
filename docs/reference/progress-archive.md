@@ -106,3 +106,15 @@ cross-source provenance and supersession, repeat/older-prefix import, checksum
 and event conflicts, partial publication and retry, transactional rollback,
 pending provider work, registered content exclusion, unrelated-file retention,
 symlinks, limits and credential/audio/database exclusion.
+
+## Learner completion decisions
+
+T33 adds closed `private_lesson_decision_batch` files in the existing app-owned
+`voice-teacher/v1/batches/` namespace. Each batch contains one learner's profile
+and full decision-stream prefixes, including pinned curriculum snapshots. They
+are separate from practice events and never synthesize sessions or assistance.
+The new `lesson-decision` schema validates every immutable decision. Restore
+validates ownership, stable request-derived identity, content hashes and contiguous
+stream revisions before atomically applying anything. Conflicts roll back the
+whole restore. Existing learner profiles remain unchanged. A decision's export
+flag is acknowledged only after durable publication; retry is idempotent.

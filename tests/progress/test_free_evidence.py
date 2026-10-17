@@ -309,7 +309,7 @@ def test_version_seven_migration_rolls_back_failure_without_losing_old_progress(
     store=Store(tmp_path/"data");legacy_session(store)
     original=store.events(LEARNER,"alpha")
     with sqlite3.connect(store.path) as db:
-        db.execute("DROP TABLE feedback_decisions");db.execute("PRAGMA user_version=6")
+        db.execute("DROP TABLE lesson_decisions");db.execute("DROP TABLE feedback_decisions");db.execute("PRAGMA user_version=6")
     migration=implementation.V7
     monkeypatch.setattr(implementation,"V7",(*migration,"SELECT synthetic_failed_feedback_migration()"))
     with pytest.raises(sqlite3.OperationalError):Store(store.path.parent)
@@ -320,7 +320,8 @@ def test_version_seven_migration_rolls_back_failure_without_losing_old_progress(
     upgraded=Store(store.path.parent)
     assert upgraded.events(LEARNER,"alpha")==original
     with upgraded._connection() as db:
-        assert db.execute("PRAGMA user_version").fetchone()[0]==7
+        from voice_teacher.storage.migrations import VERSION
+        assert db.execute("PRAGMA user_version").fetchone()[0]==VERSION
         assert db.execute("SELECT count(*) FROM feedback_decisions").fetchone()[0]==0
 
 

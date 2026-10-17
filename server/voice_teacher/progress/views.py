@@ -33,7 +33,7 @@ def _active(events):
     return [e for e in events if e["event_type"] == "evidence.recorded" and e["event_id"] not in superseded]
 
 
-def summary(store, learner, *, progress_sync=None, limit=50):
+def summary(store, learner, *, progress_sync=None, legacy=None, limit=50):
     if type(limit) is not int or not 1 <= limit <= 100: raise ValueError("invalid history limit")
     if progress_sync is not None and progress_sync.store.path != store.path: raise ValueError("sync must use the same runtime store")
     sync_state, sync_error = None, None
@@ -41,9 +41,20 @@ def summary(store, learner, *, progress_sync=None, limit=50):
         try: sync_state = progress_sync.status()
         except Exception: sync_error = "Sync status unavailable; local progress is retained."
     sessions, events, exported = _read(store, learner)
+    from .lesson_completion import all_decisions, stream_key
+    decisions = all_decisions(store, learner)
+    latest, decision_revisions = {}, {}
+    for decision in decisions:
+        key = stream_key(decision)
+        decision_revisions[key] = decision["sequence"]
+        latest[(*key, decision["source"]["lesson_id"])] = decision["request"]["completed"]
     pushed = {e["event_id"] for e in (sync_state or {}).get("events", []) if e["state"] == "pushed"}
     backup = {e["event_id"]: "pushed" if e["event_id"] in pushed else "exported" if e["event_id"] in exported else "locally_saved" for e in events}
     counts = Counter(backup.values())
+    decision_pushed = {d["decision_id"] for d in (sync_state or {}).get("lesson_decisions", []) if d["state"] == "pushed"}
+    with store._connection() as c:
+        for row in c.execute("SELECT decision_id,exported FROM lesson_decisions WHERE learner_id=?", (learner,)):
+            counts["pushed" if row[0] in decision_pushed else "exported" if row[1] else "locally_saved"] += 1
     active = _active(events)
     disputed = _disputed(sessions)
     covered = set()
@@ -56,12 +67,25 @@ def summary(store, learner, *, progress_sync=None, limit=50):
     from ..practice.personal_review import source_id as personal_source_id
     private_source = personal_source_id(learner)
     courses = {}
-    for snapshot in sessions:
-        source = snapshot["source"]
+    catalogues, versions = [], {}
+    from ..content.registry import SourceRegistry
+    registry = SourceRegistry(store)
+    for configured in registry.list_sources():
+        if configured["version_id"] is None: continue
+        current = registry.active(configured["source_id"])
+        for authored in current.curriculum["courses"]:
+            if not authored["lessons"]: continue
+            reference = current.source_ref(authored["course_id"], authored["lessons"][0]["lesson_id"])
+            catalogues.append((reference, current.curriculum))
+            versions[_source_key(reference)] = current.version_id
+    candidates = [(s["source"], s["curriculum_snapshot"]) for s in sessions]
+    candidates += [(d["source"], d["curriculum_snapshot"]) for d in decisions]
+    candidates += catalogues
+    for source, curriculum in candidates:
         if source is None or (source["source_id"] == private_source and source["course_id"] == "personal-review"): continue
         key = _source_key(source)
         if key in courses: continue
-        course = next(c for c in snapshot["curriculum_snapshot"]["courses"] if c["course_id"] == source["course_id"])
+        course = next(c for c in curriculum["courses"] if c["course_id"] == source["course_id"])
         revisions = {i["item_id"]: i["item_revision"] for i in course["items"]}
         lessons, all_items, covered_items = [], set(), set()
         for lesson in course["lessons"]:
@@ -69,12 +93,16 @@ def summary(store, learner, *, progress_sync=None, limit=50):
             for step in lesson["guided_steps"]: required.update(step["target_item_ids"])
             practiced = {i for i in required if (*key, i, revisions[i]) in covered}
             all_items.update(required); covered_items.update(practiced)
+            observed = bool(required) and practiced == required
+            manual = latest.get((*key, lesson["lesson_id"]))
             lessons.append({"lesson_id": lesson["lesson_id"], "title": lesson["title"], "required_items": len(required),
-                            "covered_items": len(practiced), "covered": bool(required) and practiced == required})
-        next_lesson = next((l["lesson_id"] for l in lessons if not l["covered"]), None)
+                            "covered_items": len(practiced), "covered": observed,
+                            "completed": manual if manual is not None else observed, "learner_completed": manual})
+        next_lesson = next((l["lesson_id"] for l in lessons if not l["completed"]), None)
         courses[key] = {"source_id": source["source_id"], "course_id": source["course_id"], "content_sha256": key[2],
                         "title": course["title"], "required_items": len(all_items), "covered_items": len(covered_items),
-                        "next_lesson_id": next_lesson, "lessons": lessons}
+                        "next_lesson_id": next_lesson, "lessons": lessons, "version_id": versions.get(key),
+                        "decision_revision": decision_revisions.get(key, 0)}
     by_session = {}
     for event in events: by_session.setdefault(event["session_id"], []).append(event)
     recent = []
@@ -91,7 +119,9 @@ def summary(store, learner, *, progress_sync=None, limit=50):
                        "accepted_turns": sum(e["event_type"] == "turn.accepted" for e in rows),
                        "locally_saved": states["locally_saved"], "exported": states["exported"], "pushed": states["pushed"]})
     recent.sort(key=lambda s: (datetime.fromisoformat(s["updated_at"]),s["session_id"]), reverse=True)
+    imported = legacy.positions(learner) if legacy is not None else []
     return {"criterion": CRITERION, "courses": [courses[k] for k in sorted(courses)], "sessions": recent[:limit],
+            "legacy_positions": [{k: p[k] for k in ("source_id", "course_id", "covered_lesson_ids", "next_lesson_id")} for p in imported],
             "more_sessions": len(recent) > limit, "sync": {"configured": progress_sync is not None,
                 "locally_saved": counts["locally_saved"], "exported": counts["exported"], "pushed": counts["pushed"],
                 "last_push_at": (sync_state or {}).get("last_push_at") if counts["pushed"] else None,

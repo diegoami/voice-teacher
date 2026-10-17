@@ -39,6 +39,7 @@ grows out of the manual Claude-Code ↔ Claude-voice loop in
 - [docs/reference/progress-archive.md](docs/reference/progress-archive.md) — immutable private event batches and transactional history/session restore.
 - [docs/reference/progress-sync.md](docs/reference/progress-sync.md) — background Git retry, distinct save/export/push states and verified server handoff.
 - [docs/reference/migration-preview.md](docs/reference/migration-preview.md) — private read-only historical reconciliation with explicit mappings and unresolved evidence.
+- [docs/reference/migration-apply.md](docs/reference/migration-apply.md) — reviewed transactional legacy import, preserved course position and private export/restore.
 - [docs/reference/voice-pipeline.md](docs/reference/voice-pipeline.md) — durable speech stages, private audio cache, portable recognition reports and local server startup.
 - [pocs/README.md](pocs/README.md) — the proofs of concept, in order, each with the question it must answer.
 

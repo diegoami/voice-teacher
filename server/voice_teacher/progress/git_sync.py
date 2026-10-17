@@ -43,7 +43,7 @@ def _read(path):
 
 class GitSync:
     def __init__(self, store, checkout, remote, *, branch="main", private_verified=False,
-                 owner_verified=False, forbidden_roots=(), credential_askpass=None, timeout=30):
+                 owner_verified=False, forbidden_roots=(), credential_askpass=None, timeout=30, legacy=None):
         if private_verified is not True or owner_verified is not True:
             raise SyncError("operator must explicitly verify destination privacy and ownership")
         if not isinstance(branch, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,95}", branch) or branch.endswith(".") or ".." in branch:
@@ -56,6 +56,9 @@ class GitSync:
         elif not Path(remote).is_absolute(): raise SyncError("local remote must be absolute")
         if not isinstance(timeout, (int, float)) or not 0 < timeout <= 120: raise SyncError("invalid Git timeout")
         self.store, self.checkout, self.remote, self.branch = store, Path(checkout).expanduser().resolve(), remote, branch
+        self.legacy = legacy
+        if legacy is not None and (legacy.path.parent != store.path.parent or legacy.remote != remote):
+            raise SyncError("legacy ledger must use the same runtime and verified destination")
         if store.path.is_relative_to(self.checkout) or self.checkout.is_relative_to(store.path.parent):
             raise SyncError("managed progress checkout must be separate from runtime storage")
         package = Path(__file__).resolve().parents[1]
@@ -73,7 +76,10 @@ class GitSync:
                 raise SyncError("credential helper must be operator-owned outside code/content checkouts")
             self.askpass = str(helper)
         self.state_path = store.path.parent / "progress-sync.json"
-        self.fingerprint = hashlib.sha256(canonical_json([str(self.checkout), remote, branch, str(Archive.NAMESPACE)]).encode()).hexdigest()
+        binding = [str(self.checkout), remote, branch, str(Archive.NAMESPACE)]
+        if legacy is not None:
+            binding.append("voice-teacher/legacy-v1/batches")
+        self.fingerprint = hashlib.sha256(canonical_json(binding).encode()).hexdigest()
         self.git_dir = self.checkout / ".git"
         with self._locked():
             # Binding reads/checks and every initialization write share the lock.
@@ -86,6 +92,10 @@ class GitSync:
             if self.state.get("version") != 1: raise SyncError("unsupported sync metadata")
             self.checkout.mkdir(parents=True, mode=0o700, exist_ok=True)
             self.archive = Archive(self.checkout, forbidden_roots=forbidden_roots)
+            self.legacy_archive = None
+            if legacy is not None:
+                from .legacy import LegacyArchive
+                self.legacy_archive = LegacyArchive(self.checkout, forbidden_roots=forbidden_roots)
             if self.git_dir.is_symlink() or (self.git_dir.exists() and not self.git_dir.is_dir()):
                 raise SyncError("managed checkout requires its own Git directory")
             if state is None and self.git_dir.exists():
@@ -152,14 +162,19 @@ class GitSync:
         # Only validated immutable untracked batches and abandoned temporary files
         # may survive an interrupted export. Never stage unrelated files.
         self.archive._read()
+        if self.legacy_archive:
+            self.legacy_archive.read()
         entries = self._git("status", "--porcelain=v1", "-z", "--untracked-files=all").stdout.split(b"\0")
         paths = []
-        prefix = self.archive.NAMESPACE.as_posix() + "/"
+        prefixes = [self.archive.NAMESPACE.as_posix() + "/"]
+        if self.legacy_archive:
+            prefixes.append(self.legacy_archive.NAMESPACE.as_posix() + "/")
         for entry in entries:
             if not entry: continue
             text = entry.decode("utf-8")
             state, path = text[:2], text[3:]
-            if state not in {"??", "A "} or not path.startswith(prefix): raise SyncError("managed checkout is dirty or conflicting; unrelated files retained")
+            prefix = next((p for p in prefixes if path.startswith(p)), None)
+            if state not in {"??", "A "} or prefix is None: raise SyncError("managed checkout is dirty or conflicting; unrelated files retained")
             name = path[len(prefix):]
             if re.fullmatch(r"[a-f0-9]{64}\.json", name):
                 if state == "A " and self._git("show", f":{path}").stdout != (self.checkout / path).read_bytes():
@@ -192,6 +207,8 @@ class GitSync:
             try:
                 self._config(); self._commit(); self._pull()
                 self.archive.restore(self.store)
+                if self.legacy_archive:
+                    self.legacy_archive.restore(self.legacy)
                 # A crash can leave only some session batches locally; resolve
                 # against Store during restore, then fill missing exported refs.
                 present = {e["event_id"] for e in self.archive._read()[0]}
@@ -199,14 +216,20 @@ class GitSync:
                     missing = [(r[0],) for r in c.execute("SELECT event_id FROM events") if r[0] not in present]
                     c.executemany("UPDATE outbox SET status='pending' WHERE job_id=?", missing)
                 self.archive.export(self.store)
+                if self.legacy_archive:
+                    self.legacy_archive.export(self.legacy)
                 self._commit()
                 head = self._git("rev-parse", "--verify", "HEAD", allow_failure=True)
                 if head.returncode:
                     self.state["error"] = None; _write(self.state_path, self.state); return self.status()
                 exported = self.archive.read()  # validate the complete archive before push
+                legacy_ids = []
+                if self.legacy_archive:
+                    from .legacy import _validated
+                    legacy_ids = ["legacy-import-" + _validated(b)[0] for b in self.legacy_archive.read()]
                 self._git("push", "origin", f"HEAD:refs/heads/{self.branch}")
                 self.state.update(last_push_at=datetime.now(timezone.utc).isoformat(),
-                    last_push_commit=head.stdout.decode().strip(), pushed_ids=sorted(e["event_id"] for e in exported), error=None)
+                    last_push_commit=head.stdout.decode().strip(), pushed_ids=sorted([e["event_id"] for e in exported] + legacy_ids), error=None)
                 _write(self.state_path, self.state)
             except Exception:
                 self.state["error"] = "sync_failed_local_progress_retained"
@@ -220,7 +243,15 @@ class GitSync:
         with self.store._connection() as c:
             events = [{"event_id": r[0], "state": "pushed" if r[0] in pushed else "exported" if r[1] == "done" else "locally_saved"}
                       for r in c.execute("SELECT e.event_id,o.status FROM events e JOIN outbox o ON o.job_id=e.event_id ORDER BY e.learner_id,e.session_id,e.sequence")]
-        return {"events": events, "last_push_at": state["last_push_at"], "last_push_commit": state["last_push_commit"], "error": state["error"]}
+        legacy = []
+        if self.legacy is not None:
+            with self.legacy._connection() as c:
+                legacy = [{"import_id": r[0], "state": "pushed" if "legacy-import-" + r[0] in pushed else "exported" if r[1] else "locally_saved"}
+                          for r in c.execute("SELECT import_id,exported FROM imports ORDER BY import_id")]
+        result = {"events": events, "last_push_at": state["last_push_at"], "last_push_commit": state["last_push_commit"], "error": state["error"]}
+        if self.legacy is not None:
+            result["legacy_imports"] = legacy
+        return result
 
     def start(self, *, interval=30):
         if not isinstance(interval, (int, float)) or not 0 < interval <= 3600: raise SyncError("invalid sync interval")

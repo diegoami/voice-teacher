@@ -172,13 +172,26 @@ def _manifest(manifest):
 
 def plan_preview(root, manifest):
     """Return a deterministic private proposal; all reads are bounded/read-only."""
-    _manifest(manifest)
     root = Path(root).expanduser().resolve(strict=True)
     if not root.is_dir():
         raise PreviewError("input root must be a directory")
+    return _plan(manifest, lambda path: _read(root, path))
+
+
+def plan_from_bytes(manifest, inputs):
+    """Validate archived evidence using the same planner, without filesystem IO."""
+    if not isinstance(inputs, dict) or set(inputs) != {s["path"] for s in manifest["inputs"]}:
+        raise PreviewError("archived input set differs from manifest")
+    return _plan(manifest, lambda path: inputs[path])
+
+
+def _plan(manifest, read_input):
+    _manifest(manifest)
     records, inputs, total = [], [], 0
     for source in sorted(manifest["inputs"], key=lambda s: s["path"]):
-        raw = _read(root, source["path"])
+        raw = read_input(source["path"])
+        if not isinstance(raw, bytes) or len(raw) > MAX_FILE_BYTES:
+            raise PreviewError("input byte limit exceeded")
         total += len(raw)
         if total > MAX_TOTAL_BYTES:
             raise PreviewError("total input byte limit exceeded")

@@ -10,7 +10,7 @@ const repo =
   process.env.VOICE_TEACHER_TEST_REPO ?? resolve(here, "../../../../..");
 const python =
   process.env.VOICE_TEACHER_TEST_PYTHON ?? join(repo, ".venv/bin/python");
-export async function server() {
+export async function server(options: { completion?: boolean } = {}) {
   const root = await mkdtemp(
     join(
       process.env.VOICE_TEACHER_TEST_TMP ?? tmpdir(),
@@ -37,6 +37,7 @@ export async function server() {
         resolve(here, "../../../dist"),
         "--port",
         String(port),
+        ...(options.completion ? ["--completion-fixture"] : []),
       ],
       {
         env: {

@@ -212,9 +212,12 @@ class GitSync:
                 # A crash can leave only some session batches locally; resolve
                 # against Store during restore, then fill missing exported refs.
                 present = {e["event_id"] for e in self.archive._read()[0]}
+                present_decisions = {d["decision_id"] for d in self.archive.read_decisions()}
                 with self.store._transaction() as c:
                     missing = [(r[0],) for r in c.execute("SELECT event_id FROM events") if r[0] not in present]
                     c.executemany("UPDATE outbox SET status='pending' WHERE job_id=?", missing)
+                    missing_decisions = [(r[0],) for r in c.execute("SELECT decision_id FROM lesson_decisions") if r[0] not in present_decisions]
+                    c.executemany("UPDATE lesson_decisions SET exported=0 WHERE decision_id=?", missing_decisions)
                 self.archive.export(self.store)
                 if self.legacy_archive:
                     self.legacy_archive.export(self.legacy)
@@ -223,13 +226,14 @@ class GitSync:
                 if head.returncode:
                     self.state["error"] = None; _write(self.state_path, self.state); return self.status()
                 exported = self.archive.read()  # validate the complete archive before push
+                decision_ids = [d["decision_id"] for d in self.archive.read_decisions()]
                 legacy_ids = []
                 if self.legacy_archive:
                     from .legacy import _validated
                     legacy_ids = ["legacy-import-" + _validated(b)[0] for b in self.legacy_archive.read()]
                 self._git("push", "origin", f"HEAD:refs/heads/{self.branch}")
                 self.state.update(last_push_at=datetime.now(timezone.utc).isoformat(),
-                    last_push_commit=head.stdout.decode().strip(), pushed_ids=sorted([e["event_id"] for e in exported] + legacy_ids), error=None)
+                    last_push_commit=head.stdout.decode().strip(), pushed_ids=sorted([e["event_id"] for e in exported] + legacy_ids + decision_ids), error=None)
                 _write(self.state_path, self.state)
             except Exception:
                 self.state["error"] = "sync_failed_local_progress_retained"
@@ -243,6 +247,8 @@ class GitSync:
         with self.store._connection() as c:
             events = [{"event_id": r[0], "state": "pushed" if r[0] in pushed else "exported" if r[1] == "done" else "locally_saved"}
                       for r in c.execute("SELECT e.event_id,o.status FROM events e JOIN outbox o ON o.job_id=e.event_id ORDER BY e.learner_id,e.session_id,e.sequence")]
+            decisions = [{"decision_id": r[0], "state": "pushed" if r[0] in pushed else "exported" if r[1] else "locally_saved"}
+                         for r in c.execute("SELECT decision_id,exported FROM lesson_decisions ORDER BY decision_id")]
         legacy = []
         if self.legacy is not None:
             with self.legacy._connection() as c:
@@ -251,6 +257,8 @@ class GitSync:
         result = {"events": events, "last_push_at": state["last_push_at"], "last_push_commit": state["last_push_commit"], "error": state["error"]}
         if self.legacy is not None:
             result["legacy_imports"] = legacy
+        if decisions:
+            result["lesson_decisions"] = decisions
         return result
 
     def start(self, *, interval=30):

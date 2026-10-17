@@ -73,6 +73,21 @@ class Control(Revision):
     operation: Literal["pause", "resume", "finish"]
 
 
+class LessonCompletion(Revision):
+    source_id: str = Field(pattern=ID)
+    course_id: str = Field(pattern=ID)
+    lesson_id: str = Field(pattern=ID)
+    version_id: str = Field(pattern=ID)
+    completed: bool
+
+
+class LessonCompletionResult(BaseModel):
+    request_id: str
+    decision_id: str
+    revision: int
+    completed: bool
+
+
 class Teacher(BaseModel):
     text: str
     kind: str
@@ -204,6 +219,8 @@ class ItemCoverage(BaseModel):
     required_items: int
     covered_items: int
     covered: bool
+    completed: bool = False
+    learner_completed: bool | None = None
 
 
 class CourseProgress(BaseModel):
@@ -215,6 +232,15 @@ class CourseProgress(BaseModel):
     covered_items: int
     next_lesson_id: str | None
     lessons: list[ItemCoverage]
+    version_id: str | None = None
+    decision_revision: int = 0
+
+
+class LegacyPosition(BaseModel):
+    source_id: str
+    course_id: str
+    covered_lesson_ids: list[str]
+    next_lesson_id: str | None
 
 
 class HistorySession(BaseModel):
@@ -242,6 +268,7 @@ class BackupStatus(BaseModel):
 class ProgressView(BaseModel):
     criterion: str
     courses: list[CourseProgress]
+    legacy_positions: list[LegacyPosition]
     sessions: list[HistorySession]
     more_sessions: bool
     sync: BackupStatus

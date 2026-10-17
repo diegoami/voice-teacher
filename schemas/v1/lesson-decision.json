@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://voice-teacher.invalid/schemas/v1/lesson-decision.json",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "lesson_completion_decision"
+    },
+    "actor": {
+      "const": "learner"
+    },
+    "decision_id": {
+      "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+    },
+    "learner_id": {
+      "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+        },
+        "source_id": {
+          "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+        },
+        "course_id": {
+          "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+        },
+        "lesson_id": {
+          "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+        },
+        "version_id": {
+          "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/id"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "completed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request_id",
+        "source_id",
+        "course_id",
+        "lesson_id",
+        "version_id",
+        "expected_revision",
+        "completed"
+      ],
+      "additionalProperties": false
+    },
+    "source": {
+      "$ref": "https://voice-teacher.invalid/schemas/v1/common.json#/$defs/source_ref"
+    },
+    "curriculum_snapshot": {
+      "$ref": "https://voice-teacher.invalid/schemas/v1/curriculum.json"
+    }
+  },
+  "required": [
+    "schema_version",
+    "kind",
+    "actor",
+    "decision_id",
+    "learner_id",
+    "sequence",
+    "occurred_at",
+    "request",
+    "source",
+    "curriculum_snapshot"
+  ],
+  "additionalProperties": false
+}

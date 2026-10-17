@@ -96,3 +96,9 @@ Version6→7 migration is atomic and tested with injected failure/rollback/retry
 existing event history is preserved. Committed feedback/target choices live in
 private event checkpoints, while this pending decision cache requires database
 backup like the other request stages. See [free feedback](free-feedback.md).
+
+T33 migrates schema7 to8 transactionally, adding an append-only
+`lesson_decisions` journal with learner-bound request IDs and ordered revisions
+per pinned source/course/content hash. Export acknowledgement is mutable; learner
+choices are immutable. Failure rolls back the migration without altering earlier
+practice. Completion/reopen records do not change session projections or queues.

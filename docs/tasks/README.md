@@ -71,6 +71,7 @@ use parallel native implementers only for independent contracts and worktrees.
 | [T30](T30.md) | Accept and package the local three-mode release | Local release acceptance | T19, T22, T23, T25, T26, T27, T28, T29 | [#30](https://github.com/diegoami/voice-teacher/issues/30) |
 | [T31](T31.md) | Choose an always-on hosting target using measured requirements | Later hosting | T30 | [#31](https://github.com/diegoami/voice-teacher/issues/31) |
 | [T32](T32.md) | Deploy the accepted service to the chosen always-on host | Later hosting | T31 | [#32](https://github.com/diegoami/voice-teacher/issues/32) |
+| [T33](T33.md) | Let the learner complete or reopen lessons and move on | Three-mode release | T18, T25 | [#69](https://github.com/diegoami/voice-teacher/issues/69) |
 
 ## Preflight decisions
 
@@ -111,6 +112,11 @@ approval and successful checks. A task requiring a missing owner decision or
 human check stays incomplete; proceed with other eligible tasks when possible.
 
 Continue with [T24](T24.md) after T22, then the eligible remaining contracts.
+The owner added T33 after T25 and before phone/release acceptance: explicit
+learner completion/reopening must prevent forced repetition of covered lessons
+while preserving weak-item review and actual practice evidence. T25's first
+selected sample is the latest recorded session with tracker/queue references;
+the concrete manifest still needs review before actual historical writes.
 Recheck dependencies, create an isolated worktree and run the available baseline
 for each task. T22's bounded selected-model integration and owner listening are
 recorded in PR #67; its explicit owner amendment defers full microphone-to-server

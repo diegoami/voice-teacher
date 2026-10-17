@@ -25,6 +25,10 @@ Synthetic tests use owned temporary local bare repositories; they do not establi
 the privacy or ownership of any actual account/repository.
 
 The managed checkout must be separate from runtime storage, app code and content.
+T25 optionally adds an explicitly configured `legacy=LegacyLedger(...)` and
+immutable legacy-history namespace; see [reviewed import](migration-apply.md).
+Canonical-only bindings retain their previous identity. Existing workers cannot
+silently adopt the additional namespace; use the verified handoff procedure.
 The first setup requires an empty directory; existing arbitrary checkouts are
 never adopted. Subsequent opens verify the private runtime destination binding,
 writer identity and exact managed Git configuration. Registered content roots

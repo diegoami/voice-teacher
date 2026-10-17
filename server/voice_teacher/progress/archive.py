@@ -199,6 +199,12 @@ class Archive:
         namespace = self.root / "voice-teacher"
         if namespace.is_symlink(): raise ArchiveError("archive symlinks are refused")
         if not namespace.exists(): return [], {}
+        # A legacy-only archive can exist before the first canonical session.
+        current = self.root
+        for part in self.NAMESPACE.parts:
+            current /= part
+            if current.is_symlink(): raise ArchiveError("archive symlinks are refused")
+            if not current.exists(): return [], {}
         directory = _directory(self.root, self.NAMESPACE)
         events, activities, consumed = {}, defaultdict(dict), 0
         paths = sorted(directory.iterdir())

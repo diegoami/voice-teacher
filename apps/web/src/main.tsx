@@ -1,4 +1,4 @@
-import { ProgressPanel } from "./progress";
+import { BackupPanel, ProgressPanel } from "./progress";
 import { RetentionPanel } from "./retention";
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -25,6 +25,8 @@ import type {
 } from "./api";
 import "./style.css";
 import { SessionScreen } from "./session";
+import { VoiceController, type VoiceView } from "./voice";
+import { useNavigation } from "./navigation";
 
 function App() {
   const [grant, setGrant] = useState<Grant | null>(() => readGrant());
@@ -51,6 +53,92 @@ function App() {
   const [reload, setReload] = useState(0);
   const [sessionOpen, setSessionOpen] = useState(0);
   const epoch = useRef(0);
+  const lastLearner = useRef(grant?.learner_id);
+  const voiceController = useRef<VoiceController | null>(null);
+  const [voiceView, setVoiceView] = useState<VoiceView | null>(null);
+  const captures = () =>
+    ["requesting", "recording"].includes(
+      voiceController.current?.view.phase ?? "",
+    );
+  const nav = useNavigation(captures, (target) => {
+    voiceController.current?.setVisible(
+      target.page === "practice" &&
+        (!target.session || target.session === current?.session_id),
+    );
+  });
+  const voiceLocked = Boolean(
+    voiceView &&
+    (voiceView.pending ||
+      !["ready", "error", "playing"].includes(voiceView.phase)),
+  );
+  const heading = useRef<HTMLHeadingElement | null>(null);
+  const leaveDialog = useRef<HTMLDialogElement | null>(null);
+  const [routeError, setRouteError] = useState("");
+  const practiceHash = "#/practice" + (current ? "/" + current.session_id : "");
+  useEffect(() => {
+    const dialog = leaveDialog.current;
+    if (nav.pending && dialog && !dialog.open) dialog.showModal();
+    if (!nav.pending && dialog?.open) dialog.close();
+  }, [nav.pending]);
+  useEffect(() => {
+    if (verified && !nav.pending) {
+      heading.current?.focus();
+      window.scrollTo(0, 0);
+    }
+  }, [nav.route.page, nav.route.session, verified, nav.pending]);
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      const phase = voiceController.current?.view.phase;
+      if (phase && ["requesting", "recording", "saving"].includes(phase)) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, []);
+  useEffect(() => {
+    const session = nav.route.session;
+    setRouteError("");
+    if (
+      !verified ||
+      !grant ||
+      nav.route.page !== "practice" ||
+      !session ||
+      current?.session_id === session
+    )
+      return;
+    if (current?.status === "active") {
+      setRouteError(
+        "Pause or finish your current session before opening another one.",
+      );
+      return;
+    }
+    let active = true;
+    void api<Presentation>(
+      "/sessions/" + encodeURIComponent(session) + "?prepare_audio=false",
+      grant.token,
+    )
+      .then((value) => {
+        if (value.session_id !== session) throw new ApiError(404);
+        if (active) {
+          setCurrent(value);
+          setSessionOpen((n) => n + 1);
+        }
+      })
+      .catch((e) => {
+        if (active) {
+          if (e instanceof ApiError && e.status === 401) failure(e);
+          else
+            setRouteError(
+              "This session is unavailable for the paired learner. Choose a saved session from Lessons.",
+            );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [verified, grant, nav.route.page, nav.route.session, current?.session_id]);
   function failure(e: unknown) {
     setError(
       e instanceof Error
@@ -172,7 +260,13 @@ function App() {
           lesson?.available_modes.includes(choice.mode),
   );
   async function openSession(s: SavedSession) {
-    if (!grant) return;
+    if (
+      !grant ||
+      voiceLocked ||
+      (current?.status === "active" &&
+        current.session_id !== s.start.session_id)
+    )
+      return;
     try {
       setCurrent(
         await api<Presentation>(
@@ -199,9 +293,11 @@ function App() {
     // session ID. Its old capture/playback ends; the new server state and any
     // durable pending intent are loaded together. Turn replies keep it mounted.
     setSessionOpen((n) => n + 1);
+    nav.navigate("#/practice/" + s.start.session_id);
   }
   async function start() {
-    if (!grant || !available) return;
+    if (!grant || !available || voiceLocked || current?.status === "active")
+      return;
     const free = sourceFree || choice.mode === "free_conversation";
     const entry: SavedSession = {
       start: {
@@ -228,106 +324,187 @@ function App() {
     save(grant.learner_id, "sessions", next);
     setSessions(next);
     setCurrent(await api<Presentation>("/sessions", grant.token, entry.start));
+    nav.navigate("#/practice/" + entry.start.session_id);
   }
   return (
     <main>
       <header>
-        <a href="/" className="brand">
+        <a
+          href="#/lessons"
+          className="brand"
+          onClick={(e) => {
+            e.preventDefault();
+            nav.navigate("#/lessons");
+          }}
+        >
           Voice Teacher
         </a>
         <p>Make room for a little conversation.</p>
       </header>
-      <section aria-labelledby="connection">
-        <div className="section-title">
-          <h1 id="connection">Your practice space</h1>
-          {verified && <span className="badge">Connected</span>}
-        </div>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void action(async () => {
-              const target = serverOrigin(server);
-              if (target !== location.origin) {
-                location.assign(target);
-                return;
-              }
-              const g = await api<Grant>("/pair", undefined, {
-                code: code.trim(),
-              });
-              writeGrant(g);
-              setCode("");
-              setGrant(g);
-            });
-          }}
-        >
-          <label>
-            Server address
-            <input
-              type="url"
-              required
-              value={server}
-              onChange={(e) => setServer(e.target.value)}
-              autoCapitalize="none"
-              spellCheck={false}
-            />
-          </label>
-          <p className="hint">
-            Open the app at your server address to pair. Each server keeps its
-            own connection and saved sessions.
-          </p>
-          <button
-            type="button"
-            className="secondary"
-            disabled={busy}
-            onClick={() =>
-              void action(async () => {
-                const target = serverOrigin(server);
-                if (target !== location.origin) location.assign(target);
-              })
-            }
-          >
-            Open server address
-          </button>
-          {!verified && (
-            <label>
-              Pairing code
-              <input
-                required
-                minLength={32}
-                type="password"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                autoComplete="off"
-              />
-            </label>
-          )}
-          {!verified && <button disabled={busy}>Connect and pair</button>}
-          {verified && (
-            <>
-              <p>
-                Paired learner: <strong>{grant?.learner_id}</strong>
-              </p>
-              <div className="actions">
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() => {
-                    epoch.current++;
-                    writeGrant(null);
-                    setGrant(null);
-                    setVerified(false);
-                    setSessions([]);
-                    setCurrent(null);
+      {verified && (
+        <>
+          <nav className="destination-nav" aria-label="Main navigation">
+            {(["lessons", "practice", "history", "settings"] as const).map(
+              (page) => (
+                <a
+                  key={page}
+                  href={page === "practice" ? practiceHash : "#/" + page}
+                  aria-current={nav.route.page === page ? "page" : undefined}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    nav.navigate(
+                      page === "practice" ? practiceHash : "#/" + page,
+                    );
                   }}
                 >
-                  Disconnect
-                </button>
-              </div>
-            </>
+                  {page[0].toUpperCase() + page.slice(1)}
+                </a>
+              ),
+            )}
+          </nav>
+          <h1 ref={heading} tabIndex={-1}>
+            {nav.route.page === "missing"
+              ? "Page unavailable"
+              : nav.route.page[0].toUpperCase() + nav.route.page.slice(1)}
+          </h1>
+          {current && nav.route.page !== "practice" && (
+            <p className="return-practice">
+              <a
+                href={practiceHash}
+                onClick={(e) => {
+                  e.preventDefault();
+                  nav.navigate(practiceHash);
+                }}
+              >
+                Return to practice
+              </a>
+              {" · "}
+              {voiceView?.phase === "error"
+                ? "Answer needs attention — return to Practice"
+                : voiceView?.pending || voiceView?.phase === "saving"
+                  ? "Answer saving or awaiting recovery"
+                  : current.status}
+            </p>
           )}
-        </form>
-      </section>
+          {nav.route.page === "missing" && (
+            <p>
+              Unknown page.{" "}
+              <a
+                href="#/lessons"
+                onClick={(e) => {
+                  e.preventDefault();
+                  nav.navigate("#/lessons");
+                }}
+              >
+                Go to Lessons
+              </a>
+            </p>
+          )}
+        </>
+      )}
+      <div hidden={verified && nav.route.page !== "settings"}>
+        <section aria-labelledby="connection">
+          <div className="section-title">
+            <h1 id="connection">Your practice space</h1>
+            {verified && <span className="badge">Connected</span>}
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (verified) return;
+              void action(async () => {
+                const target = serverOrigin(server);
+                if (target !== location.origin) {
+                  location.assign(target);
+                  return;
+                }
+                const g = await api<Grant>("/pair", undefined, {
+                  code: code.trim(),
+                });
+                writeGrant(g);
+                setCode("");
+                if (lastLearner.current && lastLearner.current !== g.learner_id)
+                  nav.navigate("#/lessons");
+                lastLearner.current = g.learner_id;
+                setGrant(g);
+              });
+            }}
+          >
+            <label>
+              Server address
+              <input
+                type="url"
+                required
+                value={server}
+                onChange={(e) => setServer(e.target.value)}
+                autoCapitalize="none"
+                spellCheck={false}
+              />
+            </label>
+            <p className="hint">
+              Open the app at your server address to pair. Each server keeps its
+              own connection and saved sessions.
+            </p>
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy || voiceLocked}
+              onClick={() =>
+                void action(async () => {
+                  const target = serverOrigin(server);
+                  if (target !== location.origin) location.assign(target);
+                })
+              }
+            >
+              Open server address
+            </button>
+            {!verified && (
+              <label>
+                Pairing code
+                <input
+                  required
+                  minLength={32}
+                  type="password"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  autoComplete="off"
+                />
+              </label>
+            )}
+            {!verified && <button disabled={busy}>Connect and pair</button>}
+            {verified && (
+              <>
+                <p>
+                  Paired learner: <strong>{grant?.learner_id}</strong>
+                </p>
+                <div className="actions">
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={busy || voiceLocked}
+                    onClick={() => {
+                      epoch.current++;
+                      writeGrant(null);
+                      setGrant(null);
+                      setVerified(false);
+                      setSessions([]);
+                      setCurrent(null);
+                    }}
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              </>
+            )}
+          </form>
+        </section>
+        {verified && voiceLocked && (
+          <p>
+            Resolve the current recording or saved response in Practice before
+            changing the paired server.
+          </p>
+        )}
+      </div>
       {error && (
         <aside role="alert">
           <p>{error}</p>
@@ -347,235 +524,349 @@ function App() {
       )}
       {verified && (
         <>
-          <section aria-labelledby="catalogue">
-            <p className="eyebrow">Choose today’s practice</p>
-            <h2 id="catalogue">Your lessons</h2>
-            <label className="mode">
-              <input
-                type="checkbox"
-                checked={sourceFree}
-                onChange={(e) => setSourceFree(e.target.checked)}
-              />
-              Practise a topic without a lesson
-            </label>
-            {!sourceFree && (
-              <div className="selections">
-                <label>
-                  Lesson source
-                  <select
-                    value={choice.source_id}
-                    onChange={(e) =>
-                      select({
-                        ...choice,
-                        source_id: e.target.value,
-                        course_id: "",
-                        lesson_id: "",
-                      })
-                    }
-                  >
-                    <option value="">Choose a source</option>
-                    {sources.map((s) => (
-                      <option
-                        key={s.source_id}
-                        value={s.source_id}
-                        disabled={!s.available}
-                      >
-                        {s.name}
-                        {s.available ? "" : " — unavailable"}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Course
-                  <select
-                    disabled={!source?.available}
-                    value={choice.course_id}
-                    onChange={(e) =>
-                      select({
-                        ...choice,
-                        course_id: e.target.value,
-                        lesson_id: "",
-                      })
-                    }
-                  >
-                    <option value="">Choose a course</option>
-                    {courses.map((c) => (
-                      <option key={c.course_id} value={c.course_id}>
-                        {c.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Lesson or topic
-                  <select
-                    disabled={!course}
-                    value={choice.lesson_id}
-                    onChange={(e) =>
-                      select({ ...choice, lesson_id: e.target.value })
-                    }
-                  >
-                    <option value="">Choose a lesson</option>
-                    {lessons.map((l) => (
-                      <option key={l.lesson_id} value={l.lesson_id}>
-                        {l.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            )}
-            {!sourceFree && lesson && (
-              <fieldset>
-                <legend>How would you like to practise?</legend>
-                {modes.map(([mode, label]) => (
-                  <label className="mode" key={mode}>
-                    <input
-                      type="radio"
-                      name="mode"
-                      checked={choice.mode === mode}
-                      onChange={() => select({ ...choice, mode })}
-                    />
-                    <span>
-                      <strong>{label}</strong>
-                      {!lesson.available_modes.includes(mode) && (
-                        <small>
-                          {lesson.authored_modes.includes(mode)
-                            ? "Available in this lesson when the server enables this mode."
-                            : "This lesson does not include this mode."}
-                        </small>
-                      )}
-                    </span>
-                  </label>
-                ))}
-              </fieldset>
-            )}
-            {(sourceFree || choice.mode === "free_conversation") && (
-              <fieldset>
-                <legend>Free conversation</legend>
-                {sourceFree && (
-                  <p className="hint">
-                    Ukrainian conversation with English explanations.
-                  </p>
-                )}
-                <label>
-                  Conversation topic
-                  <input
-                    maxLength={500}
-                    required={sourceFree}
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                    placeholder={
-                      sourceFree
-                        ? "Choose something to talk about"
-                        : "Use the lesson topic, or choose your own"
-                    }
-                  />
-                </label>
-                <label>
-                  Correction preference
-                  <select
-                    value={correction}
-                    onChange={(e) =>
-                      setCorrection(e.target.value as CorrectionStyle)
-                    }
-                  >
-                    <option value="light_immediate">
-                      Light immediate correction
-                    </option>
-                    <option value="end_of_session">Feedback at the end</option>
-                  </select>
-                </label>
-                <p className="hint">
-                  Choose the preference before starting. A resumed conversation
-                  keeps its original choice.
+          <div hidden={nav.route.page !== "lessons"}>
+            {current && (
+              <section aria-label="Current session">
+                <h2>Current session</h2>
+                <p>
+                  {sessions.find(
+                    (s) => s.start.session_id === current.session_id,
+                  )?.title ?? "Saved practice"}{" "}
+                  · {current.status}
                 </p>
-              </fieldset>
+                <a
+                  href={practiceHash}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    nav.navigate(practiceHash);
+                  }}
+                >
+                  Continue current session
+                </a>
+              </section>
             )}
-            <button
-              disabled={busy || !available}
-              onClick={() => void action(start)}
-            >
-              Start practice
-            </button>
-            {!sourceFree && lesson && !available && (
-              <p role="status">
-                Choose an available mode to start this lesson.
+            <section aria-labelledby="catalogue">
+              <p className="eyebrow">Choose today’s practice</p>
+              <h2 id="catalogue">Your lessons</h2>
+              <label className="mode">
+                <input
+                  type="checkbox"
+                  checked={sourceFree}
+                  onChange={(e) => setSourceFree(e.target.checked)}
+                />
+                Practise a topic without a lesson
+              </label>
+              {!sourceFree && (
+                <div className="selections">
+                  <label>
+                    Lesson source
+                    <select
+                      value={choice.source_id}
+                      onChange={(e) =>
+                        select({
+                          ...choice,
+                          source_id: e.target.value,
+                          course_id: "",
+                          lesson_id: "",
+                        })
+                      }
+                    >
+                      <option value="">Choose a source</option>
+                      {sources.map((s) => (
+                        <option
+                          key={s.source_id}
+                          value={s.source_id}
+                          disabled={!s.available}
+                        >
+                          {s.name}
+                          {s.available ? "" : " — unavailable"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Course
+                    <select
+                      disabled={!source?.available}
+                      value={choice.course_id}
+                      onChange={(e) =>
+                        select({
+                          ...choice,
+                          course_id: e.target.value,
+                          lesson_id: "",
+                        })
+                      }
+                    >
+                      <option value="">Choose a course</option>
+                      {courses.map((c) => (
+                        <option key={c.course_id} value={c.course_id}>
+                          {c.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Lesson or topic
+                    <select
+                      disabled={!course}
+                      value={choice.lesson_id}
+                      onChange={(e) =>
+                        select({ ...choice, lesson_id: e.target.value })
+                      }
+                    >
+                      <option value="">Choose a lesson</option>
+                      {lessons.map((l) => (
+                        <option key={l.lesson_id} value={l.lesson_id}>
+                          {l.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
+              {!sourceFree && lesson && (
+                <fieldset>
+                  <legend>How would you like to practise?</legend>
+                  {modes.map(([mode, label]) => (
+                    <label className="mode" key={mode}>
+                      <input
+                        type="radio"
+                        name="mode"
+                        checked={choice.mode === mode}
+                        onChange={() => select({ ...choice, mode })}
+                      />
+                      <span>
+                        <strong>{label}</strong>
+                        {!lesson.available_modes.includes(mode) && (
+                          <small>
+                            {lesson.authored_modes.includes(mode)
+                              ? "Available in this lesson when the server enables this mode."
+                              : "This lesson does not include this mode."}
+                          </small>
+                        )}
+                      </span>
+                    </label>
+                  ))}
+                </fieldset>
+              )}
+              {(sourceFree || choice.mode === "free_conversation") && (
+                <fieldset>
+                  <legend>Free conversation</legend>
+                  {sourceFree && (
+                    <p className="hint">
+                      Ukrainian conversation with English explanations.
+                    </p>
+                  )}
+                  <label>
+                    Conversation topic
+                    <input
+                      maxLength={500}
+                      required={sourceFree}
+                      value={topic}
+                      onChange={(e) => setTopic(e.target.value)}
+                      placeholder={
+                        sourceFree
+                          ? "Choose something to talk about"
+                          : "Use the lesson topic, or choose your own"
+                      }
+                    />
+                  </label>
+                  <label>
+                    Correction preference
+                    <select
+                      value={correction}
+                      onChange={(e) =>
+                        setCorrection(e.target.value as CorrectionStyle)
+                      }
+                    >
+                      <option value="light_immediate">
+                        Light immediate correction
+                      </option>
+                      <option value="end_of_session">
+                        Feedback at the end
+                      </option>
+                    </select>
+                  </label>
+                  <p className="hint">
+                    Choose the preference before starting. A resumed
+                    conversation keeps its original choice.
+                  </p>
+                </fieldset>
+              )}
+              <button
+                disabled={
+                  busy ||
+                  !available ||
+                  voiceLocked ||
+                  current?.status === "active"
+                }
+                onClick={() => void action(start)}
+              >
+                Start practice
+              </button>
+              {current?.status === "active" && (
+                <p>
+                  Pause or finish your current session in Practice before
+                  starting another.
+                </p>
+              )}
+              {!sourceFree && lesson && !available && (
+                <p role="status">
+                  Choose an available mode to start this lesson.
+                </p>
+              )}
+            </section>
+            <section aria-labelledby="saved">
+              <h2 id="saved">Continue a session</h2>
+              <p className="hint">
+                Changing your lesson source keeps these sessions attached to
+                their original lesson revision.
+              </p>
+              {sessions.length === 0 ? (
+                <p>No sessions started on this device yet.</p>
+              ) : (
+                <ul className="sessions">
+                  {sessions.map((s) => (
+                    <li key={s.start.session_id}>
+                      <div>
+                        <strong>{s.title}</strong>
+                        <small>
+                          {s.sourceName} ·{" "}
+                          {modes.find(([m]) => m === s.start.mode)?.[1]}
+                        </small>
+                      </div>
+                      <button
+                        className="secondary"
+                        disabled={
+                          busy ||
+                          voiceLocked ||
+                          (current?.status === "active" &&
+                            current.session_id !== s.start.session_id)
+                        }
+                        onClick={() => void action(() => openSession(s))}
+                      >
+                        Open {s.title}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+          <div hidden={nav.route.page !== "practice"}>
+            {routeError && <p role="alert">{routeError}</p>}
+            {!current && !routeError && (
+              <p>
+                {nav.route.session
+                  ? "Loading saved practice…"
+                  : "Choose a lesson or a saved session from Lessons to begin."}
               </p>
             )}
-          </section>
-          <section aria-labelledby="saved">
-            <h2 id="saved">Continue a session</h2>
-            <p className="hint">
-              Changing your lesson source keeps these sessions attached to their
-              original lesson revision.
-            </p>
-            {sessions.length === 0 ? (
-              <p>No sessions started on this device yet.</p>
-            ) : (
-              <ul className="sessions">
-                {sessions.map((s) => (
-                  <li key={s.start.session_id}>
-                    <div>
-                      <strong>{s.title}</strong>
-                      <small>
-                        {s.sourceName} ·{" "}
-                        {modes.find(([m]) => m === s.start.mode)?.[1]}
-                      </small>
-                    </div>
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      onClick={() => void action(() => openSession(s))}
-                    >
-                      Open {s.title}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            {current && grant && (
+              <div
+                hidden={Boolean(
+                  nav.route.session && nav.route.session !== current.session_id,
+                )}
+              >
+                <SessionScreen
+                  key={
+                    grant.client_id +
+                    ":" +
+                    current.session_id +
+                    ":" +
+                    sessionOpen
+                  }
+                  initial={current}
+                  visible={
+                    nav.route.page === "practice" &&
+                    (!nav.route.session ||
+                      nav.route.session === current.session_id)
+                  }
+                  navigationController={voiceController}
+                  onView={setVoiceView}
+                  context={sessions.find(
+                    (s) => s.start.session_id === current.session_id,
+                  )}
+                  grant={grant}
+                  received={setCurrent}
+                  unauthorized={failure}
+                />
+              </div>
             )}
-          </section>
-          {current && grant && (
-            <SessionScreen
-              key={
-                grant.client_id + ":" + current.session_id + ":" + sessionOpen
-              }
-              initial={current}
-              context={sessions.find(
-                (s) => s.start.session_id === current.session_id,
-              )}
-              grant={grant}
-              received={setCurrent}
-              unauthorized={failure}
-            />
-          )}
+          </div>
+          <div hidden={nav.route.page !== "settings"}>
+            {grant && (
+              <RetentionPanel
+                key={"retention-" + grant.client_id}
+                token={grant.token}
+                unauthorized={failure}
+              />
+            )}
+          </div>
           {grant && (
-            <RetentionPanel
-              key={"retention-" + grant.client_id}
-              token={grant.token}
-              unauthorized={failure}
-            />
+            <div hidden={nav.route.page !== "settings"}>
+              <BackupPanel
+                key={"backup-" + grant.client_id}
+                token={grant.token}
+                unauthorized={failure}
+              />
+            </div>
           )}
-          {grant && (
-            <ProgressPanel
-              key={grant.client_id}
-              token={grant.token}
-              learner={grant.learner_id}
-              selection={choice}
-              availableLessons={lessons.map((l) => l.lesson_id)}
-              chooseLesson={(source_id, course_id, lesson_id) => {
-                setSourceFree(false);
-                select({ ...choice, source_id, course_id, lesson_id });
-                document
-                  .getElementById("lesson")
-                  ?.scrollIntoView({ block: "center" });
-              }}
-              unauthorized={failure}
-            />
-          )}
+          <div hidden={nav.route.page !== "history"}>
+            {grant && (
+              <ProgressPanel
+                key={grant.client_id}
+                token={grant.token}
+                learner={grant.learner_id}
+                selection={choice}
+                availableLessons={lessons.map((l) => l.lesson_id)}
+                chooseLesson={(source_id, course_id, lesson_id) => {
+                  setSourceFree(false);
+                  select({ ...choice, source_id, course_id, lesson_id });
+                  nav.navigate("#/lessons");
+                }}
+                unauthorized={failure}
+              />
+            )}
+          </div>
         </>
       )}
+      <dialog
+        ref={leaveDialog}
+        aria-labelledby="leave-title"
+        onCancel={(e) => {
+          e.preventDefault();
+          nav.stay();
+        }}
+      >
+        <h2 id="leave-title">Leave Practice?</h2>
+        <p>
+          A microphone request or recording is still active. Live capture cannot
+          be recovered after closing or refreshing the page.
+        </p>
+        <div className="actions">
+          <button onClick={nav.stay}>Stay in Practice</button>
+          <button
+            className="secondary"
+            onClick={() => {
+              voiceController.current?.cancelRecording();
+              nav.proceed();
+            }}
+          >
+            Discard recording and leave
+          </button>
+          {voiceView?.phase === "recording" && (
+            <button
+              onClick={() => {
+                voiceController.current?.endRecording();
+                nav.proceed();
+              }}
+            >
+              Send answer and leave
+            </button>
+          )}
+        </div>
+      </dialog>
       <footer>
         Your lessons and progress stay with your configured server.
       </footer>

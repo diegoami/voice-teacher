@@ -280,147 +280,6 @@ export function ProgressPanel({
       )}
       {view && (
         <>
-          <h3>Backup state</h3>
-          <p>
-            <CountsView value={view.sync} />
-          </p>
-          <p className="hint">
-            Locally saved records are on this server. Exported records are in
-            the private archive. Pushed records were confirmed at the configured
-            remote.
-          </p>
-          {!view.sync.configured && (
-            <p>Remote progress sync is not configured.</p>
-          )}
-          {view.sync.error && <p role="status">{view.sync.error}</p>}
-          {view.sync.last_push_at && (
-            <p>
-              Last confirmed push:{" "}
-              <time dateTime={view.sync.last_push_at}>
-                {new Date(view.sync.last_push_at).toLocaleString()}
-              </time>
-            </p>
-          )}
-          <h3>Imported course position</h3>
-          {(view.legacy_positions ?? []).map((position) => (
-            <article key={position.source_id + ":" + position.course_id}>
-              <p>
-                {position.source_id} / {position.course_id}: historical lessons
-                covered {position.covered_lesson_ids.join(", ") || "none"}.
-                Next: {position.next_lesson_id ?? "none recorded"}.
-              </p>
-              <p className="hint">
-                Historical position is preserved separately from practice
-                evidence. Choose its current course above to use the recorded
-                next lesson.
-              </p>
-              {position.next_lesson_id && (
-                <button
-                  disabled={
-                    busy ||
-                    !selection.source_id ||
-                    !selection.course_id ||
-                    !availableLessons.includes(position.next_lesson_id)
-                  }
-                  onClick={() =>
-                    chooseLesson(
-                      selection.source_id,
-                      selection.course_id,
-                      position.next_lesson_id!,
-                    )
-                  }
-                >
-                  Use imported next lesson in selected course
-                </button>
-              )}
-            </article>
-          ))}
-          <h3>Course item practice</h3>
-          <p className="hint">
-            You decide when a lesson is complete. Completing it changes the next
-            lesson; item coverage and weak expressions remain available for
-            review.
-          </p>
-          <p className="hint">{view.criterion}</p>
-          {!view.courses.length && <p>No lesson course history yet.</p>}
-          {view.courses.map((course) => (
-            <article
-              key={[
-                course.source_id,
-                course.course_id,
-                course.content_sha256,
-              ].join(":")}
-            >
-              <h4>{course.title}</h4>
-              <p>
-                {course.source_id} / {course.course_id} · revision{" "}
-                {course.content_sha256.slice(0, 8)}
-              </p>
-              <p>
-                {course.covered_items} of {course.required_items} items covered
-              </p>
-              <p>
-                {course.next_lesson_id
-                  ? "Next lesson: " +
-                    (course.lessons.find(
-                      (l) => l.lesson_id === course.next_lesson_id,
-                    )?.title ?? course.next_lesson_id)
-                  : "All listed lessons are complete."}
-              </p>
-              {course.next_lesson_id && course.version_id && (
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    chooseLesson(
-                      course.source_id,
-                      course.course_id,
-                      course.next_lesson_id!,
-                    )
-                  }
-                >
-                  Continue to next lesson
-                </button>
-              )}
-              <ol>
-                {course.lessons.map((l) => (
-                  <li key={l.lesson_id}>
-                    {l.title}:{" "}
-                    {l.required_items
-                      ? `${l.covered_items} of ${l.required_items} items covered`
-                      : "No item coverage criterion"}
-                    {l.learner_completed != null && (
-                      <span>
-                        {" "}
-                        ·{" "}
-                        {l.learner_completed
-                          ? "Completed by you"
-                          : "Reopened by you"}
-                      </span>
-                    )}
-                    {course.version_id && (
-                      <button
-                        disabled={busy || !!pending}
-                        onClick={() =>
-                          void action(() =>
-                            decide(
-                              course,
-                              l.lesson_id,
-                              !(l.completed ?? l.covered),
-                            ),
-                          )
-                        }
-                      >
-                        {(l.completed ?? l.covered)
-                          ? "Reopen lesson"
-                          : "Mark lesson complete"}
-                        : {l.title}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </article>
-          ))}
           <h3>Recent sessions</h3>
           {!view.sessions.length && <p>No sessions saved for this learner.</p>}
           <ul className="sessions">
@@ -468,6 +327,131 @@ export function ProgressPanel({
               includes the full saved history.
             </p>
           )}
+          <details className="history-choices">
+            <summary>Course position and lesson choices</summary>
+            <h3>Imported course position</h3>
+            {(view.legacy_positions ?? []).map((position) => (
+              <article key={position.source_id + ":" + position.course_id}>
+                <p>
+                  {position.source_id} / {position.course_id}: historical
+                  lessons covered{" "}
+                  {position.covered_lesson_ids.join(", ") || "none"}. Next:{" "}
+                  {position.next_lesson_id ?? "none recorded"}.
+                </p>
+                <p className="hint">
+                  Historical position is preserved separately from practice
+                  evidence. Choose its current course above to use the recorded
+                  next lesson.
+                </p>
+                {position.next_lesson_id && (
+                  <button
+                    disabled={
+                      busy ||
+                      !selection.source_id ||
+                      !selection.course_id ||
+                      !availableLessons.includes(position.next_lesson_id)
+                    }
+                    onClick={() =>
+                      chooseLesson(
+                        selection.source_id,
+                        selection.course_id,
+                        position.next_lesson_id!,
+                      )
+                    }
+                  >
+                    Use imported next lesson in selected course
+                  </button>
+                )}
+              </article>
+            ))}
+            <h3>Course item practice</h3>
+            <p className="hint">
+              You decide when a lesson is complete. Completing it changes the
+              next lesson; item coverage and weak expressions remain available
+              for review.
+            </p>
+            <p className="hint">{view.criterion}</p>
+            {!view.courses.length && <p>No lesson course history yet.</p>}
+            {view.courses.map((course) => (
+              <article
+                key={[
+                  course.source_id,
+                  course.course_id,
+                  course.content_sha256,
+                ].join(":")}
+              >
+                <h4>{course.title}</h4>
+                <p>
+                  {course.source_id} / {course.course_id} · revision{" "}
+                  {course.content_sha256.slice(0, 8)}
+                </p>
+                <p>
+                  {course.covered_items} of {course.required_items} items
+                  covered
+                </p>
+                <p>
+                  {course.next_lesson_id
+                    ? "Next lesson: " +
+                      (course.lessons.find(
+                        (l) => l.lesson_id === course.next_lesson_id,
+                      )?.title ?? course.next_lesson_id)
+                    : "All listed lessons are complete."}
+                </p>
+                {course.next_lesson_id && course.version_id && (
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      chooseLesson(
+                        course.source_id,
+                        course.course_id,
+                        course.next_lesson_id!,
+                      )
+                    }
+                  >
+                    Continue to next lesson
+                  </button>
+                )}
+                <ol>
+                  {course.lessons.map((l) => (
+                    <li key={l.lesson_id}>
+                      {l.title}:{" "}
+                      {l.required_items
+                        ? `${l.covered_items} of ${l.required_items} items covered`
+                        : "No item coverage criterion"}
+                      {l.learner_completed != null && (
+                        <span>
+                          {" "}
+                          ·{" "}
+                          {l.learner_completed
+                            ? "Completed by you"
+                            : "Reopened by you"}
+                        </span>
+                      )}
+                      {course.version_id && (
+                        <button
+                          disabled={busy || !!pending}
+                          onClick={() =>
+                            void action(() =>
+                              decide(
+                                course,
+                                l.lesson_id,
+                                !(l.completed ?? l.covered),
+                              ),
+                            )
+                          }
+                        >
+                          {(l.completed ?? l.covered)
+                            ? "Reopen lesson"
+                            : "Mark lesson complete"}
+                          : {l.title}
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </article>
+            ))}
+          </details>
         </>
       )}
       {detail && (
@@ -521,7 +505,17 @@ export function ProgressPanel({
                   <br />
                   Later practice: {sourceName(e.provenance.practice_source)}
                 </p>
-                <a href={"#turn-" + encodeURIComponent(e.turn.turn_id)}>
+                <a
+                  href={"#turn-" + encodeURIComponent(e.turn.turn_id)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    const target = document.getElementById(
+                      "turn-" + encodeURIComponent(e.turn.turn_id),
+                    );
+                    target?.focus();
+                    target?.scrollIntoView({ block: "center" });
+                  }}
+                >
                   Supporting learner turn
                 </a>
                 {e.provenance.origin_session_id !== detail.session_id && (
@@ -558,13 +552,88 @@ export function ProgressPanel({
           <h4>Saved transcript</h4>
           <ol>
             {turns.map((t) => (
-              <li id={"turn-" + encodeURIComponent(t.turn_id)} key={t.turn_id}>
+              <li
+                id={"turn-" + encodeURIComponent(t.turn_id)}
+                key={t.turn_id}
+                tabIndex={-1}
+              >
                 <strong>{t.role}: </strong>
                 {t.text}
               </li>
             ))}
           </ol>
         </article>
+      )}
+    </section>
+  );
+}
+
+export function BackupPanel({
+  token,
+  unauthorized,
+}: {
+  token: string;
+  unauthorized: (e: ApiError) => void;
+}) {
+  const [value, setValue] = useState<Progress["sync"] | null>(null);
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  const active = useRef(true);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+  async function loadBackup() {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<Progress>("/progress?limit=1", token);
+      if (active.current) setValue(result.sync);
+    } catch (e) {
+      if (active.current) {
+        if (e instanceof ApiError && e.status === 401) unauthorized(e);
+        setError(
+          "Backup state unavailable. Saved progress has not been changed; retry when connected.",
+        );
+      }
+    } finally {
+      if (active.current) setBusy(false);
+    }
+  }
+  return (
+    <section aria-labelledby="backup">
+      <h2 id="backup">Backup and sync</h2>
+      <button
+        className="secondary"
+        disabled={busy}
+        onClick={() => void loadBackup()}
+      >
+        {value ? "Refresh backup state" : "Load backup state"}
+      </button>
+      {error && <p role="alert">{error}</p>}
+      {value && (
+        <>
+          <p>
+            <CountsView value={value} />
+          </p>
+          <p className="hint">
+            Locally saved records are on this server. Exported records are in
+            the private archive. Pushed records were confirmed at the configured
+            remote.
+          </p>
+          {!value.configured && <p>Remote progress sync is not configured.</p>}
+          {value.error && <p role="status">{value.error}</p>}
+          {value.last_push_at && (
+            <p>
+              Last confirmed push:{" "}
+              <time dateTime={value.last_push_at}>
+                {new Date(value.last_push_at).toLocaleString()}
+              </time>
+            </p>
+          )}
+        </>
       )}
     </section>
   );

@@ -366,7 +366,29 @@ export async function open(
     page.getByRole("button", { name: "Tap to talk", exact: true }),
   ).toBeEnabled();
 }
+export async function navigateTo(page: Page, name: string) {
+  const nav = page.getByRole("navigation", { name: "Main navigation" });
+  await expect(nav).toBeVisible();
+  {
+    const link = nav.getByRole("link", { name, exact: true });
+    if ((await link.getAttribute("aria-current")) !== "page")
+      await link.click();
+  }
+}
 export async function press(page: Page, info: TestInfo, name: string) {
+  if (name.startsWith("Open ")) await navigateTo(page, "Lessons");
+  else if (
+    /^(Load history|Refresh history|Evidence for|View original)/.test(name)
+  )
+    await navigateTo(page, "History");
+  else if (/^(Load backup|Refresh backup|Disconnect)/.test(name))
+    await navigateTo(page, "Settings");
+  else if (
+    /^(Tap to talk|Send answer|Finish session|Pause session|Continue session|Play teacher|Stop playback|Recover saved|Discard pending)/.test(
+      name,
+    )
+  )
+    await navigateTo(page, "Practice");
   const b = page.getByRole("button", { name, exact: true });
   if (info.project.name === "android") await b.tap();
   else await b.click();

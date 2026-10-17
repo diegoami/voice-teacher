@@ -138,20 +138,17 @@ restores its parent list and originating item when available. User-triggered
 navigation may announce the new heading; growing conversation text stays outside
 live announcements. Reduced motion requires no animation or smooth scrolling.
 
-## Scope after owner review
+## Initial implementation after owner review
 
-The wireframe illustrates page responsibilities, not the production app. It does
-not pair, record, import, save or expose real History. Owner agreement with the
-four destinations does not waive the detailed audio/auth recovery requirements.
+The owner selected the four-destination structure in this session. The bounded
+[T37 contract](../tasks/T37.md) now covers its implementation in PR82. The
+[actual navigation reference](../reference/phone-navigation.md) distinguishes the
+implemented four top-level routes and owner-checked active-session link from
+individual History-record routes, which remain proposed. The wireframe itself
+still illustrates synthetic page responsibilities and does not pair or record.
 
-A separately bounded navigation implementation must keep the existing single
-voice owner, preserve account/source selection and explicit completion actions,
-and add browser checks for route validation, focus, Back/Forward, reload and
-pending capture/upload/receipt recovery. Integrate T35/T36 after their review,
-then test the whole flow together. Do not mark the current app as restructured
-because this document or the clickable wireframe exists.
-
-**Still incomplete:** owner review of this proposed structure, implementation
-contract and product code, applicable production navigation checks, and actual
-phone acceptance of readability and comfortable control reach. Emulated checks
-of a synthetic wireframe establish only that the proposal can be inspected.
+The production browser suite passed 120 desktop/Android-emulation checks,
+including route validation, focus, Back/Forward, refresh and pending capture/upload
+recovery. T35/T36 remain separate PRs and dependencies for combined acceptance.
+Actual phone readability/control reach, microphone and unscripted checks remain
+incomplete. Neither the owner's structure choice nor emulation waives them.

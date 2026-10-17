@@ -1,8 +1,9 @@
 import { test, expect, Page } from "@playwright/test";
 import { server } from "./support/server";
-import { media, open, speak, pending } from "./support/voice";
+import { media, open, speak, pending, navigateTo } from "./support/voice";
 
 async function settings(page: Page) {
+  await navigateTo(page, "Settings");
   await page.getByText("Recording privacy", { exact: true }).click();
   await page
     .getByRole("button", { name: "Load recording settings", exact: true })
@@ -20,6 +21,7 @@ async function practice(page: Page, service: { origin: string; code: string }) {
   return (await (await started).json()).session_id as string;
 }
 async function recordingStatus(page: Page) {
+  await navigateTo(page, "History");
   await page
     .getByRole("button", { name: "Load history and progress", exact: true })
     .click();
@@ -123,6 +125,7 @@ test("retention: lost disable response reloads truthful state and keeps evidence
         await route.abort("failed");
       } else await route.continue();
     });
+    await navigateTo(page, "Settings");
     await panel
       .getByRole("button", {
         name: "Delete saved recordings and turn saving off",

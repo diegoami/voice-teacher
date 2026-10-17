@@ -1,3 +1,4 @@
+import { navigateTo } from "./support/voice";
 import { test, expect } from "@playwright/test";
 import { media, fake, open, press } from "./support/voice";
 
@@ -57,7 +58,6 @@ test("resume: real process restart and new connection preserve cue, source, prof
       page.getByRole("button", { name: "Continue session", exact: true }),
     ).toBeEnabled();
     await page.reload();
-    await press(page, info, "Open Tickets");
     await expect(
       page.getByText("Your turn: Ask for one ticket.", { exact: true }),
     ).toBeVisible();
@@ -75,6 +75,7 @@ test("resume: real process restart and new connection preserve cue, source, prof
     await media(next);
     await next.goto(service.origin);
     // A new selection is unrelated to the saved session's source and snapshot.
+    await navigateTo(next, "Lessons");
     await next.getByLabel("Lesson source").selectOption("beta");
     await press(next, info, "Open Tickets");
     await expect(
@@ -180,7 +181,6 @@ for (const stage of ["recognition", "judge", "synthesis"]) {
         .toBe("pause");
       await service.restart();
       await page.reload();
-      await press(page, info, "Open Tickets");
       await expect(
         page.getByRole("button", { name: "Continue session", exact: true }),
       ).toBeEnabled();
@@ -263,7 +263,6 @@ for (const operation of ["pause", "resume"]) {
     const original = { ...f.controls.at(-1) };
     expect((await pending(page))[0].control).toBe(operation);
     await page.reload();
-    await press(page, info, "Open Tickets");
     await expect(
       page.getByText(
         operation === "pause"
@@ -288,7 +287,6 @@ test("resume: saved request receipt prevents replay after another control change
   await expect(page.getByRole("alert")).toBeVisible();
   f.externalAdvance();
   await page.reload();
-  await press(page, info, "Open Tickets");
   await expect(page.getByLabel("Teacher instructions")).toContainText(
     "Externally saved reply",
   );
@@ -304,7 +302,6 @@ test("resume: speech outage still opens saved text and permits pause and continu
   await open(page);
   f.setFailure("tts");
   await page.reload();
-  await press(page, info, "Open Tickets");
   await expect(page.getByLabel("Teacher instructions")).toContainText(
     "Добрий день!",
   );
@@ -371,7 +368,6 @@ for (const finish of [false, true]) {
       { id, finish },
     );
     await page.reload();
-    await press(page, info, "Open Tickets");
     if (finish) {
       await expect(page.getByText("Session finished and saved.")).toBeVisible();
       expect(f.controls[0].request_id).toBe("legacy-finish");

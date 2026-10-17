@@ -1,3 +1,4 @@
+import { navigateTo } from "./support/voice";
 import { test, expect, Page } from "@playwright/test";
 import { media, fake, open, press, speak } from "./support/voice";
 import { server } from "./support/server";
@@ -187,6 +188,9 @@ test("progress: separate course positions, provenance and supported-turn links",
   await history(page);
   await open(page);
   await press(page, info, "Load history and progress");
+  await page
+    .getByText("Course position and lesson choices", { exact: true })
+    .click();
   const panel = page.getByRole("region", { name: "History and progress" });
   await expect(
     panel.getByText("alpha / shared-course", { exact: false }).first(),
@@ -297,15 +301,15 @@ test("progress: failed sync and retry distinguish local, exported and pushed rec
   await fake(page);
   const f = await history(page);
   await open(page);
-  await press(page, info, "Load history and progress");
-  const panel = page.getByRole("region", { name: "History and progress" });
+  await press(page, info, "Load backup state");
+  const panel = page.getByRole("region", { name: "Backup and sync" });
   await expect(
     panel
       .getByText("3 locally saved · 0 exported · 0 pushed", { exact: true })
       .first(),
   ).toBeVisible();
   f.setStage(1);
-  await press(page, info, "Refresh history");
+  await press(page, info, "Refresh backup state");
   await expect(
     panel
       .getByText("0 locally saved · 3 exported · 0 pushed", { exact: true })
@@ -317,7 +321,7 @@ test("progress: failed sync and retry distinguish local, exported and pushed rec
     }),
   ).toBeVisible();
   f.setStage(2);
-  await press(page, info, "Refresh history");
+  await press(page, info, "Refresh backup state");
   await expect(
     panel
       .getByText("0 locally saved · 0 exported · 3 pushed", { exact: true })
@@ -327,7 +331,7 @@ test("progress: failed sync and retry distinguish local, exported and pushed rec
     panel.getByText("Last confirmed push:", { exact: false }),
   ).toBeVisible();
   f.setStage(3);
-  await press(page, info, "Refresh history");
+  await press(page, info, "Refresh backup state");
   await expect(
     panel
       .getByText("1 locally saved · 0 exported · 3 pushed", { exact: true })
@@ -349,7 +353,9 @@ test("progress: unavailable history retries safely and revoked access clears the
   await expect(panel).not.toContainText("RAW_PRIVATE");
   f.recover();
   await press(page, info, "Load history and progress");
-  await expect(panel.getByText("Backup state", { exact: true })).toBeVisible();
+  await expect(
+    panel.getByText("Recent sessions", { exact: true }),
+  ).toBeVisible();
   f.expire();
   await press(page, info, "Refresh history");
   await expect(
@@ -375,15 +381,25 @@ test("progress: actual server history connects accepted evidence to the saved tr
         .getByText("finished", { exact: true }),
     ).toBeVisible();
     await press(page, info, "Load history and progress");
+    await page
+      .getByText("Course position and lesson choices", { exact: true })
+      .click();
     const panel = page.getByRole("region", { name: "History and progress" });
     await expect(
       panel.getByText("1 of 1 items covered", { exact: true }),
     ).toBeVisible();
+    await navigateTo(page, "Settings");
+    await page
+      .getByRole("button", { name: "Load backup state", exact: true })
+      .click();
     await expect(
-      panel.getByText("Remote progress sync is not configured.", {
-        exact: true,
-      }),
+      page
+        .getByRole("region", { name: "Backup and sync" })
+        .getByText("Remote progress sync is not configured.", {
+          exact: true,
+        }),
     ).toBeVisible();
+    await navigateTo(page, "History");
     await panel.getByRole("button", { name: /Evidence for Tickets/ }).click();
     const evidence = page.getByRole("article", { name: "Session evidence" });
     await expect(

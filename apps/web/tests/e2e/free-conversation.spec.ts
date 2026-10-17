@@ -1,3 +1,4 @@
+import { navigateTo } from "./support/voice";
 import { test, expect } from "@playwright/test";
 import { server } from "./support/server";
 import { media, press, speak, open } from "./support/voice";
@@ -47,9 +48,6 @@ test("free-conversation: source-free topic and preference survive browser and se
     ).toBeEnabled();
     await service.restart();
     await page.reload();
-    await page
-      .getByRole("button", { name: "Open Train travel", exact: true })
-      .click();
     await expect(
       page.getByRole("region", { name: "Session ready" }),
     ).toContainText("Train travel");

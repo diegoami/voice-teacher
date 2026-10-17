@@ -14,6 +14,9 @@ Read [CLAUDE.md](CLAUDE.md), [docs/production-plan.md](docs/production-plan.md),
   ad hoc for the PR, validate its live ID, and record model, provider, variant
   and family. The reviewer must be of a different family from the implementer.
   No fixed roster, quota-based selection or silent substitution.
+- Optional supplementary `agy` reviews follow [the agy runbook](docs/reference/agy-review.md).
+  They require explicit model selection and an OS read-only boundary. They do
+  not replace the current OpenCode review/merge gate or establish model identity.
 - Task scope and acceptance criteria are contracts. Report a criterion that
   cannot be met; do not weaken it or silently mark it satisfied.
 - Preserve curriculum, personal history and provenance. Personal session

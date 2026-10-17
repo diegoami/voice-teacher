@@ -118,10 +118,24 @@ budget exhaustion is a documented explanation consistent with the initial
 failures; their original reports lack usage counts, so the exact spent reasoning
 count cannot be reconstructed.
 
-**Human acceptance remains incomplete.** Three generated speech files are
-available privately for listening, but no intelligibility/stress judgement has
-been received. Generated words do not have authored, dictionary-checked stress
-guarantees. Unscripted human conversation, real microphone and physical Android
-checks remain incomplete. The live integration blocker is resolved; DW3's
-remaining manual acceptance has not been marked passed, and T22 stays unmerged
-until required acceptance and independent approval are satisfied.
+**Human listening result (2026-10-17):** the owner listened to the three
+privately supplied MP3 samples and reported that they sound right. No
+intelligibility or stress problem was reported for these samples. This is a
+subjective sample check; generated words still have no authored,
+dictionary-checked stress guarantee. Future Windows preview files belong in
+`C:\Users\diego\voice-teacher-preview`; raw audio remains outside Git.
+
+**Deployed-app acceptance remains incomplete.** The owner directed that the
+full microphone-to-server check take place from the deployed phone app.
+Unscripted human conversation, real microphone and physical Android checks
+have not been performed for this product change. They remain pending under
+T19 after T28's stable HTTPS setup and T30's three-mode release gate. POC
+experience is background evidence, not a passed product acceptance check.
+
+The [T22 clarification](../tasks/T22.md#owner-acceptance-clarification-2026-10-17)
+explicitly uses the bounded supervised live integration, documented dialogue
+limits and owner listening result for this task's DW3. It does not claim the
+remaining phone or milestone checks passed. No additional provider calls were
+made after the original six attempts: the proposed three human-directed turns
+were stopped before a call. Independent approval and successful required checks
+remain necessary before merge.

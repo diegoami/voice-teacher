@@ -104,8 +104,10 @@ fare appeared in the role-play. The third response includes the engine's English
 turn-limit message. These observations are a small synthetic sample, not human
 conversation acceptance or a general quality claim.
 
-The initial resumed metadata collector observed compressed wire bytes and could
-record HTTP200 only; it did not retain per-response model/finish/token fields.
+The initial resumed metadata collector ran below HTTPX response decoding and
+recorded HTTP200 only; per-response model/finish/token fields and compression
+headers were not retained. A gzip fixture reproduces this diagnostic failure;
+compression is the likely explanation, not a retained wire-level attestation.
 The exact requested model is established by the request configuration and public
 catalogue, not a retained per-response attestation. Accepted replies nevertheless
 passed the actual production adapter's strict JSON, finish-reason and claim

@@ -352,7 +352,12 @@ export async function open(
     .selectOption(service ? "lesson-1" : "ticket");
   await page
     .getByRole("radio", {
-      name: mode === "repetition" ? "Repetition" : "Guided conversation",
+      name:
+        mode === "repetition"
+          ? "Repetition"
+          : mode === "free_conversation"
+            ? "Free conversation"
+            : "Guided conversation",
       exact: false,
     })
     .check();

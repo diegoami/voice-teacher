@@ -7,7 +7,7 @@ title and up to six communicative goals; its hidden target renderings and privat
 legacy context are excluded. Free conversation also works without a repository.
 It records accepted learner turns and teacher replies, with no automatic item,
 lesson-completion or mastery evidence. T21 owns supported observations/feedback;
-T22 owns the complete topic/preference UI and live quality gate.
+The [three-mode client and evaluations](three-mode-evals.md) add topic/preference controls; the T22 live quality gate remains incomplete.
 
 The confirmed default correction preference is `light_immediate`. The alternative
 is `end_of_session`, selectable when creating a conversation. The provider is told
@@ -123,3 +123,26 @@ observations and deliberate personal review. New configured conversations use
 coordinator capsule 6; older capsule 5 histories retain their original behavior.
 The dialogue generator still receives no hidden target renderings. Structural
 observation checks do not substitute for T22's linguistic-quality evaluation.
+
+
+### Explicit reasoning effort
+
+`--free-reasoning-effort minimal` (or `VOICE_TEACHER_FREE_REASONING_EFFORT`)
+sets the OpenRouter thinking effort for both dialogue and feedback.
+`--dialogue-reply-tokens 512` (or `VOICE_TEACHER_DIALOGUE_REPLY_TOKENS`)
+selects the dialogue completion budget in the existing supported range 64–512;
+the default remains 256. The successful bounded probe used 512 with minimal effort,
+so the production server can now reproduce that exact configuration. Supported
+choices are `minimal`, `low`, `medium`, `high`; omission retains the original
+provider defaults. Select an effort supported by both explicitly configured
+models. Unsupported requests fail without model or configuration fallback.
+See [OpenRouter reasoning accounting](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens):
+reasoning and visible output can share the completion budget, so a small output
+limit alone does not reserve room for the answer.
+
+Explicit effort uses rendering policy 2 and is pinned alongside model and token
+budget. Existing policy 1 snapshots retain their original shape and remain
+readable. A different effort cannot silently process another turn in an existing
+conversation; restore that conversation's original provider configuration or
+start a new conversation. Pause/finish retain the existing recovery behaviour.
+This setting is server configuration, never a curriculum or browser instruction.

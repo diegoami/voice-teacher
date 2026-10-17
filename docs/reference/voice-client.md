@@ -135,3 +135,7 @@ output directory, since the runner clears that output directory. Keep synthetic
 backend state outside Git checkouts. If a host temporary directory inherits an
 unrelated Git marker, choose a separate approved temporary root rather than
 weakening the Store's code/content separation guard.
+
+Free conversation also uses these recording, playback and durable controls. The
+[three-mode client and evaluations](three-mode-evals.md) describe topic selection,
+pinned correction preferences and the explicitly incomplete live/human gate.

@@ -326,3 +326,19 @@ def test_source_refresh_and_new_operator_policy_do_not_replace_pinned_context(tm
     assert dialogue.calls[-1]["curriculum"]["topic"] == "ORIGINAL_TOPIC"
     assert c._engine(store.session(LEARNER, "session"), dialogue).policy.max_turns == 12
     assert store.session(LEARNER, "session")["source"] == plan.source
+
+
+def test_explicit_reasoning_policy_roundtrips_restart_and_refuses_changed_effort(tmp_path):
+    selected = Dialogue()
+    selected.identity = {**selected.identity, "policy_version": 2, "reasoning_effort": "minimal"}
+    store, c, _, _, _ = setup(tmp_path, dialogue=selected)
+    turn(c, store)
+    resumed = Coordinator(Store(store.path.parent), no_judge, dialogue=selected)
+    turn(resumed, store, "Ми поїдемо завтра.")
+    changed = Dialogue()
+    changed.identity = {**selected.identity, "reasoning_effort": "low"}
+    other = Coordinator(Store(store.path.parent), no_judge, dialogue=changed)
+    before = store.events(LEARNER, "session")
+    with pytest.raises(StorageError, match="pinned dialogue provider"):
+        turn(other, store, "Змінена конфігурація.")
+    assert store.events(LEARNER, "session") == before and changed.calls == []

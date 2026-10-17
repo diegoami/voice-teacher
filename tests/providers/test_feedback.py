@@ -62,3 +62,16 @@ def test_provider_failures_are_sanitized_and_never_accepted_as_feedback(bad):
     p=OpenRouterFeedback("synthetic-key","explicit-model",client=httpx.Client(transport=httpx.MockTransport(transport)))
     with pytest.raises(RuntimeError) as error:p(CONTEXT)
     assert "synthetic-key" not in str(error.value) and "private body" not in str(error.value)
+
+
+def test_explicit_feedback_reasoning_is_sent_and_pinned_without_changing_legacy_defaults():
+    seen = []
+    def transport(request):
+        seen.append(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {"content": '{"observations":[]}'}}]})
+    client = httpx.Client(transport=httpx.MockTransport(transport))
+    old = OpenRouterFeedback("key", "model", client=client)
+    new = OpenRouterFeedback("key", "model", reasoning_effort="minimal", client=client)
+    assert old(CONTEXT).observations == new(CONTEXT).observations == []
+    assert "reasoning" not in seen[0] and seen[1]["reasoning"] == {"effort": "minimal"}
+    assert old.identity["policy_version"] == 1 and new.identity["policy_version"] == 2

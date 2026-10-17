@@ -7,7 +7,7 @@ import uvicorn
 from .api import create_app
 from .practice.coordinator import Coordinator
 from .providers.judge import OpenRouterJudge
-from .providers.dialogue import OpenRouterDialogue
+from .providers.dialogue import OpenRouterDialogue, REASONING_EFFORTS
 from .providers.feedback import OpenRouterFeedback
 from .providers.pipeline import VoicePipeline
 from .providers.speech import ElevenLabs
@@ -15,12 +15,14 @@ from .storage import Store
 
 
 def build_app(data_dir, *, operator_token, speech_key, judge_key, judge_model,
-              origin="http://localhost:8000", assets=None, speech_config=None, dialogue_model=None, feedback_model=None, git_source_policy=None):
+              origin="http://localhost:8000", assets=None, speech_config=None, dialogue_model=None, feedback_model=None, git_source_policy=None, free_reasoning_effort=None, dialogue_reply_tokens=256):
     store = Store(data_dir)
     judge = OpenRouterJudge(judge_key, judge_model)
-    dialogue = OpenRouterDialogue(judge_key, dialogue_model) if dialogue_model is not None else None
+    if (free_reasoning_effort is not None or dialogue_reply_tokens != 256) and dialogue_model is None:
+        raise ValueError("reasoning configuration requires explicitly configured free dialogue")
+    dialogue = OpenRouterDialogue(judge_key, dialogue_model, reasoning_effort=free_reasoning_effort, max_reply_tokens=dialogue_reply_tokens) if dialogue_model is not None else None
     if feedback_model is not None and dialogue_model is None: raise ValueError("feedback requires explicitly configured free dialogue")
-    feedback = OpenRouterFeedback(judge_key, feedback_model or dialogue_model) if dialogue_model is not None else None
+    feedback = OpenRouterFeedback(judge_key, feedback_model or dialogue_model, reasoning_effort=free_reasoning_effort) if dialogue_model is not None else None
     coordinator = Coordinator(store, judge, dialogue=dialogue, feedback=feedback)
     speech = ElevenLabs(speech_key, config=speech_config)
     pipeline = VoicePipeline(store, coordinator, speech, speech)
@@ -41,6 +43,8 @@ def main():
     parser.add_argument("--judge-model", default=os.environ.get("TEACHER_MODEL"))
     parser.add_argument("--dialogue-model", default=os.environ.get("VOICE_TEACHER_DIALOGUE_MODEL"))
     parser.add_argument("--feedback-model", default=os.environ.get("VOICE_TEACHER_FEEDBACK_MODEL"))
+    parser.add_argument("--dialogue-reply-tokens", type=int, choices=range(64, 513), metavar="64..512", default=os.environ.get("VOICE_TEACHER_DIALOGUE_REPLY_TOKENS", "256"))
+    parser.add_argument("--free-reasoning-effort", choices=REASONING_EFFORTS, default=os.environ.get("VOICE_TEACHER_FREE_REASONING_EFFORT"))
     parser.add_argument("--git-source-policy", default=os.environ.get("VOICE_TEACHER_GIT_SOURCE_POLICY"))
     parser.add_argument("--origin", default="http://localhost:8000")
     parser.add_argument("--host", default="127.0.0.1")
@@ -51,7 +55,7 @@ def main():
     try:
         app = build_app(args.data_dir, operator_token=os.environ.get("VOICE_TEACHER_OPERATOR_TOKEN"),
             speech_key=os.environ.get("ELEVENLABS_API_KEY"), judge_key=os.environ.get("OPENROUTER_API_KEY"),
-            judge_model=args.judge_model, origin=args.origin, assets=args.assets, dialogue_model=args.dialogue_model, feedback_model=args.feedback_model, git_source_policy=args.git_source_policy)
+            judge_model=args.judge_model, origin=args.origin, assets=args.assets, dialogue_model=args.dialogue_model, feedback_model=args.feedback_model, git_source_policy=args.git_source_policy, free_reasoning_effort=args.free_reasoning_effort, dialogue_reply_tokens=args.dialogue_reply_tokens)
     except (ValueError, OSError): parser.error("invalid private server configuration; check selected credentials, paths and settings")
     uvicorn.run(app, host=args.host, port=args.port, proxy_headers=False, access_log=False)
 

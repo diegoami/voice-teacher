@@ -70,8 +70,8 @@ def release(tag, names):
     if any(f.name in existing for f in files):
         raise ValueError('An asset already exists; preserve it and use a new name')
     for file in files:
-        subprocess.run(['gh','api','--hostname','uploads.github.com','--method','POST',
-                        f'/repos/diegoami/voice-teacher/releases/{data["id"]}/assets?name={quote(file.name,safe="")}',
+        subprocess.run(['gh','api','--method','POST',
+                        f'https://uploads.github.com/repos/diegoami/voice-teacher/releases/{data["id"]}/assets?name={quote(file.name,safe="")}',
                         '-H','Content-Type: application/octet-stream','--input',str(file)],check=True,stdout=subprocess.DEVNULL)
     print(f'Uploaded {len(files)} assets to {data["html_url"]}')
 

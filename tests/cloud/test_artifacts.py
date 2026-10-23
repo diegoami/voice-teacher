@@ -53,6 +53,19 @@ class ArtifactBoundaries(unittest.TestCase):
                 self.assertIn('/releases/tags/candidate',get.call_args.args[0][-1])
                 post.assert_not_called()
 
+    def test_release_uses_exact_upload_url_and_rest_only(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);(root/'artifacts/public').mkdir(parents=True)
+            file=root/'artifacts/public/review one.md';file.write_text('synthetic review')
+            data={'id':42,'assets':[],'html_url':'https://example.invalid/release'}
+            with patch.object(artifacts,'ROOT',root),patch.object(artifacts.subprocess,'check_output',return_value=json.dumps(data)),patch.object(artifacts.subprocess,'run') as post:
+                artifacts.release('candidate',[str(file)])
+            command=post.call_args.args[0]
+            self.assertEqual(command[:4],['gh','api','--method','POST'])
+            self.assertEqual(command[4],'https://uploads.github.com/repos/diegoami/voice-teacher/releases/42/assets?name=review%20one.md')
+            self.assertNotIn('--hostname',command)
+            self.assertEqual(command[-2:],['--input',str(file)])
+
     def test_private_pull_is_immutable_and_checks_hash(self):
         import sys
         previous=os.umask(0o022)

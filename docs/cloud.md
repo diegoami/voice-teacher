@@ -24,12 +24,12 @@ selected environment in a fresh cloud session rather than claiming success
 from a local bootstrap. To select an existing environment for CLI cloud runs,
 use `/remote-env`; that command does not create/edit environments.
 
-The setup creates `.venv`, installs locked Python/web dependencies and Chromium,
+The setup installs rclone when absent, creates `.venv`, installs locked Python/web dependencies and Chromium,
 and writes non-secret `.cache/cloud.env`. Node 24 and Python 3.14 match CI;
 Python 3.12+ can bootstrap uv, which installs the selected Python. Node must
 already be 22.12+ (24 recommended). Git, Python with venv/pip, npm and Node must
 be on PATH. `gh` is needed for GitHub operations, rclone only for private Drive
-transfers. No OpenCode, Gemini/Agy CLI, systemd, bubblewrap, home skills or
+transfers (setup installs a checksum-verified pinned binary without root). No OpenCode, Gemini/Agy CLI, systemd, bubblewrap, home skills or
 sibling checkout is needed.
 
 The committed SessionStart hook repeats the idempotent setup for remote
@@ -61,7 +61,7 @@ work around an allowlist failure.
 
 The list also permits Google OAuth, Drive API and Drive downloads so optional
 private files can be restored. Enable the Google Drive connector in Claude for
-manual fetch/upload, or install rclone and provide these environment secrets:
+manual fetch/upload, or use rclone and provide these environment secrets:
 
 - `VOICE_TEACHER_RCLONE_TOKEN`: complete OAuth token JSON including refresh_token.
 - `RCLONE_DRIVE_CLIENT_ID` and `RCLONE_DRIVE_CLIENT_SECRET`: when the token uses
@@ -111,3 +111,6 @@ The cloud browser is headless Chromium with Android emulation; actual phone
 microphone, permission persistence and human conversation gates stay separate.
 
 Configuration reference: [Anthropic cloud environments](https://code.claude.com/docs/en/cloud-environments).
+
+For local authorization and transferring the working login into Claude, follow
+[the rclone setup guide](rclone.md). Never paste OAuth credentials into chat.

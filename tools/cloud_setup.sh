@@ -13,6 +13,10 @@ for name in ('node', 'npm', 'git'):
 major, minor, *_ = map(int, subprocess.check_output(['node','--version'], text=True).strip().lstrip('v').split('.'))
 if major < 22 or (major == 22 and minor < 12): sys.exit('Node 22.12+ is required; Node 24 is recommended.')
 PY
+if [ "${VOICE_TEACHER_INSTALL_RCLONE:-1}" = 1 ]; then
+  python3 tools/cloud/install_rclone.py
+fi
+export PATH="$PWD/.cache/tools/bin:$PATH"
 # A task-owned bootstrap env avoids changing global/user installations.
 if [ ! -x .cache/tools/venv/bin/uv ]; then
   python3 -m venv .cache/tools/venv
@@ -37,7 +41,8 @@ from pathlib import Path
 import shlex
 root=Path.cwd()
 values={'VOICE_TEACHER_TEST_PYTHON':str(root/'.venv/bin/python')}
-lines=[f'export PATH={shlex.quote(str(root/".venv/bin"))}:"$PATH"']
+paths=str(root/".venv/bin")+":"+str(root/".cache/tools/bin")
+lines=[f'export PATH={shlex.quote(paths)}:"$PATH"']
 lines += [f'export {key}={shlex.quote(value)}' for key,value in values.items()]
 Path('.cache/cloud.env').write_text('\n'.join(lines)+'\n')
 PY

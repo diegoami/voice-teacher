@@ -68,5 +68,6 @@ python3 tools/artifacts.py pull poc2-fixtures-2026-10-23.tar.gz
 
 The artifact helper constructs its own project-scoped remote from environment
 values; it deliberately does not inherit a machine's rclone configuration.
-It verifies the known archive's SHA-256 after download. Cloud access remains
-unverified until this succeeds in an actual Claude session.
+It verifies the known archive's SHA-256 after download. The owner subsequently
+reported this succeeded in an actual Claude session; see the
+[cloud verification record](acceptance/cloud-development.md).

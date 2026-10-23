@@ -122,3 +122,12 @@ Configuration reference: [Anthropic cloud environments](https://code.claude.com/
 
 For local authorization and transferring the working login into Claude, follow
 [the rclone setup guide](rclone.md). Never paste OAuth credentials into chat.
+
+## Recorded cloud verification
+
+The owner relayed a successful actual Claude cloud run on 2026-10-23: all ten
+development checks passed, including Drive download/hash, build, nine tooling
+tests, five web unit tests and sixteen catalogue browser checks. See the
+[acceptance record](acceptance/cloud-development.md) for provenance, exact scope
+and remaining checks. The report did not include a tested SHA/session URL or an
+automatic cloud hook trace; those are not inferred.

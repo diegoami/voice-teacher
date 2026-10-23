@@ -1,25 +1,23 @@
-<!-- One task per PR. Complete each acceptance criterion from its task file. -->
-
-Task: Tnn — [contract](../docs/tasks/Tnn.md)
-Closes #issue
+<!-- One task per PR; acceptance criteria remain binding. -->
+Task: Tnn — contract link; Closes #issue
 
 ## Behaviour and scope
 
-What changes for the learner or operator, why, and which files own the change.
+What changes, why, and what is outside this task.
 
 ## Validation
 
-DW1: command/procedure → result
-DW2: command/procedure → result
-Regression evidence: failure without the change → success with the change.
-Manual or unrun checks: reason, verifier and evidence/remaining limitation.
+Each Done-when: command/procedure → result.
+Regression: fails before → passes after.
+Unrun/manual checks: reason, verifier and remaining limit.
 
 ## Roles and review
 
-Implementer: main session or native subagent; model family and identity.
-Reviewer: chosen ad hoc when ready; OpenCode provider/model, variant and family.
-Reviewed head: pending until review; link to the complete review and session ID.
+Implementer: actual session/subagent and known model family.
+PR review: optional; actual reviewer, full head SHA, report link and findings
+answered if performed. No external reviewer required. Integrated release review
+and durable artifacts follow docs/release-review.md.
 
 ## Documentation and limitations
 
-Affected documentation, remaining risks and linked follow-ups.
+Affected docs, private Drive or synthetic release evidence links, follow-ups.

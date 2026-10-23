@@ -12,6 +12,14 @@ grows out of the manual Claude-Code ↔ Claude-voice loop in
 (`pimsleur-review/`), where the analysis that led here lives under
 `docs/product/`.
 
+## Development in local or cloud sessions
+
+Run `bash tools/cloud_setup.sh`, then `source .cache/cloud.env`.
+See [Claude environment settings](docs/cloud.md),
+[private files in Drive](docs/artifacts.md) and [release reviews](docs/release-review.md).
+Development uses committed synthetic fixtures; provider keys and personal data
+are optional, explicitly configured for live/private operations.
+
 ## Related repositories
 
 | Repository | Holds |
@@ -27,7 +35,7 @@ grows out of the manual Claude-Code ↔ Claude-voice loop in
 - [docs/architecture.md](docs/architecture.md) — target architecture: rules into code, components, data model, session engine, cost per session, roadmap, marketability.
 - [docs/production-plan.md](docs/production-plan.md) — proposed product build: selectable lesson repositories, three practice modes, durable sessions, private progress and local-to-hosted operation.
 - [docs/tasks/README.md](docs/tasks/README.md) — dependency-ordered product backlog, with one contract and GitHub issue per task.
-- [docs/process.md](docs/process.md) — main-session/same-family implementation, GitHub PRs and independent OpenCode CLI review.
+- [docs/process.md](docs/process.md) — one-checkout cloud workflow, task PRs and release reviews.
 - [docs/reference/data-formats.md](docs/reference/data-formats.md) — version 1 curriculum, private session and progress contracts, with offline validation.
 - [docs/reference/practice-engine.md](docs/reference/practice-engine.md) — install and test the extracted offline practice engine and its provider interfaces.
 - [docs/reference/sqlite-storage.md](docs/reference/sqlite-storage.md) — private transactional sessions, events, projections, export jobs and migrations.

@@ -21,3 +21,10 @@ pocs/**/fixtures/transcripts/
 apps/web/dist/
 apps/web/test-results/
 apps/web/playwright-report/
+
+# Cloud tooling, generated evidence and private downloads
+.cache/
+artifacts/
+.env.*
+!.env.example
+*.bundle

@@ -7,9 +7,9 @@
 - **Merge after:** task IDs, or none
 - **Implementer:** main session by default; a native same-family subagent may
   implement. Record the actual identity/family on the PR.
-- **Reviewer:** independent OpenCode model chosen ad hoc for this PR, invoked
-  through the CLI; record its provider/model, variant and family. Different
-  family from the implementer; see [process](../process.md).
+- **Review:** per-PR review is optional under the owner's 2026-10-23
+  [cloud process](../process.md). Integrated reviews and durable reports belong
+  to the release/milestone; no external reviewer or family rule is required.
 - **Evidence:** relevant production-plan section, current code or measured result.
 - **Owns:** bounded paths and contract seams; shared edits require coordination.
 
@@ -24,8 +24,8 @@ decisions that must be settled before dispatch.
 2. Regression/integration/manual acceptance evidence and expected result.
 3. Relevant existing invariants and project checks still pass.
 
-The implementer publishes a GitHub PR with the acceptance results; independent
-review and merge checks are lifecycle requirements from the process.
+The implementer publishes a GitHub PR with acceptance results. Per-PR review
+is optional; integrated release review and merge checks follow the process.
 
 ## Verification
 

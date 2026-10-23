@@ -1,10 +1,11 @@
 # Product task backlog
 
 This backlog turns the [production plan](../production-plan.md) into separate
-GitHub PRs. The main session implements by default or delegates a bounded task
-to a native same-family subagent. Each PR is reviewed by an independently
-chosen different-family OpenCode model through the CLI. See the
-[process](../process.md) and [task template](TEMPLATE.md).
+GitHub PRs. The main session implements in the current checkout on a branch;
+no worktrees or required external reviewer. Per-PR review is optional; integrated
+release reviews and their artifacts follow the [process](../process.md).
+The owner's 2026-10-23 workflow update supersedes old mandatory OpenCode/family
+and worktree wording in historical contracts; product acceptance is unchanged.
 
 Dependencies below are merge requirements, not live statuses. GitHub issues
 carry status labels and actual model/PR assignments. Creating these tasks does
@@ -17,8 +18,8 @@ participation and private-data operations need a verified destination.
 ## Release boundaries
 
 - **Review workflow:** T01–T02 verify the installed OpenCode integration and
-  independently reviewed publication pipeline. Use the supervised bootstrap
-  procedure in the process until these land.
+  independently reviewed publication pipeline as historical infrastructure.
+  Neither is a required cloud dependency under the current process.
 - **Durable external-source session:** T03–T12 establish contracts, the durable
   engine/API, external lessons and separate private progress. This is the first
   server-side end-to-end slice.
@@ -33,7 +34,7 @@ participation and private-data operations need a verified destination.
 Numbers identify tasks; dependency edges define valid order. In particular T28
 must land before the real-phone T19 gate, and T11/T12 can proceed alongside
 client work once their contracts exist. Keep shared file ownership coordinated;
-use parallel native implementers only for independent contracts and worktrees.
+use native delegation only with bounded, disjoint file ownership in this checkout.
 
 ## Task contracts
 
@@ -85,12 +86,12 @@ Confirmed by the owner during implementation:
 - Use OpenRouter `google/gemini-3.8-flash`, the POC default, for T22's bounded
   live free-conversation check, up to six turns. The
   [recorded model choice](https://github.com/diegoami/voice-teacher/issues/22#issuecomment-6226131578)
-  is for the live dialogue check; MiniMax remains the PR reviewer. Do not
-  silently replace either model if unavailable.
+  is for the completed live dialogue check; MiniMax was its PR reviewer.
+  This does not select a reviewer for future tasks or authorize new paid calls.
 - Reuse the POC ElevenLabs configuration and existing private credential source.
-  On the original host the source is `~/.elevenlabs_env` (singular). Never copy
-  keys into fixtures, reports or this repository. Locate the existing private
-  OpenRouter configuration without printing its contents.
+  On the original host the source was `~/.elevenlabs_env` (singular). Cloud
+  sessions use [environment secrets](../cloud.md), never a required home file.
+  Never copy keys into fixtures, reports, Drive archives or this repository.
 
 The owner selected a dedicated private `voice-teacher-progress` repository on
 2026-10-17. Verify its owner, visibility and app-owned namespace before use;
@@ -106,11 +107,12 @@ expand the release into a multi-user service.
 ## Resuming product work
 
 The owner authorized all remaining tasks sequentially, retaining main-session
-implementation and MiniMax review through OpenCode. Use GitHub issue labels and
+implementation. The 2026-10-23 cloud workflow removes the former required
+MiniMax/OpenCode review gate. Use GitHub issue labels and
 merged PRs for live status; do not repeat merged tasks. Work in dependency order,
-one branch/PR at a time, and merge only after current-head approval and successful
-checks. Missing owner decisions or human acceptance stay incomplete; continue
-other eligible contracts where possible. Creating a follow-up issue does not
+one task/PR at a time, and merge only with owner authorization, completed
+acceptance and successful required checks. Missing owner decisions or human
+acceptance stay incomplete; continue other eligible contracts where possible. Creating a follow-up issue does not
 start its implementation or change the selected reviewer.
 
 T22/PR67 records the bounded selected-model integration and owner listening.
@@ -125,8 +127,8 @@ coverage, while preserving weak-item review and actual evidence.
 
 The owner-inserted agy/Sonnet task T34/PR74 is merged. Its
 [static second-opinion path](../reference/agy-review.md) remains ineligible for
-merge approval. The existing MiniMax/OpenCode gate is unchanged. The requested
-cross-project issue35 comment is recorded in PR74; it does not establish a
+merge approval. The former MiniMax/OpenCode gate is superseded by the cloud
+process. The requested cross-project issue35 comment is recorded in PR74; it does not establish a
 command-enabled agy harness. Follow-up issues73 and75 remain separately scoped
 backlog work.
 
@@ -137,11 +139,15 @@ proceed after T26 while a missing endpoint choice or human check is pending.
 Emulation does not satisfy the real-device gate. Never mark missing phone,
 microphone or unscripted checks complete.
 
-For each task, read the contract, recheck dependencies, create an isolated
-worktree and run the available baseline. Revalidate the live reviewer ID/variant
-and native session identity for every PR. Follow the [process](../process.md)
-and [review report boundary check](../../tools/review/README.md#report-format-check-before-publication)
-for the known parser gap. Preserve original failed reviews and task worktrees;
-do not repair a report or prune worktrees as routine cleanup. Local scratch
+For each task, read the contract, recheck dependencies, use the current checkout
+and task/session branch, then run the available baseline. Follow the [process](../process.md).
+Per-PR external reviews are optional; record their actual scope and identity
+when used. Preserve original failed reviews and existing task worktrees; do not
+repair a report or prune worktrees as routine cleanup. Local scratch
 availability can change between hosts/sessions; merged PRs and published reports
 provide the durable acceptance evidence.
+
+## Cloud workflow migration
+
+[T38](T38.md) adapts setup, artifacts, review and branch workflow for cloud
+sessions. It does not complete any pending product/phone acceptance gate.

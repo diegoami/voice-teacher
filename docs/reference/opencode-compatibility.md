@@ -1,5 +1,10 @@
 # OpenCode compatibility and T01 evidence
 
+> Historical, optional local tooling. Since the owner's 2026-10-23 cloud-workflow
+> change, this is not a required review/merge gate. Its own safety boundaries
+> still apply when explicitly invoked. Current process: [docs/process.md](../process.md).
+
+
 Verified 2026-10-16 on this Linux/WSL host by the main Codex session
 (OpenAI family). These observations cover T01, not product voice behavior.
 

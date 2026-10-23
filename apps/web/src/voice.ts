@@ -37,6 +37,7 @@ export class VoiceController {
   view: VoiceView;
   private key: string;
   private disposed = false;
+  private visible = true;
   private generation = 0;
   private recorder: MediaRecorder | null = null;
   private stream: MediaStream | null = null;
@@ -205,6 +206,10 @@ export class VoiceController {
       this.recorder.stop();
     this.recorder = null;
     this.releaseStream();
+  }
+  setVisible(visible: boolean) {
+    this.visible = visible;
+    if (!visible && this.view.phase === "playing") this.stopPlayback();
   }
   stopPlayback() {
     this.generation++;
@@ -590,6 +595,7 @@ export class VoiceController {
     }
   }
   async play() {
+    if (!this.visible) return;
     if (
       this.disposed ||
       this.view.pending ||

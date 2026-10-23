@@ -1,3 +1,4 @@
+import { navigateTo } from "./support/voice";
 import { test, expect } from "@playwright/test";
 import {
   media,
@@ -82,9 +83,6 @@ for (const failure of ["before", "after"]) {
     await expect(page.getByRole("alert")).toContainText("interrupted");
     const original = f.uploads[0];
     await page.reload();
-    await page
-      .getByRole("button", { name: "Open Tickets", exact: true })
-      .click();
     if (failure === "before") {
       await expect(page.getByRole("alert")).toContainText(
         "unfinished recording",
@@ -229,9 +227,6 @@ for (const failure of ["finish-before", "finish-after"]) {
     expect(intent.containsGrant).toBe(false);
     f.reconnect();
     await page.reload();
-    await page
-      .getByRole("button", { name: "Open Tickets", exact: true })
-      .click();
     await expect(page.getByText("Session finished and saved.")).toBeVisible();
     expect(f.uploads).toHaveLength(0);
     expect(f.controls).toHaveLength(failure === "finish-before" ? 2 : 1);

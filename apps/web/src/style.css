@@ -264,3 +264,78 @@ p {
   padding: 0.65rem 0;
   cursor: pointer;
 }
+
+.destination-nav {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0 0 1rem;
+  background: #fffefa;
+  z-index: 100;
+}
+.destination-nav a {
+  flex: 1;
+  min-height: 48px;
+  padding: 0.7rem 0.4rem;
+  text-align: center;
+  border-radius: 10px;
+  color: #205c4b;
+  text-decoration: none;
+}
+.destination-nav a[aria-current="page"] {
+  color: white;
+  background: #205c4b;
+}
+.return-practice a {
+  font-weight: 650;
+}
+dialog {
+  max-width: min(94vw, 620px);
+  border: 2px solid #205c4b;
+  border-radius: 16px;
+  color: inherit;
+}
+dialog::backdrop {
+  background: #20352e88;
+}
+[hidden] {
+  display: none !important;
+}
+@media (max-width: 560px) {
+  main {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
+  .destination-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 0.4rem 0.2rem calc(0.4rem + env(safe-area-inset-bottom));
+    border-top: 1px solid #dedfd2;
+  }
+  .destination-nav a {
+    font-size: 0.9rem;
+  }
+}
+.history-choices summary {
+  min-height: 48px;
+  padding: 0.8rem 0;
+  cursor: pointer;
+  font-weight: 650;
+}
+@media (max-width: 560px) {
+  main {
+    padding-bottom: calc(13rem + env(safe-area-inset-bottom));
+  }
+  .practice-controls {
+    position: fixed;
+    bottom: calc(4.6rem + env(safe-area-inset-bottom));
+    left: 0.7rem;
+    right: 0.7rem;
+    background: #fffefa;
+    padding: 0.7rem;
+    border: 1px solid #9ca99d;
+    border-radius: 12px;
+    z-index: 90;
+  }
+}

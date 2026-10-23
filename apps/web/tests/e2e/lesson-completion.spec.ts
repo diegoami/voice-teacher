@@ -1,3 +1,4 @@
+import { navigateTo } from "./support/voice";
 import { test, expect, Page } from "@playwright/test";
 import { server } from "./support/server";
 
@@ -10,7 +11,11 @@ async function connect(page: Page, service: { origin: string; code: string }) {
     .getByRole("combobox", { name: "Course", exact: true })
     .selectOption("basics");
   await page.getByLabel("Lesson or topic").selectOption("lesson-1");
+  await navigateTo(page, "History");
   await page.getByRole("button", { name: "Load history and progress" }).click();
+  await page
+    .getByText("Course position and lesson choices", { exact: true })
+    .click();
 }
 function alpha(page: Page) {
   return page.getByRole("article").filter({ hasText: "alpha / basics" });
@@ -39,13 +44,18 @@ test("lesson-completion: complete unpractised lesson, choose next, reopen and re
       .getByRole("button", { name: "Continue to next lesson" })
       .click();
     await expect(page.getByLabel("Lesson or topic")).toHaveValue("lesson-2");
+    await navigateTo(page, "History");
     await expect(
       page.getByText("No sessions saved for this learner."),
     ).toBeVisible();
     await service.restart();
     await page.reload();
+    await navigateTo(page, "History");
     await page
       .getByRole("button", { name: "Load history and progress" })
+      .click();
+    await page
+      .getByText("Course position and lesson choices", { exact: true })
       .click();
     await expect(
       alpha(page).getByText("Completed by you", { exact: false }),
@@ -53,6 +63,7 @@ test("lesson-completion: complete unpractised lesson, choose next, reopen and re
     await alpha(page)
       .getByRole("button", { name: "Reopen lesson: Tickets", exact: true })
       .click();
+    await navigateTo(page, "History");
     await expect(
       alpha(page).getByText("Next lesson: Tickets", { exact: true }),
     ).toBeVisible();
@@ -91,6 +102,12 @@ test("lesson-completion: lost response survives refresh and retries the same int
     ).toBeEnabled();
     await page.reload();
     await page
+      .getByRole("button", { name: "Load history and progress" })
+      .click();
+    await page
+      .getByText("Course position and lesson choices", { exact: true })
+      .click();
+    await page
       .getByRole("button", { name: "Retry saved lesson choice" })
       .click();
     await expect(
@@ -101,6 +118,7 @@ test("lesson-completion: lost response survives refresh and retries the same int
     await expect(
       page.getByRole("button", { name: "Retry saved lesson choice" }),
     ).toHaveCount(0);
+    await navigateTo(page, "History");
     await expect(
       page.getByText("No sessions saved for this learner."),
     ).toBeVisible();
@@ -128,9 +146,11 @@ test("lesson-completion: imported position is visible and next selection is expl
       })
       .click();
     await expect(page.getByLabel("Lesson or topic")).toHaveValue("lesson-2");
+    await navigateTo(page, "History");
     await expect(
       alpha(page).getByText("Next lesson: Tickets", { exact: true }),
     ).toBeVisible();
+    await navigateTo(page, "History");
     await expect(
       page.getByText("No sessions saved for this learner."),
     ).toBeVisible();
@@ -181,12 +201,17 @@ test("lesson-completion: a different paired learner cannot see or replay pending
       grant,
     );
     await page.reload();
+    await navigateTo(page, "History");
     await page
       .getByRole("button", { name: "Load history and progress" })
+      .click();
+    await page
+      .getByText("Course position and lesson choices", { exact: true })
       .click();
     await expect(
       page.getByRole("button", { name: "Retry saved lesson choice" }),
     ).toHaveCount(0);
+    await navigateTo(page, "History");
     await expect(
       alpha(page).getByText("Next lesson: Tickets", { exact: true }),
     ).toBeVisible();

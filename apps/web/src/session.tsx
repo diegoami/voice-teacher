@@ -10,12 +10,18 @@ export function SessionScreen({
   grant,
   received,
   unauthorized,
+  visible = true,
+  navigationController,
+  onView,
 }: {
   initial: Presentation;
   context?: SavedSession;
   grant: Grant;
   received: (p: Presentation) => void;
   unauthorized: (e: ApiError) => void;
+  visible?: boolean;
+  navigationController?: { current: VoiceController | null };
+  onView?: (view: VoiceView | null) => void;
 }) {
   const [view, setView] = useState<VoiceView>({
     phase: "loading",
@@ -27,6 +33,14 @@ export function SessionScreen({
   });
   const [hold, setHold] = useState(false);
   const controller = useRef<VoiceController | null>(null);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
+  useEffect(() => {
+    onView?.(view);
+  }, [view, onView]);
+  useEffect(() => {
+    controller.current?.setVisible(visible);
+  }, [visible]);
   const receivedRef = useRef(received),
     unauthorizedRef = useRef(unauthorized);
   receivedRef.current = received;
@@ -41,10 +55,14 @@ export function SessionScreen({
       (e) => unauthorizedRef.current(e),
     );
     controller.current = c;
+    c.setVisible(visibleRef.current);
+    if (navigationController) navigationController.current = c;
     void c.initialize();
     return () => {
       c.dispose();
       controller.current = null;
+      if (navigationController) navigationController.current = null;
+      onView?.(null);
     };
     // This component is keyed by identity and session. Updated presentations
     // belong to its controller; they must not reconstruct it after each turn.
@@ -102,7 +120,7 @@ export function SessionScreen({
             : "This activity is paused at your saved step. Continue when ready."}
         </p>
       )}
-      <div className="actions">
+      <div className="actions practice-controls">
         <button
           disabled={!canTalk}
           aria-pressed={capturing}
@@ -147,17 +165,19 @@ export function SessionScreen({
         </button>
         <button
           className="secondary"
-          disabled={!usable || view.pending || !p.audio_ids.length}
-          onClick={() => void controller.current?.play()}
-        >
-          Play teacher
-        </button>
-        <button
-          className="secondary"
           disabled={view.phase !== "playing"}
           onClick={() => controller.current?.stopPlayback()}
         >
           Stop playback
+        </button>
+      </div>
+      <div className="actions">
+        <button
+          className="secondary"
+          disabled={!usable || view.pending || !p.audio_ids.length}
+          onClick={() => void controller.current?.play()}
+        >
+          Play teacher
         </button>
         <button
           className="secondary"

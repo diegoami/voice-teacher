@@ -1,3 +1,4 @@
+import { navigateTo } from "./support/voice";
 import { test, expect, Page } from "@playwright/test";
 const code = "synthetic-pairing-code-".repeat(3),
   token = "synthetic-client-token-".repeat(3);
@@ -88,6 +89,21 @@ async function fake(page: Page) {
           status = 502;
           result = { error: { message: "RAW_PRIVATE_BACKEND_DETAILS" } };
         }
+      } else if (path.endsWith("/controls")) {
+        const entry = sessions.get(path.split("/").at(-2));
+        const body = request.postDataJSON();
+        result = {
+          ...entry,
+          revision: entry.revision + 1,
+          request_id: body.request_id,
+          status:
+            body.operation === "pause"
+              ? "paused"
+              : body.operation === "finish"
+                ? "finished"
+                : "active",
+        };
+        sessions.set(entry.session_id, result);
       } else if (path.startsWith("/api/v1/sessions/")) {
         result = sessions.get(path.split("/").at(-1));
         if (!result) {
@@ -116,9 +132,12 @@ async function pair(page: Page) {
   await page.goto("/");
   await page.getByLabel("Pairing code").fill(code);
   await page.getByRole("button", { name: "Connect and pair" }).click();
-  await expect(page.getByText("Paired learner:")).toContainText("learner-one");
+  await expect(
+    page.getByRole("navigation", { name: "Main navigation" }),
+  ).toBeVisible();
 }
 async function choose(page: Page, source: string) {
+  await navigateTo(page, "Lessons");
   await page.getByLabel("Lesson source").selectOption(source);
   await page
     .getByRole("combobox", { name: "Course", exact: true })
@@ -143,16 +162,30 @@ test("catalogue: two sources, supported modes and pinned saved session survive s
     lesson_id: "shared-lesson",
     mode: "guided_conversation",
   });
+  await page
+    .getByRole("button", { name: "Pause session", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Continue session", exact: true }),
+  ).toBeEnabled();
   await choose(page, "beta");
   await page.getByRole("radio", { name: "Repetition", exact: false }).check();
   await page.getByRole("button", { name: "Start practice" }).click();
   expect(f.starts[1]).toMatchObject({ source_id: "beta", mode: "repetition" });
   await page.reload();
+  await page
+    .getByRole("button", { name: "Pause session", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Continue session", exact: true }),
+  ).toBeEnabled();
+  await navigateTo(page, "Lessons");
   await expect(page.getByLabel("Lesson source")).toHaveValue("beta");
   await expect(page.getByLabel("Lesson or topic")).toHaveValue("shared-lesson");
   await expect(
     page.getByRole("radio", { name: "Repetition", exact: false }),
   ).toBeChecked();
+  await navigateTo(page, "Lessons");
   await page
     .getByRole("button", { name: "Open At the station", exact: true })
     .click();
@@ -203,6 +236,7 @@ test("catalogue: saved first response recovers after a failed start without anot
   await page.getByRole("button", { name: "Start practice" }).click();
   await expect(page.getByRole("alert")).toBeVisible();
   await page.reload();
+  await navigateTo(page, "Lessons");
   await page
     .getByRole("button", { name: "Open At the station", exact: true })
     .click();
@@ -268,6 +302,7 @@ test("catalogue: server change navigates without forwarding pairing credentials"
     });
   });
   await pair(page);
+  await navigateTo(page, "Settings");
   await page.getByLabel("Server address").fill("https://other.example");
   await page
     .getByRole("button", { name: "Open server address", exact: true })
@@ -300,6 +335,13 @@ test("catalogue: keyboard selection, touch-sized controls and no horizontal over
     page.getByRole("heading", { name: "Session ready" }),
   ).toBeVisible();
   expect(f.starts).toHaveLength(1);
+  await page
+    .getByRole("button", { name: "Pause session", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Continue session", exact: true }),
+  ).toBeEnabled();
+  await navigateTo(page, "Lessons");
   if (info.project.name === "android") {
     await page.getByRole("radio", { name: "Repetition", exact: false }).tap();
     await expect(
@@ -310,6 +352,7 @@ test("catalogue: keyboard selection, touch-sized controls and no horizontal over
       .tap();
     await page.getByRole("button", { name: "Start practice" }).tap();
     await expect.poll(() => f.starts.length).toBe(2);
+    await navigateTo(page, "Lessons");
   }
   expect(
     await page.evaluate(
@@ -372,6 +415,7 @@ test("resume: missing saved start retries the original source, mode and session 
   const missing = page.waitForResponse((r) =>
     r.url().endsWith("/sessions/" + original.session_id),
   );
+  await navigateTo(page, "Lessons");
   await page
     .getByRole("button", { name: "Open At the station", exact: true })
     .click();

@@ -26,8 +26,9 @@ def selected_values(text,remote):
     values={'VOICE_TEACHER_RCLONE_TOKEN':json.dumps(token,separators=(',',':'))}
     for key in ['client_id','client_secret']:
         if settings.get(key):values['RCLONE_DRIVE_'+key.upper()]=settings[key]
-    if not all(key in values for key in ('RCLONE_DRIVE_CLIENT_ID','RCLONE_DRIVE_CLIENT_SECRET')):
-        raise ValueError('Configure your own OAuth client ID and secret before exporting')
+    client_keys=('RCLONE_DRIVE_CLIENT_ID','RCLONE_DRIVE_CLIENT_SECRET')
+    if any(key in values for key in client_keys) and not all(key in values for key in client_keys):
+        raise ValueError('A custom OAuth client needs both client ID and client secret')
     return values
 
 

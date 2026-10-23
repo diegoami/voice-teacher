@@ -2,9 +2,9 @@
 
 Rclone is already installed on the original machine. A local remote named
 `voiceteacherdrive` has been created for folder
-`1vco_myHt1RjR7U0OhdSMMZYiy4upVpfj`, with no Google login completed yet.
-The saved goal2/malpaco logins returned `unauthorized_client` during this setup;
-do not copy either token to Claude until a login has been verified.
+`1vco_myHt1RjR7U0OhdSMMZYiy4upVpfj`, and its Google login was verified by listing the project archives on 2026-10-23.
+The owner chose the standalone/shared-client browser login. Earlier saved
+goal2/malpaco logins failed; the verified voice-teacher login is separate.
 
 ## Authorize locally
 
@@ -43,8 +43,10 @@ python3 tools/cloud/export_rclone_env.py
 This prints only the path of a new mode-0600 temporary .env file; it does not
 print credentials. Open that file locally, paste its entries into Claude's
 `voice-teacher` environment variables, then delete it. It contains
-`VOICE_TEACHER_RCLONE_TOKEN`, `RCLONE_DRIVE_CLIENT_ID` and
-`RCLONE_DRIVE_CLIENT_SECRET`. Do not source it as a shell script, commit it,
+`VOICE_TEACHER_RCLONE_TOKEN` and, for a custom OAuth client,
+`RCLONE_DRIVE_CLIENT_ID` and `RCLONE_DRIVE_CLIENT_SECRET`. With the shared-client
+login, leave those two custom-client variables unset in Claude; unrelated client
+credentials will not match the token. Do not source it as a shell script, commit it,
 upload it to Drive or paste it into chat.
 
 ## Claude cloud
@@ -56,7 +58,7 @@ listed in tools/cloud/allowed-domains.txt), and keep
 `VOICE_TEACHER_INSTALL_RCLONE=1` (the default). The setup adds the checkout-owned
 `.cache/tools/bin` to PATH; source `.cache/cloud.env` when running manually.
 
-Start a fresh Claude session after saving the three environment values. Verify:
+Start a fresh Claude session after saving the exported environment values. Verify:
 
 ```bash
 source .cache/cloud.env

@@ -54,8 +54,9 @@ release review specifies exact candidate SHA and links checks and findings.
 
 The POC2 archive was uploaded on 2026-10-23 (128 generated MP3 samples), with
 a SHA-256 verified by a complete download from Drive. Its JSON manifest sits
-beside it. A separate runtime snapshot was prepared locally using SQLite's
-backup API and passed integrity checks. Upload of that learner/session payload
-requires specific owner approval and has not been completed; it is not listed
-as a downloadable artifact. No runtime restore or cross-database atomicity is
-claimed by this migration.
+beside it. With the owner's specific approval, the separate runtime snapshot
+and manifest were also uploaded on 2026-10-23. Both databases were copied using
+SQLite's backup API and passed integrity checks. A complete Drive download
+matched the archive's SHA-256, and owner-only sharing was verified. Originals
+remain intact. The archive is pinned in artifacts.json; no runtime restore or
+cross-database atomicity is claimed by this migration.

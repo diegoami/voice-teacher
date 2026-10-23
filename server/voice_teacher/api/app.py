@@ -290,6 +290,26 @@ def create_app(store, coordinator, *, operator_token, origin="http://localhost:8
         owned(request, session_id)
         return call(evidence, store, learner(request), session_id, offset=offset, limit=limit)
 
+    def retained_history(owner, archive_id=None):
+        from ..progress.legacy_history import records
+        try:
+            return records(legacy, owner, archive_id)
+        except Exception:
+            raise Problem(503, "history_unavailable", "Legacy history unavailable; retained records have not been changed") from None
+
+    @app.get("/api/v1/legacy-history")
+    def legacy_list(request: Request):
+        return {"configured": legacy is not None, "records": retained_history(learner(request))}
+
+    @app.get("/api/v1/legacy-history/{archive_id}")
+    def legacy_detail(request: Request, archive_id: str):
+        if not re.fullmatch(r"[a-f0-9]{64}", archive_id):
+            raise Problem(404, "not_found", "Legacy record not found")
+        rows = retained_history(learner(request), archive_id)
+        if not rows:
+            raise Problem(404, "not_found", "Legacy record not found")
+        return rows[0]
+
     @app.get("/api/v1/review-items", response_model=list[str])
     def review_items(request: Request): return weak_queue(store, learner(request))
 

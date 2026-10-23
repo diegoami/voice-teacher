@@ -22,6 +22,7 @@ export type VoiceView = {
   pending: boolean;
   controlPending: ControlOperation | null;
   hasUpload: boolean;
+  recordingStartedAt?: number;
 };
 const formats = [
   "audio/webm;codecs=opus",
@@ -342,6 +343,7 @@ export class VoiceController {
       this.recordingTimer = setTimeout(() => this.endRecording(), maxDuration);
       this.update({
         phase: "recording",
+        recordingStartedAt: Date.now(),
         message: "Listening… Tap to send your answer.",
       });
     } catch (e) {
@@ -363,6 +365,10 @@ export class VoiceController {
     }
   }
   endRecording() {
+    if (this.view.phase === "requesting") {
+      this.cancelRecording();
+      return;
+    }
     this.released = true;
     if (this.recorder?.state === "recording") {
       this.captureEnded = performance.now();

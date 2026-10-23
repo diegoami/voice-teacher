@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Grant, Presentation, SavedSession } from "./api";
 import { ApiError } from "./api";
+import { Conversation } from "./conversation";
 import { VoiceController } from "./voice";
 import type { VoiceView } from "./voice";
 
@@ -52,6 +53,34 @@ export function SessionScreen({
   const p = view.presentation;
   const usable = ["ready", "error", "playing"].includes(view.phase);
   const capturing = ["recording", "requesting"].includes(view.phase);
+  const recording = view.phase === "recording";
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!recording || view.recordingStartedAt === undefined) return;
+    const update = () =>
+      setElapsed(Math.floor((Date.now() - view.recordingStartedAt!) / 1000));
+    update();
+    const timer = setInterval(update, 250);
+    return () => clearInterval(timer);
+  }, [recording, view.recordingStartedAt]);
+  const phaseLabels: Record<VoiceView["phase"], string> = {
+    loading: "Loading saved session",
+    ready:
+      p.status === "paused"
+        ? "Session paused"
+        : p.status === "finished"
+          ? "Session finished"
+          : "Ready for your answer",
+    requesting: "Waiting for microphone permission",
+    recording: "Recording — microphone is on",
+    saving: "Microphone off — saving recording",
+    processing: "Microphone off — processing answer",
+    playing: "Teacher speaking — microphone off",
+    error: "Needs attention — microphone off",
+    stopping: "Finishing session — microphone off",
+    pausing: "Pausing session — microphone off",
+    resuming: "Continuing session — microphone off",
+  };
   const canTalk =
     capturing || (usable && !view.pending && p.status === "active");
   function tap() {
@@ -92,6 +121,14 @@ export function SessionScreen({
           </p>
         ))}
       </div>
+      <div className={`voice-state voice-state-${view.phase}`}>
+        <strong aria-label="Microphone state">{phaseLabels[view.phase]}</strong>
+        {recording && (
+          <span aria-label="Recording elapsed time" aria-live="off">
+            {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}
+          </span>
+        )}
+      </div>
       <p role={view.phase === "error" ? "alert" : "status"} aria-live="polite">
         {view.message}
       </p>
@@ -105,7 +142,7 @@ export function SessionScreen({
       <div className="actions">
         <button
           disabled={!canTalk}
-          aria-pressed={capturing}
+          aria-pressed={recording}
           className="talk"
           onClick={() => {
             if (!hold) tap();
@@ -137,13 +174,15 @@ export function SessionScreen({
             if (hold && capturing) controller.current?.cancelRecording();
           }}
         >
-          {hold
-            ? capturing
-              ? "Release to send"
-              : "Hold to talk"
-            : capturing
-              ? "Send answer"
-              : "Tap to talk"}
+          {view.phase === "requesting"
+            ? "Cancel microphone request"
+            : hold
+              ? capturing
+                ? "Release to send"
+                : "Hold to talk"
+              : capturing
+                ? "Send answer"
+                : "Tap to talk"}
         </button>
         <button
           className="secondary"
@@ -219,6 +258,12 @@ export function SessionScreen({
           )}
         </div>
       )}
+      <Conversation
+        presentation={p}
+        token={grant.token}
+        deferred={context?.start.correction_style === "end_of_session"}
+        unauthorized={unauthorized}
+      />
       <p className="hint">
         Your session is saved on the server. An unfinished recording stays on
         this device until its response is confirmed or you discard it. Teacher

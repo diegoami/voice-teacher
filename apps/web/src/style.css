@@ -264,3 +264,43 @@ p {
   padding: 0.65rem 0;
   cursor: pointer;
 }
+
+.voice-state {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem;
+  margin: 1rem 0;
+  border: 2px solid #9ca99d;
+  border-radius: 10px;
+}
+.voice-state-recording {
+  border-color: #99492f;
+  background: #fff0df;
+}
+.conversation {
+  margin: 1.5rem 0 0;
+  padding: 1rem;
+  box-shadow: none;
+}
+.conversation ol {
+  list-style: none;
+  padding: 0;
+}
+.conversation li {
+  border-left: 3px solid #9ca99d;
+  padding: 0.75rem;
+  margin: 0.75rem 0;
+  overflow-wrap: anywhere;
+}
+.conversation li p {
+  white-space: pre-wrap;
+  margin: 0.5rem 0;
+}
+.conversation .learner-turn {
+  background: #eef4ed;
+}
+.written-feedback {
+  border-top: 1px solid #dedfd2;
+  padding-top: 0.5rem;
+}

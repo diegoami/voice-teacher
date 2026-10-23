@@ -1,0 +1,22 @@
+{
+  "localDir": ".cache/private",
+  "drive": {
+    "folderId": "1vco_myHt1RjR7U0OhdSMMZYiy4upVpfj",
+    "folderUrl": "https://drive.google.com/drive/folders/1vco_myHt1RjR7U0OhdSMMZYiy4upVpfj",
+    "rcloneRemote": "voiceteacherdrive:"
+  },
+  "files": {
+    "poc2-fixtures-2026-10-23.tar.gz": {
+      "sha256": "12a13fd6ae22c798733eadcb03c1a58093797dc296a7a92fba96d4ffe991fbab",
+      "optional": true,
+      "description": "POC2 generated MP3 samples, originals preserved",
+      "driveFileId": "1hRbdsePC6qnmS-orLhFtfcUZzZo5t_df"
+    },
+    "runtime-snapshot-2026-10-23.tar.gz": {
+      "sha256": "b803251600ffbd3c4aad4b18924d0d90752fbfd2d3b8183a3e3eb59c368f5fe3",
+      "optional": true,
+      "description": "Owner-approved private runtime preservation snapshot; not a validated T29 restore",
+      "driveFileId": "1QzXjfvIgFHn9-evqbZDpik4bwdgf4iau"
+    }
+  }
+}

@@ -1,5 +1,10 @@
 # Supplemental reviews with agy
 
+> Historical, optional local tooling. Since the owner's 2026-10-23 cloud-workflow
+> change, this is not a required review/merge gate. Its own safety boundaries
+> still apply when explicitly invoked. Current process: [docs/process.md](../process.md).
+
+
 T34 adds an opt-in static second opinion through the authenticated Antigravity
 CLI. The owner requested Sonnet; the trial used `claude-sonnet-5-5-medium` from
 the live `agy models` catalogue. Provider route: Antigravity; requested underlying

@@ -1,5 +1,10 @@
 # OpenCode review tooling
 
+> Historical, optional local tooling. Since the owner's 2026-10-23 cloud-workflow
+> change, this is not a required review/merge gate. Its own safety boundaries
+> still apply when explicitly invoked. Current process: [docs/process.md](../../docs/process.md).
+
+
 T01 establishes the CLI and OS boundary. T02 adds watched execution, structured
 report validation and a separate trusted publisher. Neither tool merges PRs.
 `smoke.mjs` remains the independently supervised bootstrap path.

@@ -69,9 +69,10 @@ manual fetch/upload, or install rclone and provide these environment secrets:
   Drive archives. The artifact helper injects tokens through the child environment,
   without writing a config file or putting them in process arguments.
 
-No provider keys are required for development/tests. For explicitly authorized
-live checks add `openrouter.ai` and `api.elevenlabs.io` to the custom allowlist,
-and supply `OPENROUTER_API_KEY`, `ELEVENLABS_API_KEY`,
+No provider keys are required for development/tests. The allowlist includes
+`openrouter.ai` and `api.elevenlabs.io` for configured live operations; network
+access alone does not start or authorize paid calls. For an explicitly
+authorized live check, supply `OPENROUTER_API_KEY`, `ELEVENLABS_API_KEY`,
 `VOICE_TEACHER_OPERATOR_TOKEN` plus an explicitly selected `TEACHER_MODEL`.
 Optional dialogue/feedback selection uses `VOICE_TEACHER_DIALOGUE_MODEL`,
 `VOICE_TEACHER_FEEDBACK_MODEL`, `VOICE_TEACHER_FREE_REASONING_EFFORT` and

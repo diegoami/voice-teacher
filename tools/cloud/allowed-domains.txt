@@ -17,3 +17,5 @@ www.googleapis.com
 drive.googleapis.com
 drive.google.com
 drive.usercontent.google.com
+openrouter.ai
+api.elevenlabs.io

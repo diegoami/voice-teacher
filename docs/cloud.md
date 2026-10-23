@@ -16,7 +16,14 @@ open the environment selector under the composer → New environment. Use:
 | Network | Custom; include the default common package-manager list |
 | Allowed domains | Contents of `tools/cloud/allowed-domains.txt`, one per line |
 | Environment variables | Contents of `tools/cloud/environment.env.example` |
-| Setup script | `bash tools/cloud_setup.sh` |
+| Setup script | Leave empty (or use `true`); project setup runs from SessionStart after checkout |
+
+Do not put `bash tools/cloud_setup.sh` in the environment's early setup field:
+that field may run where repository files are not yet available. This produced
+exit 127 (`No such file or directory`) in the owner's first environment test.
+The committed SessionStart hook resolves the actual checkout through
+`CLAUDE_PROJECT_DIR` and runs project setup there. Select a branch containing
+these hooks (the T38 branch until merged).
 
 Save it and select it for this repository. The settings are account-side;
 committing these files does not create an environment in Claude. Verify the
@@ -24,7 +31,7 @@ selected environment in a fresh cloud session rather than claiming success
 from a local bootstrap. To select an existing environment for CLI cloud runs,
 use `/remote-env`; that command does not create/edit environments.
 
-The setup installs rclone when absent, creates `.venv`, installs locked Python/web dependencies and Chromium,
+The project setup installs rclone when absent, creates `.venv`, installs locked Python/web dependencies and Chromium,
 and writes non-secret `.cache/cloud.env`. Node 24 and Python 3.14 match CI;
 Python 3.12+ can bootstrap uv, which installs the selected Python. Node must
 already be 22.12+ (24 recommended). Git, Python with venv/pip, npm and Node must
@@ -35,8 +42,9 @@ sibling checkout is needed.
 The committed SessionStart hook repeats the idempotent setup for remote
 startup/resume and adds project paths to `CLAUDE_ENV_FILE`. Locally it exits
 without changing the environment. In project threads or multi-repository
-sessions where repository hooks are not loaded, run setup and source cloud.env
-explicitly. Do not put secrets into a setup script or cached filesystem image.
+sessions where repository hooks are not loaded, ask Claude to run setup and
+source cloud.env explicitly after checkout. Do not move a repository-relative
+command back into the early environment setup field. Do not put secrets into a setup script or cached filesystem image.
 
 ## GitHub access
 

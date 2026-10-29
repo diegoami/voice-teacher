@@ -9,8 +9,8 @@ checklist after every session.
 This repository holds the **product core, architecture and proofs of concept**. It
 grows out of the manual Claude-Code ↔ Claude-voice loop in
 [diegoami/learnukrainian](https://github.com/diegoami/learnukrainian)
-(`pimsleur-review/`), where the analysis that led here lives under
-`docs/product/`.
+(`pimsleur-review/`). The analysis that led here, the Claude voice prompt and
+its iteration log moved to [docs/history/learnukrainian/](docs/history/learnukrainian/).
 
 ## Development in local or cloud sessions
 
@@ -24,7 +24,7 @@ are optional, explicitly configured for live/private operations.
 
 | Repository | Holds |
 | --- | --- |
-| `learnukrainian` | The Ukrainian curriculum (material, plan, openings), the current voice-teacher prompt and its iteration log, the recorded sessions, tracker and shared queue. Seed data and regression transcripts for this engine. |
+| `learnukrainian` | The Ukrainian curriculum (material, plan, openings), its ChatGPT Voice lesson prompt (one mode per lesson) and iteration log, the recorded sessions, tracker and shared queue. Seed data and regression transcripts for this engine. |
 | `ukrainian-vocabulary` | The vocabulary list harvested from media, split out of `learnukrainian` on 2026-09-25. A future source of practice items. |
 | `language-learning-tools` | Vocabulary cards and spaced-repetition reviewer (language-neutral core, per-language profiles). Same code/data split this repo follows. |
 | `language-learning-data` | Private vocabulary and review history. A natural later home for per-learner session records. |

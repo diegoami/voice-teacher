@@ -37,9 +37,11 @@ only on a carried-over conversation summary.
 - Each POC lives in `pocs/NN-name/` with its own `README.md` stating the
   question, the method, and the answer with evidence. Do not start a POC
   without writing its question down.
-- Curriculum content, learner records and the current voice-teacher prompt
+- Curriculum content, learner records and the ChatGPT Voice lesson prompt
   stay in `diegoami/learnukrainian`; read them there, do not copy them here
-  except as test fixtures under a POC directory.
+  except as test fixtures under a POC directory. The product analysis and the
+  retired Claude voice prompt and log that started there are kept in
+  `docs/history/learnukrainian/`.
 - Never commit API keys, learner audio, or personal session transcripts.
   Audio and transcripts used as fixtures are git-ignored; document how to
   obtain them.
